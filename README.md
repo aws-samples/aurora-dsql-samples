@@ -18,7 +18,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 
 Each example includes language and client-specific instructions as well as instructions to invoke example code.
 
-Be sure to:
+**TODO/TBD** Be sure to:
 
 - Edit your repository description on GitHub
 
