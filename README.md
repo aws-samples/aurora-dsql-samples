@@ -1,6 +1,6 @@
 # Aurora DSQL (Distributed SQL) Samples
 
-This repository contains code examples that demonstrate how to use the [AurorDLQ](TBD).
+This repository contains code examples that demonstrate how to use the [Aurora DSQL](TBD).
 
 Many examples are injected into the [AWS Documentation](https://docs.aws.amazon.com).
 
