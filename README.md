@@ -6,7 +6,7 @@ Many examples are injected into the [AWS Documentation](https://docs.aws.amazon.
 
 ## How this repository is organized
 
-Code examples for each language's SDK can be found within the following subdirectories. The examples here demonstrate the most common uses of the SDK for each language.
+The subdirectories contain code examples for connecting and using Aurora DSQL in each programming language and ORM framework. The examples demonstrate the most common uses, such as installing clients, handling authentication, performing CRUD operations, and more. They also cover Aurora DSQL's basic specifics. Please refer to the [documentation](TBD) for a full list of differences and limitations.
 
 |    SDK     |           folder           |
 | :--------: | :------------------------: |
