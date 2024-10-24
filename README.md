@@ -2,7 +2,7 @@
 
 This repository contains code examples that demonstrate how to use the [Aurora DSQL](TBD).
 
-Many examples are injected into the [AWS Documentation](https://docs.aws.amazon.com).
+To get started with Aurora DSQL, create clusters and more information, please refer to AWS Documentation
 
 ## How this repository is organized
 
