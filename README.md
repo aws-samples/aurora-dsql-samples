@@ -8,7 +8,7 @@ Many examples are injected into the [AWS Documentation](https://docs.aws.amazon.
 
 The subdirectories contain code examples for connecting and using Aurora DSQL in each programming language and ORM framework. The examples demonstrate the most common uses, such as installing clients, handling authentication, performing CRUD operations, and more. They also cover Aurora DSQL's basic specifics. Please refer to the [documentation](TBD) for a full list of differences and limitations.
 
-|    SDK     |           folder           |
+|   Language     |   Client / ORM   |      HowTO           |
 | :--------: | :------------------------: |
 |    C++     |        [cpp/](cpp)         |
 |    Java    |       [java/](java)        |
