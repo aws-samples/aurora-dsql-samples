@@ -16,7 +16,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |   Python   |     [python/](python)      |
 |    Ruby    |       [ruby/](ruby)        |
 
-Within each directory, you will find SDK-specific instructions for understanding and invoking example code.
+Each example includes language and client-specific instructions as well as instructions to invoke example code.
 
 Be sure to:
 
