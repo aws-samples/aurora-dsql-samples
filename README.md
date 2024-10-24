@@ -8,13 +8,13 @@ To get started with Aurora DSQL, create clusters and more information, please re
 
 The subdirectories contain code examples for connecting and using Aurora DSQL in each programming language and ORM framework. The examples demonstrate the most common uses, such as installing clients, handling authentication, performing CRUD operations, and more. They also cover Aurora DSQL's basic specifics. Please refer to the [documentation](TBD) for a full list of differences and limitations.
 
-|   Language     |   Client / ORM   |      HowTO           |
-| :--------: | :------------------------: |
-|    C++     |        [cpp/](cpp)         |
-|    Java    |       [java/](java)        |
-| JavaScript | [javascript/](javascriptv) |
-|   Python   |     [python/](python)      |
-|    Ruby    |       [ruby/](ruby)        |
+|  Language  |        Client / ORM        | HowTO |
+| :--------: | :------------------------: | :---: |
+|    C++     |        [cpp/](cpp)         |       |
+|    Java    |       [java/](java)        |       |
+| JavaScript | [javascript/](javascriptv) |       |
+|   Python   |     [python/](python)      |       |
+|    Ruby    |       [ruby/](ruby)        |       |
 
 Each example includes language and client-specific instructions as well as instructions to invoke example code.
 
