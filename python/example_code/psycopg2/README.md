@@ -11,15 +11,7 @@ The code examples in this topic show you how to use Psycopg2 with Amazon Distrib
 * You must have an AWS account, and have your default credentials and AWS Region configured as described in the 
 [AWS Tools and SDKs Shared Configuration and Credentials Reference Guide](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html).
 * [Python 3.8.0 or later](https://www.python.org/) -  You can verify your Python installation with `python3 -V` 
-
-### Create Cluster
-
-You can access the AWS Management Console for Amazon DSQL at https://console.aws.amazon.com/dsql/home (Update this link before launch)
-
-    1. Login to console
-    2. Create Cluster
-        * Accept defaults for example applications
-        * Create Cluster
+* You must have already provisioned a Aurora DSQL cluster following the [user guide](TBD)
 
 ### Setup test running environment 
 
