@@ -302,13 +302,3 @@ Add text to describe that Aurora DSQL requires that in order to handle OC001 err
 
 TODO Example of transaction retries - This section will be added later
 
-## Token Session Management
-
-As Aurora DSQL connection tokens have expiration, we need to define a token expiration handling strategy utilized by sample code (if supported).
-
-IAM credentials must be available each time a token is generated; otherwise, an invalid token will be created. (TBD - let's verify that this is still case with 2.0 version)
-
-The password tokens generated have an expiration time. This is configurable by setting the parameter `--expires-in-secs=<expiration time>`. After the expiration time has passed, connection attempts with this token will be rejected. This expiration applies to new connections, so after a connection is created with a valid token, the connection can remain active, but new connections will fail if the token is expired.
-
-Long-running applications will, therefore, need a strategy to handle token expiration, as new tokens will have to be periodically generated. Possible strategies to handle token expiration include incorporating the token generator into the application so that new tokens are created as new connections are made or creating some additional Lambda process to refresh tokens by updating a password value in AWS Secrets Manager. The ideal strategy will depend on your use case.
-
