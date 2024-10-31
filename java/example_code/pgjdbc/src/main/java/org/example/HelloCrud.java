@@ -10,7 +10,7 @@ import com.amazon.axdb.devtools.ConnectionUtil;
 
 public class HelloCrud {
 
-    private static String CLUSTER_ENDPOINT = "<your_cluster_endpoint>";
+    private static final String CLUSTER_ENDPOINT = "<your_cluster_endpoint>";
     private static final String REGION = "us-east-1";
 
     public static void main(String[] args) {
@@ -73,6 +73,5 @@ public class HelloCrud {
         Statement st = conn.createStatement();
         st.executeUpdate("DELETE FROM owner WHERE name = 'John Doe'");
     }
-
 
 }

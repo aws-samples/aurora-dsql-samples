@@ -13,7 +13,7 @@
       2. Read
       3. Update
       4. Delete
-   2. Transaction with retries example
+   2. Transaction with retry example
    3. Client Connection Pool example
    4. Primary key generation example
 3. Token Session Management
@@ -21,8 +21,8 @@
 ## Prerequisites
 
 >
-> TBD: Please remove before launch. Please refer to special instructions in Contributing.md for maven builds.
-> 
+> TBD: Please remove it before launch. For Maven builds, please refer to the special instructions in Contributing.md.
+>
 
 ### Create Cluster
 
@@ -31,36 +31,34 @@ You can access the AWS Management Console for Amazon DSQL at https://console.aws
     * 1. Login to console
     * 2. Create Cluster
 
-        * Accept defaults for example applications
+        * Accept defaults, for example applications
         * Create Cluster
 
 ### Driver Dependencies
 
-PGJDBC Sample pre-requisites please update with specific pre-requisite installation instructions for your language technology assume customer does not have dependencies installed.
-Java Development Kit (JDK): Ensure you have JDK 17+ installed. You can download it from the AWS Corretto or use OpenJDK.
+Postgresql JDBC Driver pre-requisites:
 
-Verify install
-```bash
-java -version
-```
+1. Java Development Kit (JDK): Ensure you have JDK 17+ installed. You can download it from the AWS Corretto or use OpenJDK.
 
-It should output something similar to `java version "17.x"`.
+   _To verify the java is installed, you can run_
+   ```bash
+   java -version
+   ```
 
-Build Tool (Maven or Gradle)
-Maven: Ensure Maven is installed if that is your preferred option. You can download it from the [official website](https://maven.apache.org/download.cgi).
-Gradle: Ensure Gradle is installed if that is your preferred option. You can download it from the [official website](https://gradle.org/install/).
+   It should output something similar to `java version "17.x"`.
 
-### Install DSQL Connection
+2. Build Tool (Maven or Gradle)
+   - _Maven_: Ensure Maven is installed if that is your preferred option. You can download it from the [official website](https://maven.apache.org/download.cgi).
+   - _Gradle_: Ensure Gradle is installed if that is your preferred option. You can download it from the [official website](https://gradle.org/install/).
+- AWS SDK: Ensure that you setup the latest version of the AWS Java SDK [official website](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/setup.html)
 
-- Detail required instructions for installing the language specific token generation jar
-  - TBD as we currently don’t have the details of where the customer can obtain the jar to add to Maven or Gradle
 
 For example for pgJDBC:
 
 ### Obtaining the pgJDBC Driver for PostgreSQL
 
 #### Direct Download
-The PGJDBC Driver for PostgreSQL can be installed from pre-compiled packages that can be downloaded directly from PostgreSQL JDBC site or Maven Central. To install the driver, obtain the corresponding JAR file and include it in the application's CLASSPATH.
+The PostgreSQL JDBC Driver can be installed from pre-compiled packages that can be downloaded directly from the PostgreSQL JDBC site or Maven Central. To install the driver, obtain the corresponding JAR file and include it in the application's CLASSPATH.
 
 
 Example - Direct Download via wget
@@ -79,7 +77,7 @@ export CLASSPATH=$CLASSPATH:/home/userx/libs/postgresql-42.7.3.jar
 
 #### As a Maven Dependency
 You can use Maven's dependency management to obtain the driver by adding the following configuration in the application's Project Object Model (POM) file:
-Example - Maven
+
 
 ```xml
 <dependencies>
@@ -93,7 +91,7 @@ Example - Maven
 
 #### As a Gradle Dependency
 You can use Gradle's dependency management to obtain the driver by adding the following configuration in the application's build.gradle file:
-Example - Gradle
+
 
 ```
 dependencies {
@@ -124,12 +122,8 @@ public class ConnectionUtil {
         Properties props = new Properties();
 
         String url = "jdbc:postgresql://" + cluster + ":5432/postgres";
-        if (!props.containsKey("user")) {
-            props.setProperty("user", "axdb_superuser");
-        }
-        if (!props.containsKey("password")) {
-            props.setProperty("password", getPassword(cluster, region));
-        }
+        props.setProperty("user", "axdb_superuser");
+        props.setProperty("password", getPassword(cluster, region));
         return DriverManager.getConnection(url, props);
 
     }
@@ -153,7 +147,8 @@ public class ConnectionUtil {
 ## SQL CRUD Examples
 
 > [!Important]
-> To execute example code requires that you have AWS Credentials (eg AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
+>
+> To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
 
 The CRUD examples described below are all contained in `HelloCrud.java`
 
@@ -161,7 +156,7 @@ The CRUD examples described below are all contained in `HelloCrud.java`
 
 ### Update cluster name
 
-Edit the `src/main/java/org/example/HelloCrud.java` (line 13) to add modify code to include your cluster id
+Edit the `src/main/java/org/example/HelloCrud.java` (line 13) to modify the code to include your cluster id.
 
 #### Maven
 
@@ -178,8 +173,9 @@ java -jar target/helloDSQL-1.0-SNAPSHOT-jar-with-dependencies.jar
 
 ### 1. Create Owner Tables
 
-> [!Note] 
-> Note that DSQL does not support SERIAL so id is based on uuid see (suggest best practice guide on this)
+> **Note**
+>
+> Note that Aurora DSQL does not support SERIAL, so id is based on uuid (suggest best practice guide on this TBD: Update link)
 
 ```java
     private static void createTables(Connection conn) throws SQLException {
@@ -302,7 +298,7 @@ public class HelloCrud {
 
 ## [TBD] Transaction with retries example
 
-Add text to describe that Aurora DSQL requires that in order to handle OC001 error issue the code logic needs to support a transaction retries (Recommend example should be example of the simple CRUD examples and extended to show transaction retries)
+Add text to describe that Aurora DSQL requires that in order to handle OC001 error issue, the code logic needs to support transaction retries (Recommend example should be an example of the simple CRUD examples and extended to show transaction retries)
 
 TODO Example of transaction retries - This section will be added later
 
@@ -310,7 +306,7 @@ TODO Example of transaction retries - This section will be added later
 
 As Aurora DSQL connection tokens have expiration, we need to define a token expiration handling strategy utilized by sample code (if supported).
 
-IAM credentials must be available at each time a token is generated, otherwise an invalid token will be created. (TBD - let's verify that this is still case with 2.0 version)
+IAM credentials must be available each time a token is generated; otherwise, an invalid token will be created. (TBD - let's verify that this is still case with 2.0 version)
 
 The password tokens generated have an expiration time. This is configurable by setting the parameter `--expires-in-secs=<expiration time>`. After the expiration time has passed, connection attempts with this token will be rejected. This expiration applies to new connections, so after a connection is created with a valid token, the connection can remain active, but new connections will fail if the token is expired.
 

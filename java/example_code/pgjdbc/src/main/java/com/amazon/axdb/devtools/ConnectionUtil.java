@@ -50,13 +50,9 @@ public class ConnectionUtil {
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
 
-        String token = utilities.generateAuthenticationToken(builder -> {
-            builder.hostname(host)
-                    .action(action)
-                    .region(Region.of(regionName))
-                    .expiresIn(expiresIn);
-        });
-
-        return token;
+        return utilities.generateAuthenticationToken(builder -> builder.hostname(host)
+                .action(action)
+                .region(Region.of(regionName))
+                .expiresIn(expiresIn));
     }
 }
