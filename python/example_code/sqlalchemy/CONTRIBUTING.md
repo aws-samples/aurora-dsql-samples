@@ -1,8 +1,8 @@
-# AWS XANADU psycopg code examples
+# AWS DSQL SQLAlchemy code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the psycopg work with AWS XANADU. 
+The code examples in this topic show you how to use the SQLAlchemy work with AWS DSQL. 
 
 ## Run the examples
 
@@ -20,7 +20,7 @@ source setup.sh
 ### Run the example tests
 
 ```sh
-pytest test/test_example.py`
+pytest test/test_example.py
 ```
 
 ---

@@ -1,5 +1,5 @@
 # Setup the environment
-1. Install AWS Xanadu SDK. Following (user guide)[https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html] for python SDK installation.
+1. Install AWS DSQL SDK. Following (user guide)[https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html] for python SDK installation.
 
 2. On local environment, activate python virtual environment by running:
 ```sh
@@ -13,7 +13,7 @@ pip install sqlalchemy
 pip install "psycopg[binary]>=3"
 ```
 
-# Create a DSQL engine using SqlAlchemy
+# Create a DSQL engine using SQLAlchemy
 ```py
 import boto3
 from sqlalchemy import create_engine
@@ -35,6 +35,8 @@ def create_dsql_engine():
 ```
 
 # Create models
+Owner table has one-to-many relationship with Pet table.
+Vet table has many-to-many relationship with Specialty table.
 ```py
 ## Dependencies for Model class
 import uuid
@@ -58,7 +60,7 @@ class Owner(Base):
     city = Column("city", String(80), nullable=False)
     telephone = Column("telephone", String(20), nullable=True, default=None)
 
-# Define a pet table
+# Define a Pet table
 class Pet(Base):
     __tablename__ = "pet"
     
@@ -71,6 +73,39 @@ class Pet(Base):
                 "owner_id", UUID, nullable=True
     )
     owner = relationship("Owner", foreign_keys=[owner_id], primaryjoin="Owner.id == Pet.owner_id")
+
+# Define an association table for Vet and Speacialty
+class VetSpecialties(Base):
+    __tablename__ = "vetSpecialties"
+    
+    id = Column(
+                "id", UUID, primary_key=True, default=uuid.uuid4
+            )
+    vet_id = Column(
+                "vet_id", UUID, nullable=True
+    )
+    specialty_id = Column(
+                "specialty_id", String(80), nullable=True
+    )
+
+# Define a Specialty table
+class Specialty(Base):
+    __tablename__ = "specialty"
+    id = Column(
+                "name", String(80), primary_key=True
+            )
+    
+# Define a Vet table
+class Vet(Base):
+    __tablename__ = "vet"
+    
+    id = Column(
+                "id", UUID, primary_key=True, default=uuid.uuid4
+            )
+    name = Column("name", String(30), nullable=False)
+    specialties = relationship("Specialty", secondary=VetSpecialties.__table__,
+        primaryjoin="foreign(VetSpecialties.vet_id)==Vet.id",
+        secondaryjoin="foreign(VetSpecialties.specialty_id)==Specialty.id")
 ```
 
 # Create and Drop tables and Insert, Read, Update and Delete data
@@ -93,10 +128,39 @@ def crud():
 
     ## Add a pet owned by Joe
     tom = Pet(name="Tom", birth_date="2006-10-25", owner=joe)
-    
-    session.add_all([joe, mary, dennis, tom])
+
+    # Insert few specialties
+    exotic = Specialty(
+        id="Exotic"
+    )
+
+    dogs = Specialty(
+        id="Dogs"
+    )
+
+    cats = Specialty(
+        id="Cats"
+    )
+
+    ## Insert two vets with specialty, one vet without any specialty
+    jake = Vet(
+        name="Jake",
+        specialties=[exotic]
+    )
+
+    alice = Vet(
+        name="Alice",
+        specialties=[dogs, cats]
+    )
+
+    vince = Vet(
+        name="Vince"
+    )
+
+    session.add_all([joe, mary, dennis, tom, exotic, dogs, cats, jake, alice, vince])
     session.commit()   
     
+    # one-to-many relationship example
     # Read back data for the pet.
     pet_query = select(Pet).where(Pet.name == "Tom")
     tom = session.execute(pet_query).fetchone()[0]
@@ -125,7 +189,52 @@ def crud():
     owner_query = select(Owner).where(Owner.name == "Dennis")
     owners = session.execute(owner_query).fetchall()
     assert len(owners) == 0
+
+    # many to many relationship example
+    # Read back data for the vets.
+    vet_query = select(Vet).where(Vet.name == "Jake")
+    jake = session.execute(vet_query).fetchone()[0]
     
+    vet_query = select(Vet).where(Vet.name == "Alice")
+    alice = session.execute(vet_query).fetchone()[0]
+
+    vet_query = select(Vet).where(Vet.name == "Vince")
+    vince = session.execute(vet_query).fetchone()[0]
+
+    # Get the corresponding specialties for Jake and Alice 
+    specialties_query = select(Specialty).where(Specialty.id == jake.specialties[0].id)
+    exotic = session.execute(specialties_query).fetchone()[0]
+    # Child objects are ordered alphabetically, so cats will come before dogs
+    specialties_query = select(Specialty).where(Specialty.id == alice.specialties[0].id)
+    cats = session.execute(specialties_query).fetchone()[0]
+    specialties_query = select(Specialty).where(Specialty.id == alice.specialties[1].id)
+    dogs = session.execute(specialties_query).fetchone()[0]
+
+    assert jake.name == "Jake"
+    assert exotic.id == "Exotic"
+
+    assert alice.name == "Alice"
+    assert dogs.id == "Dogs"
+    assert cats.id == "Cats"
+
+    assert vince.name == "Vince"
+    assert vince.specialties == []
+
+    # Update the vet by assigning Vince specialty dogs
+    vince.specialties.append(dogs)
+    session.commit()
+    # Check our update
+    specialties_query = select(Specialty).where(Specialty.id == vince.specialties[0].id)
+    dogs = session.execute(specialties_query).fetchone()[0]
+    assert dogs.id == "Dogs"
+
+    # Remove the specialty dogs from Vince, he should have no specialty now
+    vince.specialties.remove(dogs)
+    session.commit()
+    # Check our update
+    vince = session.execute(vet_query).fetchone()[0]
+    assert vince.specialties == []
+
     # Drop all tables
     for table in Base.metadata.tables.values():
         table.drop(engine, checkfirst=True)
