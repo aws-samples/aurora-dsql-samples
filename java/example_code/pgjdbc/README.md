@@ -1,12 +1,8 @@
-# Improving Planning - Aurora DSQL Re:Invent PGJDBC Driver HowTos Launch (DRAFT)
+# pgJDBC with Aurora DSQL
 
 ## Table of Contents
 
 1. Prerequisites
-   1. Create Cluster
-   2. Driver Dependencies
-   3. Install Driver
-
 2. Execute Examples
    1. SQL CRUD Examples
       1. Create
@@ -14,40 +10,21 @@
       3. Update
       4. Delete
    2. Transaction with retry example
-   3. Client Connection Pool example
-   4. Primary key generation example
-3. Token Session Management
 
 ## Prerequisites
 
->
-> TBD: Please remove it before launch. For Maven builds, please refer to the special instructions in Contributing.md.
->
-
-### Create Cluster
-
-You can access the AWS Management Console for Amazon DSQL at https://console.aws.amazon.com/dsql/home (TBD Update this link before launch)
-
-    * 1. Login to console
-    * 2. Create Cluster
-
-        * Accept defaults, for example applications
-        * Create Cluster
-
-### Driver Dependencies
-
-Postgresql JDBC Driver pre-requisites:
-
-1. Java Development Kit (JDK): Ensure you have JDK 17+ installed. You can download it from the AWS Corretto or use OpenJDK.
+1. Provision a Aurora DSQL cluster by following the [user guide](TODO) if not already done.
+   Note down the endpoint, you will need to establish a connection.
+2. Java Development Kit (JDK): Ensure you have JDK 17+ installed. You can download it from the AWS Corretto or use OpenJDK.
 
    _To verify the java is installed, you can run_
    ```bash
    java -version
    ```
 
-   It should output something similar to `java version "17.x"`.
+   It should output something similar to `java version "17.x"`. (you version could be different)
 
-2. Build Tool (Maven or Gradle)
+3. Build Tool (Maven or Gradle)
    - _Maven_: Ensure Maven is installed if that is your preferred option. You can download it from the [official website](https://maven.apache.org/download.cgi).
    - _Gradle_: Ensure Gradle is installed if that is your preferred option. You can download it from the [official website](https://gradle.org/install/).
 - AWS SDK: Ensure that you setup the latest version of the AWS Java SDK [official website](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/setup.html)
@@ -117,30 +94,29 @@ import java.util.Properties;
 
 public class ConnectionUtil {
 
-    public static Connection getConnection(String cluster, String region) throws SQLException {
+    public static Connection getConnection() throws SQLException {
 
         Properties props = new Properties();
+        String endpoint = "abcdefghijklmnopq123456.c0001.us-east-1.prod.sql.axdb.aws.dev";
+        Region region = Region.US_EAST_1;
 
-        String url = "jdbc:postgresql://" + cluster + ":5432/postgres";
+        String url = "jdbc:postgresql://" + endpoint + ":5432/postgres";
         props.setProperty("user", "axdb_superuser");
-        props.setProperty("password", getPassword(cluster, region));
-        return DriverManager.getConnection(url, props);
-
-    }
-
-    private static String getPassword(String host, String region) {
-        AxdbGenerateToken generator = AxdbGenerateToken.builder(host, region)
-                .expiresInSecs(600L) // Set token expiry duration (optional)
+        AxdbFrontendUtilities utilities = AxdbFrontendUtilities.builder()
+                .region(region)
+                .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
-
-        try {
-            return Optional.of(generator.generateSuperuserToken()).get();
-        } catch (URISyntaxException use) {
-            System.out.println("Unable to generate token " + use.getMessage());
-            return "UNKNOWN";
-        }
+        
+        String passwordToken = utilities.generateAuthenticationToken(builder -> {
+            builder.hostname(endpoint)
+                    .action(Action.DB_CONNECT_SUPERUSER)
+                    .region(region)
+                    // Optional, by default the token expires in 15 mins
+                    .expiresIn(Duration.ofHours(1));
+        });
+        props.setProperty("password", passwordToken);
+        return DriverManager.getConnection(url, props);
     }
-
 }
 ```
 
@@ -150,28 +126,7 @@ public class ConnectionUtil {
 >
 > To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
 
-The CRUD examples described below are all contained in `HelloCrud.java`
-
-### Compile and Execute Example
-
-### Update cluster name
-
-Edit the `src/main/java/org/example/HelloCrud.java` (line 13) to modify the code to include your cluster id.
-
-#### Maven
-
-```
-mvn clean compile assembly:single
-java -jar target/helloDSQL-1.0-SNAPSHOT-jar-with-dependencies.jar
-```
-
-#### Gradle
-
-```
-./gradlew run
-```
-
-### 1. Create Owner Tables
+### 1. Create Owner Table
 
 > **Note**
 >
@@ -301,4 +256,3 @@ public class HelloCrud {
 Add text to describe that Aurora DSQL requires that in order to handle OC001 error issue, the code logic needs to support transaction retries (Recommend example should be an example of the simple CRUD examples and extended to show transaction retries)
 
 TODO Example of transaction retries - This section will be added later
-
