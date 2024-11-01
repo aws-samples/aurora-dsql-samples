@@ -1,5 +1,5 @@
-import pg from 'pg';
-import { generateToken } from './token-gen.js';
+import pg from "pg";
+import { generateToken } from "./token-gen.js";
 const { Client } = pg;
 
 async function getClient(clusterEndpoint, region) {
@@ -14,7 +14,10 @@ async function getClient(clusterEndpoint, region) {
             password: token,
             database: "postgres",
             port: 5432,
-            ssl: true,
+            ssl: {
+                require: true,
+                rejectUnauthorized: false
+            }
         });
         await client.connect();
         return Promise.resolve(client);
