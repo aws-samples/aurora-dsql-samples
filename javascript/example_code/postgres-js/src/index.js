@@ -2,38 +2,45 @@ import { v4 as uuidv4 } from 'uuid';
 import { getClient } from './connection-util.js';
 
 const createTables = async (client) => {
-  await client.query(`CREATE TABLE IF NOT EXISTS owner (
+  await client`CREATE TABLE IF NOT EXISTS owner (
     id UUID PRIMARY KEY,
     name VARCHAR(30) NOT NULL,
     city VARCHAR(80) NOT NULL,
     telephone VARCHAR(20)
-  )`);
+  )`;
   return Promise.resolve();
 }
 
 const createOwner = async (client) => {
-  await client.query("INSERT INTO owner(id, name, city, telephone) VALUES($1, $2, $3, $4)", [uuidv4(), "John Doe", "Las Vegas", "555-555-5555"]);
+  const owners = [{
+    id: uuidv4(),
+    name: "John Doe",
+    city: "Las Vegas",
+    telephone: "555-555-555"
+  }];
+  
+  await client`INSERT INTO owner ${ client(owners) }`
   return Promise.resolve();
 }
 
 const readOwner = async (client) => {
-  const result = await client.query("SELECT * FROM owner");
-  console.log(result.rows);
+  const result = await client`SELECT * FROM owner`;
+  console.log(result);
   return Promise.resolve();
 }
 
 const updateOwner = async (client) => {
-  await client.query("UPDATE owner SET telephone = $1 WHERE name = $2", ["888-888-8888", "John Doe"]);
+  await client`UPDATE owner SET telephone = '888-888-8888' WHERE name = 'John Doe'`
   return Promise.resolve();
 }
 
 const deleteOwner = async (client) => {
-  await client.query("DELETE FROM owner WHERE name = $1", ["John Doe"]);
+  await client`DELETE FROM owner WHERE name = 'John Doe'`
   return Promise.resolve();
 }
 
-const clusterEndpoint = "<your_cluster_endpoint>";
-const region = "us-east-2";
+const clusterEndpoint = "iyabtsicv4n64az4jwlngi2sgm.c0001.us-east-1.prod.sql.axdb.aws.dev";
+const region = "us-east-1";
 
 try {
   const client = await getClient(clusterEndpoint, region);

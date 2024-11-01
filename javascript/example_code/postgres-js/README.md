@@ -47,7 +47,7 @@ npm install
 ### 1. Connect to the DSQL
 
 ```javascript
-const hostname = "iyabtsicv4n64az4jwlngi2sgm.c0001.us-east-1.prod.sql.axdb.aws.dev";
+const hostname = "abcdefghijklmnopqrst123456.c0001.us-east-1.prod.sql.axdb.aws.dev";
 // If you use a custom database role, change the action to DbConnect
 const action = "DbConnectSuperuser";
 const region = "us-east-1";

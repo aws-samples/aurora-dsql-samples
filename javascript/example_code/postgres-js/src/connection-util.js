@@ -1,5 +1,5 @@
-import { generateToken } from './token-gen.js';
-import { postgres } from 'postgres'
+import { generateToken } from "./token-gen.js";
+import postgres from "postgres"
 
 async function getClient(clusterEndpoint, region) {
     const action = "DbConnectSuperuser";
@@ -8,16 +8,16 @@ async function getClient(clusterEndpoint, region) {
     try {
         token = await generateToken(clusterEndpoint, action, region, expiresIn);
         const sql = postgres({
-            host: hostname,
+            host: clusterEndpoint,
             user: "axdb_superuser",
             password: token,
             database: "postgres",
             port: 5432,
             ssl: "require",
           });
-        return sql
+        return Promise.resolve(sql)
     } catch (error) {
-        throw error;
+        return Promise.reject(error);
     }
 }
 
