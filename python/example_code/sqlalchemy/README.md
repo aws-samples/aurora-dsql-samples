@@ -39,12 +39,12 @@ Owner table has one-to-many relationship with Pet table.
 Vet table has many-to-many relationship with Specialty table.
 ```py
 ## Dependencies for Model class
-import uuid
 from sqlalchemy import String
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Date
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql import text
 
 class Base(DeclarativeBase):
     pass
@@ -54,7 +54,7 @@ class Owner(Base):
     __tablename__ = "owner"
     
     id = Column(
-                "id", UUID, primary_key=True, default=uuid.uuid4
+                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
     name = Column("name", String(30), nullable=False)
     city = Column("city", String(80), nullable=False)
@@ -65,7 +65,7 @@ class Pet(Base):
     __tablename__ = "pet"
     
     id = Column(
-                "id", UUID, primary_key=True, default=uuid.uuid4
+                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
     name = Column("name", String(30), nullable=False)
     birth_date = Column("birth_date", Date(), nullable=False)
@@ -79,7 +79,7 @@ class VetSpecialties(Base):
     __tablename__ = "vetSpecialties"
     
     id = Column(
-                "id", UUID, primary_key=True, default=uuid.uuid4
+                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
     vet_id = Column(
                 "vet_id", UUID, nullable=True
@@ -100,7 +100,7 @@ class Vet(Base):
     __tablename__ = "vet"
     
     id = Column(
-                "id", UUID, primary_key=True, default=uuid.uuid4
+                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
     name = Column("name", String(30), nullable=False)
     specialties = relationship("Specialty", secondary=VetSpecialties.__table__,
@@ -239,6 +239,16 @@ def crud():
     for table in Base.metadata.tables.values():
         table.drop(engine, checkfirst=True)
 ```
+
+## Automate primary key generation
+Use UUID to auto-generate primary key on the server-side
+```py
+class Owner(Base):
+    __tablename__ = "owner"
+    
+    id = Column(
+                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
+            )
 
 ---
 

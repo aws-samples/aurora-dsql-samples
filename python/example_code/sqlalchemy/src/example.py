@@ -21,12 +21,12 @@ from sqlalchemy.engine import URL
 import boto3
 
 ## Dependencies for Model class
-import uuid
 from sqlalchemy import String
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Date
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql import text
 
 ## Dependencies for object creation (inserts)
 from sqlalchemy.orm import Session
@@ -56,7 +56,7 @@ class Owner(Base):
     __tablename__ = "owner"
     
     id = Column(
-                "id", UUID, primary_key=True, default=uuid.uuid4
+                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
     name = Column("name", String(30), nullable=False)
     city = Column("city", String(80), nullable=False)
@@ -67,7 +67,7 @@ class Pet(Base):
     __tablename__ = "pet"
     
     id = Column(
-                "id", UUID, primary_key=True, default=uuid.uuid4
+                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
     name = Column("name", String(30), nullable=False)
     birth_date = Column("birth_date", Date(), nullable=False)
@@ -81,7 +81,7 @@ class VetSpecialties(Base):
     __tablename__ = "vetSpecialties"
     
     id = Column(
-                "id", UUID, primary_key=True, default=uuid.uuid4
+                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
     vet_id = Column(
                 "vet_id", UUID, nullable=True
@@ -102,7 +102,7 @@ class Vet(Base):
     __tablename__ = "vet"
     
     id = Column(
-                "id", UUID, primary_key=True, default=uuid.uuid4
+                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
     name = Column("name", String(30), nullable=False)
     specialties = relationship("Specialty", secondary=VetSpecialties.__table__,
