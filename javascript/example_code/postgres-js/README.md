@@ -1,11 +1,8 @@
-# Improving Planning - Xanadu Re:Invent PostgresJS Driver HowTos Launch (DRAFT)
+# Postgres-js with Aurora DSQL
 
 ## Table of Contents
 
 1. Prerequisites
-   1. Create Cluster
-   2. Driver Dependencies
-   3. Install Driver
 
 2. Execute Examples
    1. SQL CRUD Examples
@@ -13,10 +10,8 @@
       2. Read
       3. Update
       4. Delete
-   2. Transaction with retries example
-   3. Client Connection Pool example
-   4. Primary key generation example
-3. Token Session Management
+   2. Transaction with retries example (TODO)
+   3. Primary key generation example (TODO)
 
 ## Prerequisites
 
@@ -37,9 +32,10 @@ node --version
 
 It should output something similar to `v18.x"`.
 
-### Install DSQL Connection
+### Install the AWS JavaScript SDK
 
-- All the required dependencies are present in the `package.json` file. To get all the required dependencies, the following command
+- Note that we need AWS SDK for JavaScript to be able to generate token. Please follow the [user guide](TODO)
+  to install the SDK.
 
 
 ```bash
