@@ -10,7 +10,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  client.end()
+  await client.end()
 })
 
 test('SELECT 1', async () => {
