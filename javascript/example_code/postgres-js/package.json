@@ -1,0 +1,21 @@
+{
+  "name": "xanadu_postgres_howto",
+  "version": "1.0.0",
+  "description": "How To",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/axdbfrontend-signer": "file:libs/aws-sdk-axdbfrontend-signer-3.673.0.tgz",
+    "@aws-sdk/client-axdbfrontend": "file:libs/aws-sdk-client-axdbfrontend-3.673.0.tgz",
+    "postgres": "^3.4.5",
+    "uuid": "^11.0.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
