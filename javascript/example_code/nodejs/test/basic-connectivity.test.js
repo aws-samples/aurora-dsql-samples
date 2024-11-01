@@ -1,7 +1,7 @@
 import { getClient } from '../src/connection-util.js';
 
-const clusterEndpoint = "<your_cluster_endpoint>";
-const region = "us-east-2";
+const clusterEndpoint = "h4abtsicxaovobxmhveyghyxqi.c0001.us-east-1.prod.sql.axdb.aws.dev";
+const region = "us-east-1";
 
 let client;
 

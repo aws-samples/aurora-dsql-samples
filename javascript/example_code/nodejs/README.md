@@ -42,7 +42,7 @@ npm install
 ### 1. Connect to the DSQL
 
 ```javascript
-const hostname = "h4abtsicxaovobxmhveyghyxqi.c0001.us-east-1.prod.sql.axdb.aws.dev";
+const hostname = "abcdefghijklmnopq123456.c0001.us-east-1.prod.sql.axdb.aws.dev";
 // If you use a custom database role, change the action to DbConnect
 const action = "DbConnectSuperuser";
 const region = "us-east-1";
@@ -57,12 +57,15 @@ try {
 }
 
 const client = new Client({
-  host: hostname,
-  user: "axdb_superuser",
-  password: token,
-  database: "postgres",
-  port: 5432,
-  ssl: true,
+    host: clusterEndpoint,
+    user: "axdb_superuser",
+    password: token,
+    database: "postgres",
+    port: 5432,
+    ssl: {
+        require: true,
+        rejectUnauthorized: false
+    }
 });
 
 await client.connect();
