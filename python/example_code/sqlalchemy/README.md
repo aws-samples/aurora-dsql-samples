@@ -1,4 +1,6 @@
-# Setup the environment
+# SqlAlchemy with Aurora DSQL
+
+## Setup the environment
 1. Install AWS DSQL SDK. Following (user guide)[https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html] for python SDK installation.
 
 2. On local environment, activate python virtual environment by running:
@@ -13,7 +15,7 @@ pip install sqlalchemy
 pip install "psycopg[binary]>=3"
 ```
 
-# Create a DSQL engine using SQLAlchemy
+## Create a DSQL engine using SQLAlchemy
 ```py
 import boto3
 from sqlalchemy import create_engine
@@ -34,7 +36,7 @@ def create_dsql_engine():
 
 ```
 
-# Create models
+## Create models
 Owner table has one-to-many relationship with Pet table.
 Vet table has many-to-many relationship with Specialty table.
 ```py
@@ -108,7 +110,7 @@ class Vet(Base):
         secondaryjoin="foreign(VetSpecialties.specialty_id)==Specialty.id")
 ```
 
-# Create and Drop tables and Insert, Read, Update and Delete data
+## Create and Drop tables and Insert, Read, Update and Delete data
 ```py
 def crud():
     # Create the engine
