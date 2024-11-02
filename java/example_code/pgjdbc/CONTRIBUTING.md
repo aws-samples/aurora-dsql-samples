@@ -17,6 +17,7 @@ The CRUD examples described below are all contained in `HelloCrud.java`
 #### Maven
 
 ```
+mvn validate
 mvn clean compile assembly:single
 java -jar target/helloDSQL-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
@@ -30,4 +31,3 @@ java -jar target/helloDSQL-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
 
 ```
-
