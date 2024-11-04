@@ -10,10 +10,6 @@ From root of this repository
 
 The CRUD examples described below are all contained in `HelloCrud.java`
 
-### Refresh the credentials
-
-`ada credentials update --role=ConnectRole --account 851725170178 --once`
-
 #### Maven
 
 ```
@@ -25,9 +21,7 @@ java -jar target/helloDSQL-1.0-SNAPSHOT-jar-with-dependencies.jar
 #### Gradle
 
 ```
+gradle wrapper
 
-```
-
-```
-
+./gradlew run
 ```
