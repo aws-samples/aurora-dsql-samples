@@ -9,7 +9,6 @@
       2. Read
       3. Update
       4. Delete
-   2. Transaction with retry example
 
 ## Prerequisites
 
@@ -250,9 +249,3 @@ public class HelloCrud {
     }
 }
 ```
-
-## [TBD] Transaction with retries example
-
-Add text to describe that Aurora DSQL requires that in order to handle OC001 error issue, the code logic needs to support transaction retries (Recommend example should be an example of the simple CRUD examples and extended to show transaction retries)
-
-TODO Example of transaction retries - This section will be added later
