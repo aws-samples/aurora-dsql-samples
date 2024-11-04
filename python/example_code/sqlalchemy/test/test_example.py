@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
-from example import crud
+from example import crud, run_retry
 import pytest
 import os
 
@@ -28,5 +28,6 @@ def test_example():
         # just rely on DefaultCredentialsProvider by attaching a role to that instance.
         os.system('ada credentials update --role=ConnectRole --account 851725170178 --once')
         crud()
+        run_retry()
     except Exception as e:
         pytest.fail("Unexpected exception: " + str(e))

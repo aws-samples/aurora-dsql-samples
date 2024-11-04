@@ -251,6 +251,7 @@ class Owner(Base):
     id = Column(
                 "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
+```
 
 ---
 

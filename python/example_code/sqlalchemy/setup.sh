@@ -1,10 +1,13 @@
 #!/bin/sh
 
 # NOTE:
-# This is only there to help anyone from the internal dev group to configure their
+# This is only there to help any one from internal dev group to configure their
 # environment with a single command. We are not going to write the readme
 # using this script for external users
-deactivate
+if [ ! -z "$VIRTUAL_ENV" ]; then
+    echo "Deactivating existing virtual enviornment"
+    deactivate
+fi
 python3 -m venv box
 source box/bin/activate
 pip install --upgrade pip

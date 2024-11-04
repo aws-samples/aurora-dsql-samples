@@ -31,8 +31,12 @@ from sqlalchemy.sql import text
 ## Dependencies for object creation (inserts)
 from sqlalchemy.orm import Session
 
+## Dependencies for retry statement
+from sqlalchemy.sql import text
+from sqlalchemy.exc import SQLAlchemyError
+
 def create_dsql_engine():
-    hostname = "yeabtpeveodnurcrcvnf6iobba.c0001.us-east-1.prod.sql.axdb.aws.dev"
+    hostname = "emabtsictjofw4unceleounqnm.c0001.us-east-1.prod.sql.axdb.aws.dev"
     region = "us-east-1"
     client = boto3.client("axdbfrontend", region_name=region)
     password_token = client.generate_db_auth_token(hostname, "DbConnectSuperuser", region)
@@ -112,7 +116,6 @@ class Vet(Base):
 def crud():
     # Create the engine
     engine = create_dsql_engine()
-
     # Create the necessary tables. Emit CREATE TABLE DDL
     for table in Base.metadata.tables.values():
         table.create(engine, checkfirst=True)
@@ -238,5 +241,41 @@ def crud():
     for table in Base.metadata.tables.values():
         table.drop(engine, checkfirst=True)
 
+# Execute SQL Statement with retry
+def exeucte_sql_statement_retry(engine, sql_statement, max_retries=None):
+    with engine.connect() as connection:
+        while max_retries == None or max_retries > 0:
+            try:
+                connection.execute(text(sql_statement))
+                connection.commit()
+                break
+            except SQLAlchemyError as e:
+                print(f"Error: {e}")
+                error = str(e.orig)
+                if not("OC001" in error or "OC000" in error):
+                    print("Error occurred is not OC001 or OC000 error. Stop retries.")
+                    break
+                print(f"Error occurred when executing statement {sql_statement}, executing retry")
+                if max_retries != None:
+                    max_retries -= 1
+
+def run_retry():
+    # Create the engine
+    engine = create_dsql_engine()
+
+    table_name = "abc"
+
+    # Create and drop the table, will retry until success is reached
+    exeucte_sql_statement_retry(engine, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);")
+    exeucte_sql_statement_retry(engine, "DROP TABLE IF EXISTS abc;")
+
+    # Run statement that will fail, it will not be retried as the error is not OC001 or OC000
+    exeucte_sql_statement_retry(engine, "DROP TABLE abc;")
+
+    # Create and drop the table, with maximum retries of 3
+    exeucte_sql_statement_retry(engine, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);", 3)
+    exeucte_sql_statement_retry(engine, "DROP TABLE IF EXISTS abc;", 3)
+
 if __name__ == "__main__":
     crud()
+    run_retry()
