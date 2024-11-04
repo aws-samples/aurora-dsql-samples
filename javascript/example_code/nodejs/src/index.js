@@ -43,5 +43,5 @@ try {
 } catch (error) {
   console.error(error);
 } finally {
-  client.end()
+  client?.end()
 }
