@@ -4,14 +4,11 @@
 
 1. Prerequisites
 
-2. Execute Examples
-   1. SQL CRUD Examples
-      1. Create
-      2. Read
-      3. Update
-      4. Delete
-   2. Transaction with retries example (TODO)
-   3. Primary key generation example (TODO)
+2. SQL CRUD Examples
+   1. Create
+   2. Read
+   3. Update
+   4. Delete
 
 ## Prerequisites
 
@@ -32,95 +29,105 @@ node --version
 
 It should output something similar to `v18.x"`.
 
-### Install the AWS JavaScript SDK
+### Install DSQL Connection
 
-- Note that we need AWS SDK for JavaScript to be able to generate token. Please follow the [user guide](TODO)
-  to install the SDK.
-
+- All the required dependencies are present in the `package.json` file. To get all the required dependencies, the following command
 
 ```bash
 npm install
 ```
 
-## SQL CRUD Examples
+### Connect to the Aurora DSQL Cluster
 
-### 1. Connect to the DSQL
+Via Javascript
 
 ```javascript
-const hostname = "abcdefghijklmnopqrst123456.c0001.us-east-1.prod.sql.axdb.aws.dev";
-// If you use a custom database role, change the action to DbConnect
-const action = "DbConnectSuperuser";
-const region = "us-east-1";
-const expiresIn = 3600;
-let token;
-try {
-  token = await generateToken(hostname, action, region, expiresIn);
-  console.log("Token generated succesfully!");
-} catch (error) {
-  console.error("Error generating token: ", error);
-  process.exit(1)
+import { generateToken } from "./token-gen.js";
+import postgres from "postgres"
+
+async function getClient(clusterEndpoint, region) {
+    const action = "DbConnectSuperuser";
+    const expiresIn = 3600;
+    let token;
+    try {
+        token = await generateToken(clusterEndpoint, action, region, expiresIn);
+        const sql = postgres({
+            host: clusterEndpoint,
+            user: "axdb_superuser",
+            password: token,
+            database: "postgres",
+            port: 5432,
+            ssl: "require",
+          });
+        return Promise.resolve(sql)
+    } catch (error) {
+        return Promise.reject(error);
+    }
 }
 
-const sql = postgres({
-  host: hostname,
-  user: "axdb_superuser",
-  password: token,
-  database: "postgres",
-  port: 5432,
-  ssl: "require",
-});
+export { getClient }
 ```
 
-### 2. Create Owner Table
+## SQL CRUD Examples
+
+### 1. Create Owner Table
 
 Note that DSL does not support SERIAL so id is based on uuid see (suggest best practice guide on this)
 
 ```javascript
-await sql`CREATE TABLE IF NOT EXISTS owner (
-      id UUID PRIMARY KEY,
-      name VARCHAR(30) NOT NULL,
-      city VARCHAR(80) NOT NULL,
-      telephone VARCHAR(20)
-    )`;
+const createTables = async (client) => {
+  return client`CREATE TABLE IF NOT EXISTS owner (
+    id UUID PRIMARY KEY,
+    name VARCHAR(30) NOT NULL,
+    city VARCHAR(80) NOT NULL,
+    telephone VARCHAR(20)
+  )`;
+}
 ```
 
-### 3. Insert Into Owner
+### 2. Create Owner
 
-``` javascript 
-const owners = [{
-  id: uuidv4(),
-  name: "John Doe",
-  city: "Las Vegas",
-  telephone: "555-555-555"
-}];
-
-await sql`INSERT INTO owner ${ sql(owners) }`
+```javascript
+const createOwner = async (client) => {
+  const owners = [{
+    id: uuidv4(),
+    name: "John Doe",
+    city: "Las Vegas",
+    telephone: "555-555-555"
+  }];
+  
+  return client`INSERT INTO owner ${ client(owners) }`
+}
 ```
 
-### 4. Read Owner
+### 3. Read Owner
 
-``` javascript
-const result = await sql`SELECT name, city, telephone FROM owner`;
-console.log(result);
+```javascript
+const readOwner = async (client) => {
+  const result = await client`SELECT * FROM owner`;
+  console.log(result);
+  return Promise.resolve();
+}
 ```
 
-### 5. Update Owner
+### 4. Update Owner
 
-``` javascript
-await sql`UPDATE owner SET telephone = '888-888-8888' WHERE name = 'John Doe'`;
-const result = await sql`SELECT name, city, telephone FROM owner`;
-console.log(result);
+```javascript
+const updateOwner = async (client) => {
+  return client`UPDATE owner SET telephone = '888-888-8888' WHERE name = 'John Doe'`
+}
 ```
 
-### 6. Delete Owner
+### 5. Delete Owner
 
-``` javascript
-await sql`DELETE FROM owner WHERE name = 'John Doe'`;
-const result = await sql`SELECT name, city, telephone FROM owner`;
-console.log(result);
+```javascript
+const deleteOwner = async (client) => {
+  return client`DELETE FROM owner WHERE name = 'John Doe'`
+}
 ```
 
-### 7. Terminate Connection
-``` javascript
-await sql.end();
+### 6. Terminate Connection
+
+```javascript
+await client.end();
 ```
