@@ -8,7 +8,6 @@ The code examples in this topic show you how to use the SQLAlchemy work with AWS
 
 ### Prerequisites
 
-* `ada` must be installed
 * python version >=3.8.0 is needed
 
 ### Setup test running environment 

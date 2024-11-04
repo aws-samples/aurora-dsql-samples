@@ -8,7 +8,6 @@ The code examples in this topic show you how to use the Node-Postgres work with 
 
 ### Prerequisites
 
-* `ada` must be installed
 * node version >=18.0 is needed
 
 ### Setup test running environment 
