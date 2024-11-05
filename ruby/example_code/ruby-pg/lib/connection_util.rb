@@ -6,11 +6,7 @@ module ConnectionUtil
         action = "DbConnectSuperUser"
         expires_in = 3600
 
-        access_key_id = ENV['AWS_ACCESS_KEY_ID']
-        secret_access_key = ENV['AWS_SECRET_ACCESS_KEY']
-        session_token = ENV['AWS_SESSION_TOKEN']
-
-        credentials = Aws::Credentials.new(access_key_id, secret_access_key, session_token)
+        credentials = Aws::SharedCredentials.new()
 
         begin
             token_gen = Aws::AxdbFrontend::AuthTokenGenerator.new({

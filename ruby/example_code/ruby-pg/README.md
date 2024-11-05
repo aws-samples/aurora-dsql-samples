@@ -12,6 +12,20 @@
 
 ## Prerequisites
 
+You must have a `default` profile in your `~/.aws/credentials` file with the following variables
+  * `aws_access_key_id=<your_access_key_id>`
+  * `aws_secret_access_key=<your_secret_access_key>`
+  * `aws_session_token=<your_session_token>`
+
+Your `~/.aws/credentials` file should look as depicted below
+
+```bash
+[default]
+aws_access_key_id=<your_access_key_id>
+aws_secret_access_key=<your_secret_access_key>
+aws_session_token=<your_session_token>
+```
+
 ### Create Cluster
 
 * You must have already provisioned a Aurora DSQL cluster following the [user guide](TBD)
@@ -46,15 +60,11 @@ require 'pg'
 require_relative 'token-generator'
 
 module ConnectionUtil
-    def get_client(cluster_endpoint, region)
+    def get_connection(cluster_endpoint, region)
         action = "DbConnectSuperUser"
         expires_in = 3600
 
-        access_key_id = ENV['AWS_ACCESS_KEY_ID']
-        secret_access_key = ENV['AWS_SECRET_ACCESS_KEY']
-        session_token = ENV['AWS_SESSION_TOKEN']
-
-        credentials = Aws::Credentials.new(access_key_id, secret_access_key, session_token)
+        credentials = Aws::SharedCredentials.new()
 
         begin
             token_gen = Aws::AxdbFrontend::AuthTokenGenerator.new({
@@ -80,7 +90,7 @@ module ConnectionUtil
             raise
         end
     end
-    module_function :get_client
+    module_function :get_connection
 end
 ```
 
