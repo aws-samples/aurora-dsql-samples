@@ -1,4 +1,4 @@
-psycopg2>=2.9
+psycopg2-binary>=2.9
 pytest>=8
 
 # TODO: update the whl with package name once they are published to pypi

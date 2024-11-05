@@ -17,7 +17,7 @@ def connect_to_cluster(cluster_endpoint, region):
     password_token = generate_token(cluster_endpoint, region)
     # connection parameters
     dbname = "dbname=postgres"
-    user = "user=axdb_superuser"
+    user = "user=admin"
     host = f'host={cluster_endpoint}'
     sslmode = "sslmode=require"
     password = f'password={password_token}'

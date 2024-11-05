@@ -20,7 +20,7 @@ The code examples in this topic show you how to use Psycopg2 with Amazon Distrib
 2. Install the necessary packages using the following command:
 
 ```sh
-pip3 install "psycopg2>=2.9"
+pip3 install "psycopg2-binary>=2.9"
 ```
 
 ### Connect to a cluster
@@ -37,7 +37,7 @@ def connect_to_cluster(cluster_endpoint, region):
 
     # connection parameters
     dbname = "dbname=postgres"
-    user = "user=axdb_superuser"
+    user = "user=admin"
     host = f'host={cluster_endpoint}'
     sslmode = "sslmode=require"
     password = f'password={password_token}'
