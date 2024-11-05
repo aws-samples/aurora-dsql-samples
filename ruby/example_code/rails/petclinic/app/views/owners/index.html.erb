@@ -1,0 +1,9 @@
+<h1>Owners</h1>
+
+<ul>
+  <% @owners.each do |owner| %>
+    <li>
+      <%= link_to owner.name, owner %>
+    </li>
+  <% end %>
+</ul>
