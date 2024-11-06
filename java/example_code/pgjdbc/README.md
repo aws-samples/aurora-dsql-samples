@@ -3,12 +3,15 @@
 ## Table of Contents
 
 1. Prerequisites
+2. Obtaining the pgJDBC Driver for PostgreSQL
+3. Connect to Cluster
 2. Execute Examples
    1. SQL CRUD Examples
-      1. Create
-      2. Read
-      3. Update
-      4. Delete
+      1. Create Owner Table
+      2. Create Owner
+      3. Read Owner
+      4. Update Owner
+      5. Delete Owner
 
 ## Prerequisites
 
@@ -31,9 +34,9 @@
 
 For example for pgJDBC:
 
-### Obtaining the pgJDBC Driver for PostgreSQL
+## Obtaining the pgJDBC Driver for PostgreSQL
 
-#### Direct Download
+### Direct Download
 The PostgreSQL JDBC Driver can be installed from pre-compiled packages that can be downloaded directly from the PostgreSQL JDBC site or Maven Central. To install the driver, obtain the corresponding JAR file and include it in the application's CLASSPATH.
 
 
@@ -51,7 +54,7 @@ export CLASSPATH=$CLASSPATH:/home/userx/libs/postgresql-42.7.3.jar
 ```
 
 
-#### As a Maven Dependency
+### As a Maven Dependency
 You can use Maven's dependency management to obtain the driver by adding the following configuration in the application's Project Object Model (POM) file:
 
 
@@ -65,7 +68,7 @@ You can use Maven's dependency management to obtain the driver by adding the fol
 </dependencies>
 ```
 
-#### As a Gradle Dependency
+### As a Gradle Dependency
 You can use Gradle's dependency management to obtain the driver by adding the following configuration in the application's build.gradle file:
 
 
@@ -75,7 +78,7 @@ dependencies {
 }
 ```
 
-### Connect to Cluster
+## Connect to Cluster
 
 Via Java
 
@@ -119,13 +122,15 @@ public class ConnectionUtil {
 }
 ```
 
-## SQL CRUD Examples
+## Execute Examples
+
+### SQL CRUD Examples
 
 > [!Important]
 >
 > To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
 
-### 1. Create Owner Table
+#### 1. Create Owner Table
 
 > **Note**
 >
@@ -139,7 +144,7 @@ public class ConnectionUtil {
     }
 ```
 
-### 2. Create Owner
+#### 2. Create Owner
 
 ``` java 
 package org.example;
@@ -171,7 +176,7 @@ public class HelloCrud {
 }
 ```
 
-### 3. Read Owner
+#### 3. Read Owner
 
 ``` java
 package org.example;
@@ -202,7 +207,7 @@ public class HelloCrud {
 }
 ```
 
-### 4. Update Owner
+#### 4. Update Owner
 
 ``` java
 package org.example;
@@ -227,7 +232,7 @@ public class HelloCrud {
 }
 ```
 
-### 5. Delete Owner
+#### 5. Delete Owner
 
 ``` java
 package org.example;

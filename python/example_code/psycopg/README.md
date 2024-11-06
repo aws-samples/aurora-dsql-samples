@@ -1,19 +1,21 @@
-# How to connect to DSQL and execute queries using Psycopg
+# Psycopg with Aurora DSQL
 
-## Overview
+## Table of Contents
 
-The code examples in this topic will show you how to use Psycopg with Amazon Distributed SQL. 
+1. Prerequisites
+2. Setup test running environment
+3. Connect to a cluster
+4. Execute Examples
+   1. SQL CRUD Examples
 
-## Run the examples
-
-### Prerequisites
+## Prerequisites
 
 * You must have an AWS account, and have your default credentials and AWS Region configured as described in the 
 [AWS Tools and SDKs Shared Configuration and Credentials Reference Guide](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html).
 * [Python 3.8.0 or later](https://www.python.org/) - You can verify your Python installation with `python3 -V`
 * AWS Xanadu python SDK is required to run psycopg with Xanadu. Following [Xanadu user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation. [TODO: update the link here with office link when the user guide is released]
 
-### Setup test running environment 
+## Setup test running environment 
 1. On local environment, activate python virtual environment by running:
 ```
 python3 -m venv psycopg_venv
@@ -26,7 +28,7 @@ source psycopg_venv/bin/activate
 pip install "psycopg[binary]>=3"
 ```
 
-### Connect to a cluster
+## Connect to a cluster
 
 ```py
 import psycopg
@@ -52,7 +54,9 @@ def connect_to_cluster(cluster_endpoint, region):
     return conn
 ```
 
-## Create a table, insert, update and delete rows
+## Execute Examples
+
+### SQL CRUD Examples
 
 ```py
 import psycopg
@@ -104,12 +108,6 @@ def crud():
     finally:
         conn.close()
 ```
-
-## [TODO] Transaction with retries example
-
-Add text to describe that Xanadu requires that in order to handle OC001 error issue the code logic needs to support a transaction retries (Recommend example should be example of the simple CRUD examples and extended to show transaction retries)
-
-Example of transaction retries - This section will be added later
 
 ---
 

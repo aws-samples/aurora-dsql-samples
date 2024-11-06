@@ -1,19 +1,21 @@
-# How to connect to Amazon Distributed SQL and execute queries using Psycopg2
+# Psycopg2 with Aurora DSQL
 
-## Overview
+## Table of Contents
 
-The code examples in this topic show you how to use Psycopg2 with Amazon Distributed SQL. 
+1. Prerequisites
+2. Setup test running environment
+3. Connect to a cluster
+4. Execute Examples
+   1. SQL CRUD Examples
 
-## Run the examples
-
-### Prerequisites
+## Prerequisites
 
 * You must have an AWS account, and have your default credentials and AWS Region configured as described in the 
 [AWS Tools and SDKs Shared Configuration and Credentials Reference Guide](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html).
 * [Python 3.8.0 or later](https://www.python.org/) -  You can verify your Python installation with `python3 -V` 
 * You must have already provisioned a Aurora DSQL cluster following the [user guide](TBD)
 
-### Setup test running environment 
+## Setup test running environment 
 
 1. Amazon DSQL python SDK is required to run psycopg2 with DSQL. Following [DSQL user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation.
 
@@ -23,7 +25,7 @@ The code examples in this topic show you how to use Psycopg2 with Amazon Distrib
 pip3 install "psycopg2-binary>=2.9"
 ```
 
-### Connect to a cluster
+## Connect to a cluster
 
 ```py
 import psycopg2>=2.9
@@ -53,7 +55,9 @@ def generate_token(cluster_endpoint, region):
     return client.generate_db_auth_token(cluster_endpoint, "DbConnectSuperuser", region)
 ```
 
-## Create a table, insert, update and delete rows
+## Execute Examples
+
+### SQL CRUD Examples
 
 ```py
 def crud():

@@ -15,8 +15,7 @@ import psycopg
 import boto3
 
 def connect_to_cluster(cluster_endpoint, region):
-    client = boto3.client("axdbfrontend", region_name=region)
-    password_token = client.generate_db_auth_token(cluster_endpoint, "DbConnectSuperuser", region)
+    password_token = generate_token(cluster_endpoint, region)
 
     # connection parameters
     dbname = "dbname=postgres"
@@ -37,47 +36,64 @@ def crud():
     region = 'us-east-1'
     conn = connect_to_cluster(cluster_endpoint, region)
     try:
-        # Create a table
-        conn.pgconn.exec_(b"drop table if exists owner")
-        conn.pgconn.exec_(b"""
-            create table owner(
-                id uuid not null DEFAULT gen_random_uuid(),
-                name varchar(30) not null,
-                city varchar(80) not null, 
-                telephone varchar(20) default null,
-                primary key (id))"""
-            )
-        
-        cur = conn.cursor()
-                
-        # Insert some rows
-        cur.execute("insert into owner(name, city, telephone) values('Andrew', 'vancouver', '6239087654')")
-        cur.execute("insert into owner(name, city) values('Charles', 'richmond')")
-        cur.execute("insert into owner(name, city, telephone) values('Zoya', 'langley', '6230005678')")
-        
-        # Read a row
-        cur.execute("select * from owner where name='Andrew'").fetchone()
-        
-        # Verify that the result we got is what we inserted before
-        assert cur.pgresult.get_value(0, 0) != None
-        assert cur.pgresult.get_value(0, 1) == b"Andrew"
-        assert cur.pgresult.get_value(0, 2) == b"vancouver"
-        assert cur.pgresult.get_value(0, 3) == b"6239087654"
-        
-        # Update a row
-        cur.execute("update owner set telephone='7811230000' where name='Andrew'")
-        cur.execute("select telephone from owner where name='Andrew'")
-        # Select the updated telephone number for the owner 'Andrew'
-        assert cur.pgresult.get_value(0, 0) == b"7811230000"
-        
-        # Delete a row
-        cur.execute("delete from owner where telephone='7811230000'")
-        cur.execute("select * from owner where telephone='7811230000'")
-        assert cur.pgresult.ntuples == 0
-        
+        create_table(conn)
+        insert_data(conn)
+        fetch_data(conn)
+        update_data(conn)
+        delete_data(conn)
     finally:
         conn.close()
 
+def create_table(conn):
+    cur = conn.cursor()
+    cur.execute(b"drop table if exists owner")
+    cur.execute(b"""
+        create table owner(
+            id uuid not null DEFAULT gen_random_uuid(),
+            name varchar(30) not null,
+            city varchar(80) not null,
+            telephone varchar(20) default null,
+            primary key (id))"""
+        )
+    print('Created table owner')
+
+def insert_data(conn):
+    cur = conn.cursor()
+    # Insert some rows
+    cur.execute("insert into owner(name, city, telephone) values('Andrew', 'vancouver', '6239087654')")
+    cur.execute("insert into owner(name, city) values('Charles', 'richmond')")
+    cur.execute("insert into owner(name, city, telephone) values('Zoya', 'langley', '6230005678')")
+    print('Inserted 3 rows into owner')
+
+def fetch_data(conn):
+    cur = conn.cursor()
+    cur.execute("select * from owner where name='Andrew'")
+    row = cur.fetchone()
+    print(f'Retrieved one row from owner: {row}')
+    # Verify that the result we got is what we inserted before
+    assert row[0] != None
+    assert row[1] == "Andrew"
+    assert row[2] == "vancouver"
+    assert row[3] == "6239087654"
+
+def update_data(conn):
+    cur = conn.cursor()
+    cur.execute("update owner set telephone='7811230000' where name='Andrew'")
+    cur.execute("select telephone from owner where name='Andrew'")
+    # Select the updated telephone number for the owner 'Andrew'
+    assert cur.fetchone()[0] == "7811230000"
+    print('Updated one row in owner')
+
+def delete_data(conn):
+    cur = conn.cursor()
+    cur.execute("delete from owner where telephone='7811230000'")
+    cur.execute("select * from owner where telephone='7811230000'")
+    assert not cur.fetchone()
+    print('Deleted rows from owner')
+
+def generate_token(cluster_endpoint, region):
+    client = boto3.client("axdbfrontend", region_name=region)
+    return client.generate_db_auth_token(cluster_endpoint, "DbConnectSuperuser", region)
 
 if __name__ == "__main__":
-    example()
+    crud()
