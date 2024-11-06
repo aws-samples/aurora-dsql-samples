@@ -42,7 +42,7 @@ def create_dsql_engine():
     password_token = client.generate_db_auth_token(hostname, "DbConnectSuperuser", region)
 
     # Example on how to create engine for SQLAlchemy
-    url = URL.create("postgresql", username="axdb_superuser", password=password_token, 
+    url = URL.create("postgresql", username="admin", password=password_token, 
         host=hostname, database="postgres", 
         query={"options": "-c axdb_opts=version=0.1  -c axdb_opts=pooler=true"})
     # TODO remove pooler option in sample code.

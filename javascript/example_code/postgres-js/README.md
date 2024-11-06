@@ -53,7 +53,7 @@ async function getClient(clusterEndpoint, region) {
         token = await generateToken(clusterEndpoint, action, region, expiresIn);
         const sql = postgres({
             host: clusterEndpoint,
-            user: "axdb_superuser",
+            user: "admin",
             password: token,
             database: "postgres",
             port: 5432,

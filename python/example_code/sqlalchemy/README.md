@@ -28,7 +28,7 @@ def create_dsql_engine():
     password_token = client.generate_db_auth_token(hostname, "DbConnectSuperuser", region)
 
     # Example on how to create engine for SQLAlchemy
-    url = URL.create("postgresql", username="axdb_superuser", password=password_token, 
+    url = URL.create("postgresql", username="admin", password=password_token, 
         host=hostname, database="postgres")
     engine = create_engine(url, connect_args={"sslmode": "require"})
 

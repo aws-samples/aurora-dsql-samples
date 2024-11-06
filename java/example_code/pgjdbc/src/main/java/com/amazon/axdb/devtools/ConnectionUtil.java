@@ -33,7 +33,7 @@ public class ConnectionUtil {
         Properties props = new Properties();
 
         String url = "jdbc:postgresql://" + cluster + ":5432/postgres";
-        props.setProperty("user", "axdb_superuser");
+        props.setProperty("user", "admin");
         props.setProperty("password", getPassword(cluster, region));
         // TBD: need to remove pooler from code when pooler becomes the default
         props.setProperty("options", "axdb_opts=pooler=true");

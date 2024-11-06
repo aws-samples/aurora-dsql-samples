@@ -21,7 +21,7 @@ module ConnectionUtil
 
             pg_connection = PG.connect(
                             host: cluster_endpoint,
-                            user: 'axdb_superuser',
+                            user: 'admin',
                             password: token,
                             dbname: 'postgres',
                             port: 5432,

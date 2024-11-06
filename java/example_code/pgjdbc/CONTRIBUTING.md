@@ -4,6 +4,16 @@ As Aurora DSQL is not yet announced in order to verify the maven build requires 
 
 Steps:
 
+### Set cluster endpoint
+
+Update the following code of `src/main/java/org/example/HelloCrud.java`. Set `<your_cluster_endpoint>` to your cluster endpoint. Set REGION to your cluster region.
+
+```
+private static final String CLUSTER_ENDPOINT = "<your_cluster_endpoint>";
+private static final String REGION = "us-east-1";
+```
+
+
 ### Compile and Execute Example
 
 From root of this repository

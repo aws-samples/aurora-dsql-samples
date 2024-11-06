@@ -100,7 +100,7 @@ public class ConnectionUtil {
         Region region = Region.US_EAST_1;
 
         String url = "jdbc:postgresql://" + endpoint + ":5432/postgres";
-        props.setProperty("user", "axdb_superuser");
+        props.setProperty("user", "admin");
         AxdbFrontendUtilities utilities = AxdbFrontendUtilities.builder()
                 .region(region)
                 .credentialsProvider(DefaultCredentialsProvider.create())
