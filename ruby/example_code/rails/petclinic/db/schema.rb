@@ -11,12 +11,13 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema[7.2].define(version: 2024_10_31_171244) do
+  create_schema "sys"
+
   # These are extensions that must be enabled in order to support this database
-  enable_extension "pgcrypto"
-  # ToDo Disable plpgsql extension for Aurora DSQL
   enable_extension "plpgsql"
 
-  create_table "owners", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+  create_table "owners", primary_key: ["id", "name", "city", "telephone", "created_at", "updated_at"], force: :cascade do |t|
+    t.uuid "id", default: -> { "gen_random_uuid()" }, null: false
     t.string "name", limit: 30
     t.string "city", limit: 80
     t.string "telephone", limit: 20
@@ -24,7 +25,8 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_31_171244) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "pets", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+  create_table "pets", primary_key: ["id", "name", "birth_date", "owner_id", "created_at", "updated_at"], force: :cascade do |t|
+    t.uuid "id", default: -> { "gen_random_uuid()" }, null: false
     t.string "name", limit: 30
     t.date "birth_date"
     t.uuid "owner_id"
@@ -32,7 +34,8 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_31_171244) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "vets", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+  create_table "vets", primary_key: ["id", "name", "owner_id", "created_at", "updated_at"], force: :cascade do |t|
+    t.uuid "id", default: -> { "gen_random_uuid()" }, null: false
     t.string "name", limit: 30
     t.uuid "owner_id"
     t.datetime "created_at", null: false

@@ -33,29 +33,18 @@ development:
   # the same name as the operating system user running Rails.
   username: admin
 
-  # The password associated with the PostgreSQL role (username).
-  password: postgres 
-
   # Connect on a TCP socket. Omitted by default since the client uses a
   # domain socket that doesn't need configuration. Windows does not have
   # domain sockets, so uncomment these lines.
   # host: localhost
   # Set to Aurora DSQL instance hostname
   # host: <Aurora DSQL hostname>.c0001.us-east-1.gamma.sql.axdb.aws.dev
-  host: ryabtsifgnad3a346escclmqpa.c0001.us-east-1.prod.sql.axdb.aws.dev
+  host: auabtrfzen7jp7vvfqesyyspba.c0001.us-east-1.gamma.sql.axdb.aws.dev
 
-  # The TCP port the server listens on. Defaults to 5432.
-  # If your server runs on a different port number, change accordingly.
-  #port: 5432
-
-  # Schema search path. The server defaults to $user,public
-  #schema_search_path: myapp,sharedapp,public
-
-  # Minimum log levels, in increasing order:
-  #   debug5, debug4, debug3, debug2, debug1,
-  #   log, notice, warning, error, fatal, and panic
-  # Defaults to warning.
-  #min_messages: notice
+  aws_rds_iam_auth_token_generator: dsql
+  advisory_locks: false
+  # TODO: Check if this really needs to be disabled
+  prepared_statements: false
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".

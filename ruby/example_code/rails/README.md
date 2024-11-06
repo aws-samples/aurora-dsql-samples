@@ -3,23 +3,15 @@
 ## Table of Contents
 
 1. Prerequisites
-   1. Create Cluster
-   2. Driver Dependencies
-   3. Install Driver
-
-2. Execute Examples
+2. Configure active record adapter
+3. Execute Examples
    1. SQL CRUD Examples
       1. Create
       2. Read
       3. Update
       4. Delete
-   2. Transaction with retries example
-   3. Client Connection Pool example
-   4. Primary key generation example
-3. Token Session Management
 
 ## Prerequisites
-
 
 ### Create Cluster
 
@@ -52,67 +44,153 @@ Verify install
 rails --version
 ```
 
-Install required postgres jem
+Install required postgres gem
 
 ``` bash
-gem install pg
-bundle add pg
 bundle install
 ```
 
-### [TBD] Install DSQL Connection
+### Install DSQL Connection
 
-- Detail required instructions for installing the language specific token generation jem
-  - TBD as we currently don’t have the details of where the customer can obtain the jem
+#### Configure the connection adapter for Aurora DSQL
 
+Aurora DSQL uses IAM as the authentication and authorization mechanism to establish a connection.
+A password cannot be provided directly to rails through configuration in the `{app root directory}/config/database.yml` file.
+We are going to re-use the `pg-aws_rds_iam` adapter to inject our own DB auth token as the password
+for Aurora DSQL. Follow the steps below to configure this.
 
-### [TBD] Connect to Cluster
+##### Customize the `pg-aws_rds_iam` adapter
+Create a file `{app root directory}/config/initializers/adapter.rb` with following contents
 
+```ruby
+PG::AWS_RDS_IAM.auth_token_generators.add :dsql do
+  DsqlAuthTokenGenerator.new
+end
 
-## SQL CRUD Examples
+require "aws-sigv4"
 
-> [!Important]
-> To execute example code requires that you have AWS Credentials (eg AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
+# This is our custom DB auth token generator
+# TODO: Once the aws-sdk for DSQL is available change token generation mechanism.
+# use the ruby sdk to generate token instead.
+class DsqlAuthTokenGenerator
+  def call(host:, port:, user:)
+    action = <DB Connect action> # "DbConnectAdmin or DbConnect" 
+    expires_in = 10
+    region = <cluster region> # Eg: "us-east-1"
+    service = "xanadu"
+    param_list = Aws::Query::ParamList.new
+    param_list.set("Action", action)
+    param_list.set("DBUser", user)
 
+    signer = Aws::Sigv4::Signer.new(
+      service: service,
+      region: region,
+      credentials_provider: Aws::SharedCredentials.new()
+    )
 
-### Update cluster name
+    presigned_url = signer.presign_url(
+      http_method: "GET",
+      url: "https://#{host}/?#{param_list}",
+      body: "",
+      expires_in: expires_in
+    ).to_s
 
-Edit the `./config/database.yml` to modify code to set "host: abcdefghijklmnopqrst123456.c0001.us-east-1.gamma.sql.axdb.aws.dev"
+    # Remove extra scheme for token
+    presigned_url[8..-1]
+  end
+end
 
-#### Console
+# Monkey-patches to disable unsupported features
 
-The Ruby on Rails Console can be used to execute all of the standard CRUD functionality
+require "active_record/connection_adapters/postgresql/schema_statements"
 
-``` bash
-bin/rails console
-```
+module ActiveRecord::ConnectionAdapters::PostgreSQL::SchemaStatements
+  # Aurora DSQL does not support setting min_messages in the connection parameters
+  def client_min_messages=(level); end
+end
 
-### 1. Create Owner Tables
+require "active_record/connection_adapters/postgresql_adapter"
 
-Following model definition for the Owner object exists in the `db/migrate/<time stamp>_create_owners.rb` file.  The example shows the use of the UUID type, which is required for use for id generation with Aurora DSQL.
+class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
 
-``` ruby
+  def set_standard_conforming_strings; end
 
-class CreateOwners < ActiveRecord::Migration[7.2]
-  def change
-    create_table :owners, id: :uuid do |t|
-      t.string :name, limit: 30
-      t.string :city, limit: 80
-      t.string :telephone, limit: 20
-
-      t.timestamps
-    end
+  # Aurora DSQL does not support running multiple DDL or DDL + DML statements in the same transaction
+  def supports_ddl_transactions?
+    false
   end
 end
 
 ```
 
-Create the database and generate the model from the model files in `db/migrate`.
+##### Use the adapter in database configuration
+Define the following in the `{app root directory}/config/database.yml` file. Following example shows the
+configuration for the development database. You can do similar setup for test
+and production databases.
+
+```yml
+development:
+  <<: *default
+  database: postgres
+
+  # The specified database role being used to connect to PostgreSQL.
+  # To create additional roles in PostgreSQL see `$ createuser --help`.
+  # When left blank, PostgreSQL will use the default role. This is
+  # the same name as the operating system user running Rails.
+  username: <postgres username> # eg: admin or other postgres users
+
+  # Connect on a TCP socket. Omitted by default since the client uses a
+  # domain socket that doesn't need configuration. Windows does not have
+  # domain sockets, so uncomment these lines.
+  # host: localhost
+  # Set to Aurora DSQL instance hostname
+  # host: <Aurora DSQL hostname>.c0001.us-east-1.gamma.sql.axdb.aws.dev
+  host: <cluster endpoint>
+
+  # Remember that we defined dsql token generator in the `{app root directory}/config/initializers/adapter.rb`
+  # We are providing it as the token generator to the adapter here.
+  aws_rds_iam_auth_token_generator: dsql
+  advisory_locks: false
+  # TODO: Check if this really needs to be disabled
+  prepared_statements: false
+```
+
+With this, every time a new connection is needed, a token is automatically generated
+and injected into the connection parameters by the adapter.
+
+### 1. Create Owner Model
+
+Let's assume we are creating a table that stores list of pet owners. Create corresponding
+model using
+
+```sh
+# Execute in the app root directory
+bin/rails generate model Owner name:string city:string telephone:string
+```
+
+This will create a model (`app/models/owner.rb`) file and a migration file (`db/migrate/<time stamp>_create_owners.rb`)
+Change the model file to explicitly specify the primary key of the table. 
+Unlike postgres, by default, Aurora DSQL creates a primary key index by including
+all columns of the table. This makes active record to search using all columns of
+the table instead of just primary key. So the `<Entity>.find(<primary key>)` will not
+work because active record tries to search using all columns in the primary key index.
+`.find_by(<cloumn name>: "<value>")` works fine. To make active record search only
+using primary key column by default, we must set the primary key column explicitly 
+in the model as shown below.
+
+```ruby
+class Owner < ApplicationRecord
+  self.primary_key = "id"
+end
+```
+
+Finally, create the database and generate the schema from the model files in `db/migrate`.
 
 ``` bash
-bin/rails db:create
 bin/rails db:migrate
 ```
+
+## CRUD Examples
 
 ### 2. Create Owner
 
@@ -139,11 +217,3 @@ Owner.find("<owner id>").update(telephone: "123-456-7891")
 ``` console
 Owner.find("<owner id>").destroy
 ```
-
-## [TBD] Transaction with retries example
-
-Add text to describe that Aurora DSQL requires that in order to handle OC001 error issue the code logic needs to support a transaction retries (Recommend example should be example of the simple CRUD examples and extended to show transaction retries)
-
-TODO Example of transaction retries - This section will be added later
-
-
