@@ -1,5 +1,26 @@
 # SqlAlchemy with Aurora DSQL
 
+## Table of Contents
+
+1. Prerequisites
+2. Setup the environment
+3. Connect to a cluster
+4. Create models
+5. Execute Examples
+   1. SQL CRUD Examples
+      1. Create All Tables
+      2. Create Owner, Pet, Vet, and Specialty
+      3. Read Owner, Pet, Vet, and Specialty
+      4. Update Owner, Pet, and Vet
+      5. Delete Owner
+
+## Prerequisites
+
+* You must have an AWS account, and have your default credentials and AWS Region configured as described in the 
+[AWS Tools and SDKs Shared Configuration and Credentials Reference Guide](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html).
+* [Python 3.8.0 or later](https://www.python.org/) - You can verify your Python installation with `python3 -V`
+* AWS Xanadu python SDK is required to run psycopg with Xanadu. Following [Xanadu user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation. [TODO: update the link here with office link when the user guide is released]
+
 ## Setup the environment
 1. Install AWS DSQL SDK. Following (user guide)[https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html] for python SDK installation.
 
@@ -15,7 +36,9 @@ pip install sqlalchemy
 pip install "psycopg[binary]>=3"
 ```
 
-## Create a DSQL engine using SQLAlchemy
+
+## Connect to a cluster
+Create a DSQL engine using SQLAlchemy
 ```py
 import boto3
 from sqlalchemy import create_engine
@@ -33,7 +56,6 @@ def create_dsql_engine():
     engine = create_engine(url, connect_args={"sslmode": "require"})
 
     return engine
-
 ```
 
 ## Create models
@@ -110,28 +132,42 @@ class Vet(Base):
         secondaryjoin="foreign(VetSpecialties.specialty_id)==Specialty.id")
 ```
 
-## Create and Drop tables and Insert, Read, Update and Delete data
-```py
-def crud():
-    # Create the engine
-    engine = create_dsql_engine()
+## Execute Examples
 
-    # Create the necessary tables. Emit CREATE TABLE DDL
+> [!Important]
+>
+> To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
+
+
+### SQL CRUD Examples
+
+#### 1. Create All Tables
+```py
+# Create the necessary tables. 
+def create_all_tables(engine):
     for table in Base.metadata.tables.values():
         table.create(engine, checkfirst=True)
+```
 
-    session = Session(engine) 
+#### 2. Create Owner, Pet, Vet, and Specialty
 
-    # Insert data
-    ## Insert few owners
-    joe = Owner(name="Joe", city="Seattle")
-    mary = Owner(name="Mary", telephone="93209753297", city="New York")
-    dennis = Owner(name="Dennis", city="Chicago")
+```py
+def create_data_one_to_many(session):
+    # Owner-Pet relationship is one to many.
+    ## Insert owners
+    john = Owner(name="John Doe", city="Seattle")
+    mary = Owner(name="Mary Li", telephone="93209753297", city="New York")
 
-    ## Add a pet owned by Joe
-    tom = Pet(name="Tom", birth_date="2006-10-25", owner=joe)
+    ## Add two pets owned by John. 
+    tom = Pet(name="Tom", birth_date="2006-10-25", owner=john)
+    emerald = Pet(name="Emerald", birth_date="2021-7-23", owner=john)
 
-    # Insert few specialties
+    session.add_all([john, mary, tom, emerald])
+    session.commit()
+
+def create_data_many_to_many(session):
+    # Vet-Specialty relationship is one to many.
+    # Insert specialties
     exotic = Specialty(
         id="Exotic"
     )
@@ -144,7 +180,7 @@ def crud():
         id="Cats"
     )
 
-    ## Insert two vets with specialty, one vet without any specialty
+    ## Insert two vets with specialties, one vet without any specialty
     jake = Vet(
         name="Jake",
         specialties=[exotic]
@@ -159,40 +195,25 @@ def crud():
         name="Vince"
     )
 
-    session.add_all([joe, mary, dennis, tom, exotic, dogs, cats, jake, alice, vince])
+    session.add_all([exotic, dogs, cats, jake, alice, vince])
     session.commit()   
-    
-    # one-to-many relationship example
+```
+
+#### 3. Read Owner, Pet, Vet, and Specialty
+
+```py
+def read_data_one_to_many(session):
     # Read back data for the pet.
     pet_query = select(Pet).where(Pet.name == "Tom")
     tom = session.execute(pet_query).fetchone()[0]
+    print(f"Tom ID: {tom.id}, Name: {tom.name}, Birth date: {tom.birth_date}, Owner ID: {tom.owner_id}")
+
     # Get the corresponding owner
     owner_query = select(Owner).where(Owner.id == tom.owner_id)
-    joe = session.execute(owner_query).fetchone()[0]
-    
-    assert tom.name == "Tom"
-    assert str(tom.birth_date) == "2006-10-25"
-    # Owner must be what we have inserted
-    assert joe.name == "Joe"
-    assert joe.city == "Seattle"
-    
-    # Update the pet by changing the owner to mary
-    update_query = update(Pet).values({"owner_id":mary.id}).where(Pet.id == tom.id)
-    session.execute(update_query)
-    # Check our update
-    pet_query = select(Pet).where(Pet.name == "Tom")
-    tom = session.execute(pet_query).fetchone()[0]
-    assert tom.owner_id == mary.id
-    
-    # Delete an owner
-    delete_query = delete(Owner).where(Owner.name == "Dennis")
-    session.execute(delete_query)
-    # Check that owner is deleted
-    owner_query = select(Owner).where(Owner.name == "Dennis")
-    owners = session.execute(owner_query).fetchall()
-    assert len(owners) == 0
+    john = session.execute(owner_query).fetchone()[0]
+    print(f"John ID: {john.id}, Name: {john.name}, City: {john.city}, Telephone: {john.telephone}")
 
-    # many to many relationship example
+def read_data_many_to_many(session):
     # Read back data for the vets.
     vet_query = select(Vet).where(Vet.name == "Jake")
     jake = session.execute(vet_query).fetchone()[0]
@@ -203,54 +224,67 @@ def crud():
     vet_query = select(Vet).where(Vet.name == "Vince")
     vince = session.execute(vet_query).fetchone()[0]
 
+    print(f"Jake ID: {jake.id}, Name: {jake.name}, Specialties: {jake.specialties}")
+    print(f"Alice ID: {alice.id}, Name: {alice.name}, Specialties: {alice.specialties}")
+    print(f"Vince ID: {vince.id}, Name: {vince.name}, Specialties: {vince.specialties}")
+
     # Get the corresponding specialties for Jake and Alice 
     specialties_query = select(Specialty).where(Specialty.id == jake.specialties[0].id)
     exotic = session.execute(specialties_query).fetchone()[0]
+    print(f"Exotic ID: {exotic.id}")
+
     # Child objects are ordered alphabetically, so cats will come before dogs
     specialties_query = select(Specialty).where(Specialty.id == alice.specialties[0].id)
     cats = session.execute(specialties_query).fetchone()[0]
+    print(f"Cats ID: {cats.id}")
+
     specialties_query = select(Specialty).where(Specialty.id == alice.specialties[1].id)
     dogs = session.execute(specialties_query).fetchone()[0]
+    print(f"Dogs ID: {dogs.id}")
+```
 
-    assert jake.name == "Jake"
-    assert exotic.id == "Exotic"
+#### 4. Update Owner, Pet, and Vet
+```py
+def update_data_one_to_many(session):
+    # Read Mary and Tom
+    mary_query = select(Owner).where(Owner.name == "Mary Li")
+    mary = session.execute(mary_query).fetchone()[0]
+    pet_query = select(Pet).where(Pet.name == "Tom")
+    tom = session.execute(pet_query).fetchone()[0]
 
-    assert alice.name == "Alice"
-    assert dogs.id == "Dogs"
-    assert cats.id == "Cats"
+    # Update the pet by changing the owner to mary
+    update_query = update(Pet).values({"owner_id":mary.id}).where(Pet.id == tom.id)
+    session.execute(update_query)
 
-    assert vince.name == "Vince"
-    assert vince.specialties == []
+def update_data_many_to_many_add_specialty(session):
+    vet_query = select(Vet).where(Vet.name == "Vince")
+    vince = session.execute(vet_query).fetchone()[0]
+
+    specialties_query = select(Specialty).where(Specialty.id == "Dogs")
+    dogs = session.execute(specialties_query).fetchone()[0]
 
     # Update the vet by assigning Vince specialty dogs
     vince.specialties.append(dogs)
     session.commit()
-    # Check our update
-    specialties_query = select(Specialty).where(Specialty.id == vince.specialties[0].id)
+
+def update_data_many_to_many_remove_specialty(session):
+    vet_query = select(Vet).where(Vet.name == "Vince")
+    vince = session.execute(vet_query).fetchone()[0]
+
+    specialties_query = select(Specialty).where(Specialty.id == "Dogs")
     dogs = session.execute(specialties_query).fetchone()[0]
-    assert dogs.id == "Dogs"
 
     # Remove the specialty dogs from Vince, he should have no specialty now
     vince.specialties.remove(dogs)
     session.commit()
-    # Check our update
-    vince = session.execute(vet_query).fetchone()[0]
-    assert vince.specialties == []
-
-    # Drop all tables
-    for table in Base.metadata.tables.values():
-        table.drop(engine, checkfirst=True)
 ```
 
-## Automate primary key generation
-Use UUID to auto-generate primary key on the server-side
+#### 5. Delete Owner
 ```py
-class Owner(Base):
-    __tablename__ = "owner"
-    
-    id = Column(
-                "id", UUID, primary_key=True, default=text('gen_random_uuid()')
-            )
+def delete_owner(session):
+    # Delete owner
+    delete_query = delete(Owner).where(Owner.name == "John Doe")
+    session.execute(delete_query)
 ```
 
 ---

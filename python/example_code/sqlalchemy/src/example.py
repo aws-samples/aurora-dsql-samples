@@ -113,25 +113,71 @@ class Vet(Base):
         primaryjoin="foreign(VetSpecialties.vet_id)==Vet.id",
         secondaryjoin="foreign(VetSpecialties.specialty_id)==Specialty.id")
 
-def crud():
-    # Create the engine
-    engine = create_dsql_engine()
-    # Create the necessary tables. Emit CREATE TABLE DDL
+# Create the necessary tables. 
+def create_all_tables(engine):
     for table in Base.metadata.tables.values():
         table.create(engine, checkfirst=True)
 
-    session = Session(engine) 
+def create_data_one_to_many(session):
+    # Owner-Pet relationship is one to many.
+    ## Insert owners
+    john = Owner(name="John Doe", city="Seattle")
+    mary = Owner(name="Mary Li", telephone="93209753297", city="New York")
 
-    # Insert data
-    ## Insert few owners
-    joe = Owner(name="Joe", city="Seattle")
-    mary = Owner(name="Mary", telephone="93209753297", city="New York")
-    dennis = Owner(name="Dennis", city="Chicago")
+    ## Add two pets owned by John. 
+    tom = Pet(name="Tom", birth_date="2006-10-25", owner=john)
+    emerald = Pet(name="Emerald", birth_date="2021-7-23", owner=john)
 
-    ## Add a pet owned by Joe
-    tom = Pet(name="Tom", birth_date="2006-10-25", owner=joe)
+    session.add_all([john, mary, tom, emerald])
+    session.commit()   
 
-    # Insert few specialties
+def read_data_one_to_many(session):
+    # Read back data for the pet.
+    pet_query = select(Pet).where(Pet.name == "Tom")
+    tom = session.execute(pet_query).fetchone()[0]
+    print(f"Tom ID: {tom.id}, Name: {tom.name}, Birth date: {tom.birth_date}, Owner ID: {tom.owner_id}")
+
+    # Get the corresponding owner
+    owner_query = select(Owner).where(Owner.id == tom.owner_id)
+    john = session.execute(owner_query).fetchone()[0]
+    print(f"John ID: {john.id}, Name: {john.name}, City: {john.city}, Telephone: {john.telephone}")
+
+    # Test: check read values
+    assert tom.name == "Tom"
+    assert str(tom.birth_date) == "2006-10-25"
+    # Owner must be what we have inserted
+    assert john.name == "John Doe"
+    assert john.city == "Seattle"
+
+def update_data_one_to_many(session):
+    # Read Mary and Tom
+    mary_query = select(Owner).where(Owner.name == "Mary Li")
+    mary = session.execute(mary_query).fetchone()[0]
+    pet_query = select(Pet).where(Pet.name == "Tom")
+    tom = session.execute(pet_query).fetchone()[0]
+
+    # Update the pet by changing the owner to mary
+    update_query = update(Pet).values({"owner_id":mary.id}).where(Pet.id == tom.id)
+    session.execute(update_query)
+
+    # Test: check updated value
+    pet_query = select(Pet).where(Pet.name == "Tom")
+    tom = session.execute(pet_query).fetchone()[0]
+    assert tom.owner_id == mary.id
+
+def delete_owner(session):
+    # Delete an owner
+    delete_query = delete(Owner).where(Owner.name == "John Doe")
+    session.execute(delete_query)
+
+    # Test: Check that owner is deleted
+    owner_query = select(Owner).where(Owner.name == "John Doe")
+    owners = session.execute(owner_query).fetchall()
+    assert len(owners) == 0
+
+def create_data_many_to_many(session):
+    # Vet-Specialty relationship is one to many.
+    # Insert specialties
     exotic = Specialty(
         id="Exotic"
     )
@@ -144,7 +190,7 @@ def crud():
         id="Cats"
     )
 
-    ## Insert two vets with specialty, one vet without any specialty
+    ## Insert two vets with specialties, one vet without any specialty
     jake = Vet(
         name="Jake",
         specialties=[exotic]
@@ -159,40 +205,10 @@ def crud():
         name="Vince"
     )
 
-    session.add_all([joe, mary, dennis, tom, exotic, dogs, cats, jake, alice, vince])
+    session.add_all([exotic, dogs, cats, jake, alice, vince])
     session.commit()   
-    
-    # one-to-many relationship example
-    # Read back data for the pet.
-    pet_query = select(Pet).where(Pet.name == "Tom")
-    tom = session.execute(pet_query).fetchone()[0]
-    # Get the corresponding owner
-    owner_query = select(Owner).where(Owner.id == tom.owner_id)
-    joe = session.execute(owner_query).fetchone()[0]
-    
-    assert tom.name == "Tom"
-    assert str(tom.birth_date) == "2006-10-25"
-    # Owner must be what we have inserted
-    assert joe.name == "Joe"
-    assert joe.city == "Seattle"
-    
-    # Update the pet by changing the owner to mary
-    update_query = update(Pet).values({"owner_id":mary.id}).where(Pet.id == tom.id)
-    session.execute(update_query)
-    # Check our update
-    pet_query = select(Pet).where(Pet.name == "Tom")
-    tom = session.execute(pet_query).fetchone()[0]
-    assert tom.owner_id == mary.id
-    
-    # Delete an owner
-    delete_query = delete(Owner).where(Owner.name == "Dennis")
-    session.execute(delete_query)
-    # Check that owner is deleted
-    owner_query = select(Owner).where(Owner.name == "Dennis")
-    owners = session.execute(owner_query).fetchall()
-    assert len(owners) == 0
 
-    # many to many relationship example
+def read_data_many_to_many(session):
     # Read back data for the vets.
     vet_query = select(Vet).where(Vet.name == "Jake")
     jake = session.execute(vet_query).fetchone()[0]
@@ -203,15 +219,25 @@ def crud():
     vet_query = select(Vet).where(Vet.name == "Vince")
     vince = session.execute(vet_query).fetchone()[0]
 
+    print(f"Jake ID: {jake.id}, Name: {jake.name}, Specialties: {jake.specialties}")
+    print(f"Alice ID: {alice.id}, Name: {alice.name}, Specialties: {alice.specialties}")
+    print(f"Vince ID: {vince.id}, Name: {vince.name}, Specialties: {vince.specialties}")
+
     # Get the corresponding specialties for Jake and Alice 
     specialties_query = select(Specialty).where(Specialty.id == jake.specialties[0].id)
     exotic = session.execute(specialties_query).fetchone()[0]
+    print(f"Exotic ID: {exotic.id}")
+
     # Child objects are ordered alphabetically, so cats will come before dogs
     specialties_query = select(Specialty).where(Specialty.id == alice.specialties[0].id)
     cats = session.execute(specialties_query).fetchone()[0]
+    print(f"Cats ID: {cats.id}")
+
     specialties_query = select(Specialty).where(Specialty.id == alice.specialties[1].id)
     dogs = session.execute(specialties_query).fetchone()[0]
+    print(f"Dogs ID: {dogs.id}")
 
+    # Test: check read value
     assert jake.name == "Jake"
     assert exotic.id == "Exotic"
 
@@ -222,20 +248,64 @@ def crud():
     assert vince.name == "Vince"
     assert vince.specialties == []
 
+def update_data_many_to_many_add_specialty(session):
+    vet_query = select(Vet).where(Vet.name == "Vince")
+    vince = session.execute(vet_query).fetchone()[0]
+
+    specialties_query = select(Specialty).where(Specialty.id == "Dogs")
+    dogs = session.execute(specialties_query).fetchone()[0]
+
     # Update the vet by assigning Vince specialty dogs
     vince.specialties.append(dogs)
     session.commit()
-    # Check our update
+
+    # Test: Check updated value
     specialties_query = select(Specialty).where(Specialty.id == vince.specialties[0].id)
     dogs = session.execute(specialties_query).fetchone()[0]
     assert dogs.id == "Dogs"
 
+def update_data_many_to_many_remove_specialty(session):
+    vet_query = select(Vet).where(Vet.name == "Vince")
+    vince = session.execute(vet_query).fetchone()[0]
+
+    specialties_query = select(Specialty).where(Specialty.id == "Dogs")
+    dogs = session.execute(specialties_query).fetchone()[0]
+
     # Remove the specialty dogs from Vince, he should have no specialty now
     vince.specialties.remove(dogs)
     session.commit()
-    # Check our update
+
+    # Test: Check updated value
     vince = session.execute(vet_query).fetchone()[0]
     assert vince.specialties == []
+
+def crud():
+    # Create the engine
+    engine = create_dsql_engine()
+
+    # Drop all tables #-AL- todo remove later
+    for table in Base.metadata.tables.values():
+        table.drop(engine, checkfirst=True)
+    
+    create_all_tables(engine)
+
+    session = Session(engine) 
+
+    create_data_one_to_many(session)
+
+    create_data_many_to_many(session)
+
+    read_data_one_to_many(session)
+    
+    update_data_one_to_many(session)
+
+    delete_owner(session)
+
+    read_data_many_to_many(session)
+
+    update_data_many_to_many_add_specialty(session)
+
+    update_data_many_to_many_remove_specialty(session)
 
     # Drop all tables
     for table in Base.metadata.tables.values():
