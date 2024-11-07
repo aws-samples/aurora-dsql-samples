@@ -5,3 +5,8 @@ build
 .idea
 *.iml
 target
+.classpath
+.project
+.settings/
+libs/software/
+
