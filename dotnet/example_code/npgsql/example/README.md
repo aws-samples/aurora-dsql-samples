@@ -33,13 +33,85 @@ The .NET Npgsql Driver can be installed from the [official website](https://www.
 
 Via .NET
 
+Define `TokenGenerator` class.
+```csharp
+using Amazon.Runtime;
+using Amazon.Runtime.Internal;
+using Amazon.Runtime.Internal.Auth;
+using Amazon.Runtime.Internal.Util;
+
+namespace Example
+{
+    public static class TokenGenerator
+    {
+        public static string GenerateAuthToken(string? hostname, Amazon.RegionEndpoint region)
+        {
+            AWSCredentials awsCredentials = FallbackCredentialsFactory.GetCredentials();
+
+            string accessKey = awsCredentials.GetCredentials().AccessKey;
+            string secretKey = awsCredentials.GetCredentials().SecretKey;
+            string token = awsCredentials.GetCredentials().Token;
+
+            const string XanaduServiceName = "xanadu";
+            const string HTTPGet = "GET";
+            const string HTTPS = "https";
+            const string URISchemeDelimiter = "://";
+            const string ActionKey = "Action";
+            const string ActionValue = "DbConnectSuperuser";
+            const string XAmzSecurityToken = "X-Amz-Security-Token";
+
+            ImmutableCredentials immutableCredentials = new ImmutableCredentials(accessKey, secretKey, token) ?? throw new ArgumentNullException("immutableCredentials");
+            ArgumentNullException.ThrowIfNull(region);
+
+            hostname = hostname?.Trim();
+            if (string.IsNullOrEmpty(hostname))
+                throw new ArgumentException("Hostname must not be null or empty.");
+
+            GenerateDsqlAuthTokenRequest authTokenRequest = new GenerateDsqlAuthTokenRequest();
+            IRequest request = new DefaultRequest(authTokenRequest, XanaduServiceName)
+            {
+                UseQueryString = true,
+                HttpMethod = HTTPGet
+            };
+            request.Parameters.Add(ActionKey, ActionValue);
+            request.Endpoint = new UriBuilder(HTTPS, hostname).Uri;
+
+            if (immutableCredentials.UseToken)
+            {
+                request.Parameters[XAmzSecurityToken] = immutableCredentials.Token;
+            }
+
+            var signingResult = AWS4PreSignedUrlSigner.SignRequest(request, null, new RequestMetrics(), immutableCredentials.AccessKey,
+                immutableCredentials.SecretKey, XanaduServiceName, region.SystemName);
+
+            var authorization = "&" + signingResult.ForQueryParameters;
+            var url = AmazonServiceClient.ComposeUrl(request);
+
+            // remove the https:// and append the authorization
+            return url.AbsoluteUri[(HTTPS.Length + URISchemeDelimiter.Length)..] + authorization;
+        }
+
+        private class GenerateDsqlAuthTokenRequest : AmazonWebServiceRequest
+        {
+            public GenerateDsqlAuthTokenRequest()
+            {
+                ((IAmazonWebServiceRequest)this).SignatureVersion = SignatureVersion.SigV4;
+            }
+        }
+    }
+}
+```
+
+Connect to DSQL cluster.
+
 ```csharp
     public static class ConnectionUtil
     {
         public static async Task<NpgsqlConnection> GetConnection(string cluster, RegionEndpoint region)
         {
             const string username = "axdb_superuser";
-            string password = TokenGenerator.GenerateAuthToken(cluster, region);;
+            // The token expiration time is optional, and the default value 900 seconds
+            string password = TokenGenerator.GenerateAuthToken(cluster, region);
             const string database = "postgres";
             var connString = "Host=" + cluster + ";Username=" + username + ";Password=" + password + ";Database=" + database + ";Port=" + 5432 + ";SSLMode=Require;";
 
@@ -54,7 +126,7 @@ await using var conn = new NpgsqlConnection(connString);
 
 ## SQL CRUD Examples
 
-> [Important]
+> [!Important]
 >
 > To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
 

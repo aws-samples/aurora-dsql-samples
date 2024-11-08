@@ -22,26 +22,21 @@ namespace Example
             const string URISchemeDelimiter = "://";
             const string ActionKey = "Action";
             const string ActionValue = "DbConnectSuperuser";
-            const string XAmzExpires = "X-Amz-Expires";
             const string XAmzSecurityToken = "X-Amz-Security-Token";
 
-            ImmutableCredentials immutableCredentials = new(accessKey, secretKey, token);
-            if (immutableCredentials == null)
-                throw new ArgumentNullException("immutableCredentials");
-
-            if (region == null)
-                throw new ArgumentNullException("region");
+            ImmutableCredentials immutableCredentials = new ImmutableCredentials(accessKey, secretKey, token) ?? throw new ArgumentNullException("immutableCredentials");
+            ArgumentNullException.ThrowIfNull(region);
 
             hostname = hostname?.Trim();
             if (string.IsNullOrEmpty(hostname))
                 throw new ArgumentException("Hostname must not be null or empty.");
 
-            GenerateAxdbAuthTokenRequest authTokenRequest = new GenerateAxdbAuthTokenRequest();
-            IRequest request = new DefaultRequest(authTokenRequest, XanaduServiceName);
-
-            request.UseQueryString = true;
-            request.HttpMethod = HTTPGet;
-            request.Parameters.Add(XAmzExpires, "3600");
+            GenerateDsqlAuthTokenRequest authTokenRequest = new GenerateDsqlAuthTokenRequest();
+            IRequest request = new DefaultRequest(authTokenRequest, XanaduServiceName)
+            {
+                UseQueryString = true,
+                HttpMethod = HTTPGet
+            };
             request.Parameters.Add(ActionKey, ActionValue);
             request.Endpoint = new UriBuilder(HTTPS, hostname).Uri;
 
@@ -60,9 +55,9 @@ namespace Example
             return url.AbsoluteUri[(HTTPS.Length + URISchemeDelimiter.Length)..] + authorization;
         }
 
-        private class GenerateAxdbAuthTokenRequest : AmazonWebServiceRequest
+        private class GenerateDsqlAuthTokenRequest : AmazonWebServiceRequest
         {
-            public GenerateAxdbAuthTokenRequest()
+            public GenerateDsqlAuthTokenRequest()
             {
                 ((IAmazonWebServiceRequest)this).SignatureVersion = SignatureVersion.SigV4;
             }

@@ -8,7 +8,8 @@ namespace Example
         public static async Task<NpgsqlConnection> GetConnection(string cluster, RegionEndpoint region)
         {
             const string username = "axdb_superuser";
-            string password = TokenGenerator.GenerateAuthToken(cluster, region);;
+            // The token expiration time is optional, and the default value 900 seconds
+            string password = TokenGenerator.GenerateAuthToken(cluster, region);
             const string database = "postgres";
             var connString = "Host=" + cluster + ";Username=" + username + ";Password=" + password + ";Database=" + database + ";Port=" + 5432 + ";SSLMode=Require;";
 
