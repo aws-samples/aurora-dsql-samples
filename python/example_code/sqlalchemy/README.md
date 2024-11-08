@@ -33,9 +33,8 @@ source sqlalchemy_venv/bin/activate
 3. Install required dependencies including SQLAlchemy
 ```sh
 pip install sqlalchemy
-pip install "psycopg[binary]>=3"
+pip install "psycopg2-binary>=2.9"
 ```
-
 
 ## Connect to a cluster
 Create a DSQL engine using SQLAlchemy
@@ -48,6 +47,8 @@ def create_dsql_engine():
     hostname = "abcdefghijklmnopqrst123456.c0001.us-east-1.prod.sql.axdb.aws.dev"
     region = "us-east-1"
     client = boto3.client("axdbfrontend", region_name=region)
+    
+    # The token expiration time is optional, and the default value 900 seconds
     password_token = client.generate_db_auth_token(hostname, "DbConnectSuperuser", region)
 
     # Example on how to create engine for SQLAlchemy
@@ -59,6 +60,11 @@ def create_dsql_engine():
 ```
 
 ## Create models
+
+> [!NOTE]
+>
+> Note that Aurora DSQL does not support SERIAL, so id is based on uuid (suggest best practice guide on this TBD: Update link)
+
 Owner table has one-to-many relationship with Pet table.
 Vet table has many-to-many relationship with Specialty table.
 ```py
@@ -167,33 +173,14 @@ def create_data_one_to_many(session):
 
 def create_data_many_to_many(session):
     # Vet-Specialty relationship is one to many.
-    # Insert specialties
-    exotic = Specialty(
-        id="Exotic"
-    )
-
-    dogs = Specialty(
-        id="Dogs"
-    )
-
-    cats = Specialty(
-        id="Cats"
-    )
+    exotic = Specialty(id="Exotic")
+    dogs = Specialty(id="Dogs")
+    cats = Specialty(id="Cats")
 
     ## Insert two vets with specialties, one vet without any specialty
-    jake = Vet(
-        name="Jake",
-        specialties=[exotic]
-    )
-
-    alice = Vet(
-        name="Alice",
-        specialties=[dogs, cats]
-    )
-
-    vince = Vet(
-        name="Vince"
-    )
+    jake = Vet(name="Jake",specialties=[exotic])
+    alice = Vet(name="Alice", specialties=[dogs, cats])
+    vince = Vet(name="Vince")
 
     session.add_all([exotic, dogs, cats, jake, alice, vince])
     session.commit()   

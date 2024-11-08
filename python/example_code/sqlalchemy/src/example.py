@@ -39,6 +39,8 @@ def create_dsql_engine():
     hostname = "emabtsictjofw4unceleounqnm.c0001.us-east-1.prod.sql.axdb.aws.dev"
     region = "us-east-1"
     client = boto3.client("axdbfrontend", region_name=region)
+    
+    # The token expiration time is optional, and the default value 900 seconds
     password_token = client.generate_db_auth_token(hostname, "DbConnectSuperuser", region)
 
     # Example on how to create engine for SQLAlchemy
@@ -177,33 +179,14 @@ def delete_owner(session):
 
 def create_data_many_to_many(session):
     # Vet-Specialty relationship is one to many.
-    # Insert specialties
-    exotic = Specialty(
-        id="Exotic"
-    )
-
-    dogs = Specialty(
-        id="Dogs"
-    )
-
-    cats = Specialty(
-        id="Cats"
-    )
+    exotic = Specialty(id="Exotic")
+    dogs = Specialty(id="Dogs")
+    cats = Specialty(id="Cats")
 
     ## Insert two vets with specialties, one vet without any specialty
-    jake = Vet(
-        name="Jake",
-        specialties=[exotic]
-    )
-
-    alice = Vet(
-        name="Alice",
-        specialties=[dogs, cats]
-    )
-
-    vince = Vet(
-        name="Vince"
-    )
+    jake = Vet(name="Jake",specialties=[exotic])
+    alice = Vet(name="Alice", specialties=[dogs, cats])
+    vince = Vet(name="Vince")
 
     session.add_all([exotic, dogs, cats, jake, alice, vince])
     session.commit()   
@@ -282,10 +265,6 @@ def update_data_many_to_many_remove_specialty(session):
 def crud():
     # Create the engine
     engine = create_dsql_engine()
-
-    # Drop all tables #-AL- todo remove later
-    for table in Base.metadata.tables.values():
-        table.drop(engine, checkfirst=True)
     
     create_all_tables(engine)
 
