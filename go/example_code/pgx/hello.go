@@ -22,8 +22,60 @@ type Owner struct {
 	Telephone string `json:"telephone"`
 }
 
-func createTables(db *pgx.Conn) error {
-	_, err := db.Exec(context.Background(), `
+const (
+	ADMIN    = "admin"
+	ENDPOINT = "abcdefghijklmnopq123456.c0001.us-east-1.prod.sql.axdb.aws.dev"
+	SCHEMA   = "postgres"
+	REGION   = "us-east-1"
+)
+
+func getConnectUrl(endpoint, schema string) string {
+	var sb strings.Builder
+
+	user := ADMIN
+	sb.WriteString("postgres://")
+	sb.WriteString(endpoint)
+	sb.WriteString(":5432/")
+	sb.WriteString(schema)
+	sb.WriteString("?")
+	sb.WriteString("user=")
+	sb.WriteString(user)
+	url := sb.String()
+	return url
+}
+
+func getConnection(ctx context.Context, endpoint, region, schema string) (*pgx.Conn, error) {
+	url := getConnectUrl(endpoint, schema)
+
+	sess, err := session.NewSession()
+	if err != nil {
+		return nil, err
+	}
+
+	creds, err := sess.Config.Credentials.Get()
+	if err != nil {
+		return nil, err
+	}
+	staticCredentials := credentials.NewStaticCredentials(creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
+
+	token, err := utils.BuildAuthToken(endpoint, region, staticCredentials)
+
+	connConfig, err := pgx.ParseConfig(url)
+	// To avoid issues with parse config set the password directly in config
+	connConfig.Password = token
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to parse config: %v\n", err)
+		os.Exit(1)
+	}
+
+	conn, err := pgx.ConnectConfig(ctx, connConfig)
+
+	return conn, err
+}
+
+func createTables(ctx context.Context, db *pgx.Conn) error {
+	_, err := db.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS owner (
 			id UUID PRIMARY KEY,
 			name VARCHAR(255),
@@ -37,7 +89,7 @@ func createTables(db *pgx.Conn) error {
 	return nil
 }
 
-func createOwner(conn *pgx.Conn) error {
+func createOwner(ctx context.Context, conn *pgx.Conn) error {
 	// Define the SQL query to insert a new owner record.
 	query := `
        INSERT INTO owner (id, name, city, telephone) VALUES ($1, $2, $3, $4)
@@ -45,7 +97,7 @@ func createOwner(conn *pgx.Conn) error {
 
 	owner_id := uuid.New()
 
-	_, err := conn.Exec(context.Background(), query, owner_id.String(), "John Doe", "Vancouver", "555 555-5555")
+	_, err := conn.Exec(ctx, query, owner_id.String(), "John Doe", "Vancouver", "555 555-5555")
 
 	if err != nil {
 		log.Println("Error Inserting Owner")
@@ -54,14 +106,14 @@ func createOwner(conn *pgx.Conn) error {
 	return nil
 }
 
-func readOwner(conn *pgx.Conn) error {
+func readOwner(ctx context.Context, conn *pgx.Conn) error {
 	//var id string
 
 	rowArray := Owner{}
-	// Define the SQL query to insert a new book record.
+	// Define the SQL query to insert a new owner record.
 	query := `select id, name, city, telephone from owner`
 
-	rows, err := conn.Query(context.Background(), query)
+	rows, err := conn.Query(ctx, query)
 	defer rows.Close()
 
 	for rows.Next() {
@@ -80,11 +132,11 @@ func readOwner(conn *pgx.Conn) error {
 	return nil
 }
 
-func updateOwner(db *pgx.Conn) error {
-	// Define the SQL query to insert a new book record.
+func updateOwner(ctx context.Context, db *pgx.Conn) error {
+	// Define the SQL query to insert a new owner record.
 	query := "UPDATE owner SET telephone = '555-5555-1234' WHERE name = 'John Doe'"
 
-	_, err := db.Exec(context.Background(), query)
+	_, err := db.Exec(ctx, query)
 
 	if err != nil {
 		log.Println("Error updating Owner")
@@ -93,10 +145,10 @@ func updateOwner(db *pgx.Conn) error {
 	return nil
 }
 
-func deleteOwner(conn *pgx.Conn) error {
+func deleteOwner(ctx context.Context, conn *pgx.Conn) error {
 	query := "DELETE FROM owner WHERE name = 'John Doe'"
 
-	_, err := conn.Exec(context.Background(), query)
+	_, err := conn.Exec(ctx, query)
 
 	if err != nil {
 		log.Println("Error deleting Owner")
@@ -105,86 +157,42 @@ func deleteOwner(conn *pgx.Conn) error {
 	return nil
 }
 
-func getConnectUrl() (string, string) {
-	var sb strings.Builder
-	user := "admin"
-	endpoint := "abcdefghijklmnopq123456.c0001.us-east-1.prod.sql.axdb.aws.dev"
-	schema := "postgres"
-
-	sb.WriteString("postgres://")
-	sb.WriteString(endpoint)
-	sb.WriteString(":5432/")
-	sb.WriteString(schema)
-	sb.WriteString("?")
-	sb.WriteString("user=")
-	sb.WriteString(user)
-	urlExample := sb.String()
-	return endpoint, urlExample
-}
-
-func getConnection() (*pgx.Conn, error) {
-	endpoint, urlExample := getConnectUrl()
-
-	sess, err := session.NewSession()
-	if err != nil {
-		return nil, err
-	}
-
-	creds, err := sess.Config.Credentials.Get()
-	if err != nil {
-		return nil, err
-	}
-	sCreds := credentials.NewStaticCredentials(creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
-
-	token, err := utils.BuildAuthToken(endpoint, "us-east-1", sCreds)
-
-	connConfig, err := pgx.ParseConfig(urlExample)
-	connConfig.Password = token
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to parse config: %v\n", err)
-		os.Exit(1)
-	}
-
-	conn, err := pgx.ConnectConfig(context.Background(), connConfig)
-
-	return conn, err
-}
-
 func main() {
-	conn, err := getConnection()
+	appCtx := context.Background()
+
+	conn, err := getConnection(appCtx, ENDPOINT, REGION, SCHEMA)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close(context.Background())
+	defer conn.Close(appCtx)
 
-	err = createTables(conn)
+	err = createTables(appCtx, conn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = createOwner(conn)
+	err = createOwner(appCtx, conn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to createOwner: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = readOwner(conn)
+	err = readOwner(appCtx, conn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to readOwner: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = updateOwner(conn)
+	err = updateOwner(appCtx, conn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to updateOwner: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = deleteOwner(conn)
+	err = deleteOwner(appCtx, conn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to deleteOwner: %v\n", err)
 		os.Exit(1)

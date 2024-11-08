@@ -3,13 +3,14 @@
 ## Table of Contents
 
 1. Prerequisites
-2. Connect to Cluster
-3. SQL CRUD Examples
-    1. Create Owner Table
-    2. Create Owner
-    3. Read Owner
-    4. Update Owner
-    5. Delete Owner
+2. Obtaining the pgx driver for Go
+3. Connect to cluster
+4. Execute Examples
+   1. SQL CRUD Examples
+      1. Create
+      2. Read
+      3. Update
+      4. Delete
 
 ## Prerequisites
 
@@ -41,13 +42,28 @@ Example
 go get github.com/jackc/pgx/v5
 ```
 
-## Connect to Cluster
+### Connect to Cluster
 
 Via Go
 
-```
-func getConnection() (*pgx.Conn, error) {
-	endpoint, urlExample := getConnectUrl()
+```go
+func getConnectUrl(endpoint, schema string) string {
+	var sb strings.Builder
+
+	user := ADMIN
+	sb.WriteString("postgres://")
+	sb.WriteString(endpoint)
+	sb.WriteString(":5432/")
+	sb.WriteString(schema)
+	sb.WriteString("?")
+	sb.WriteString("user=")
+	sb.WriteString(user)
+	url := sb.String()
+	return url
+}
+
+func getConnection(ctx context.Context, endpoint, region, schema string) (*pgx.Conn, error) {
+	url := getConnectUrl(endpoint, schema)
 
 	sess, err := session.NewSession()
 	if err != nil {
@@ -58,13 +74,12 @@ func getConnection() (*pgx.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	sCreds := credentials.NewStaticCredentials(creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
+	staticCredentials := credentials.NewStaticCredentials(creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
 
-	token, err := utils.BuildAuthToken(endpoint, "us-east-1", sCreds)
+	token, err := utils.BuildAuthToken(endpoint, region, staticCredentials)
 
-	fmt.Println(token)
-
-	connConfig, err := pgx.ParseConfig(urlExample)
+	connConfig, err := pgx.ParseConfig(url)
+	// To avoid issues with parse config set the password directly in config
 	connConfig.Password = token
 
 	if err != nil {
@@ -72,7 +87,7 @@ func getConnection() (*pgx.Conn, error) {
 		os.Exit(1)
 	}
 
-	conn, err := pgx.ConnectConfig(context.Background(), connConfig)
+	conn, err := pgx.ConnectConfig(ctx, connConfig)
 
 	return conn, err
 }
@@ -103,8 +118,8 @@ type Owner struct {
 > Note that Aurora DSQL does not support SERIAL, so id is based on uuid (suggest best practice guide on this TBD: Update link)
 
 ```go
-func createTables(db *pgx.Conn) error {
-	_, err := db.Exec(context.Background(), `
+func createTables(ctx context.Context, db *pgx.Conn) error {
+    _, err := db.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS owner (
 			id UUID PRIMARY KEY,
 			name VARCHAR(255),
@@ -112,44 +127,45 @@ func createTables(db *pgx.Conn) error {
 			telephone VARCHAR(255)
 		)
 	`)
-	if err != nil {
-		return err
-	}
-	return nil
+    if err != nil {
+        return err
+    }
+    return nil
 }
 ```
 
 ### 2. Create Owner
 
 ```go
-func createOwner(conn *pgx.Conn) error {
-	// Define the SQL query to insert a new owner record.
-	query := `
-       INSERT INTO owner (id, name, city, telephone) VALUES ($1, $2, $3, $4)
-   `
+func createOwner(ctx context.Context, conn *pgx.Conn) error {
+   // Define the SQL query to insert a new owner record.
+   query := `
+          INSERT INTO owner (id, name, city, telephone) VALUES ($1, $2, $3, $4)
+      `
 
-	owner_id := uuid.New()
+   owner_id := uuid.New()
 
-	_, err := conn.Exec(context.Background(), query, owner_id.String(), "John Doe", "Vancouver", "555 555-5555")
+   _, err := conn.Exec(ctx, query, owner_id.String(), "John Doe", "Vancouver", "555 555-5555")
 
-	if err != nil {
-		log.Println("Error Inserting Owner")
-		return err
-	}
-	return nil
+   if err != nil {
+      log.Println("Error Inserting Owner")
+      return err
+   }
+   return nil
 }
 ```
 
 ### 3. Read Owner
 
 ```go
-func readOwner(conn *pgx.Conn) error {
+func readOwner(ctx context.Context, conn *pgx.Conn) error {
+	//var id string
 
 	rowArray := Owner{}
 	// Define the SQL query to read the new owner record.
 	query := `select id, name, city, telephone from owner`
 
-	rows, err := conn.Query(context.Background(), query)
+	rows, err := conn.Query(ctx, query)
 	defer rows.Close()
 
 	for rows.Next() {
@@ -172,11 +188,11 @@ func readOwner(conn *pgx.Conn) error {
 ### 4. Update Owner
 
 ```go
-func updateOwner(db *pgx.Conn) error {
-	// Define the SQL query to update the owner record.
+func updateOwner(ctx context.Context, db *pgx.Conn) error {
+	// Define the SQL query to insert a new owner record.
 	query := "UPDATE owner SET telephone = '555-5555-1234' WHERE name = 'John Doe'"
 
-	_, err := db.Exec(context.Background(), query)
+	_, err := db.Exec(ctx, query)
 
 	if err != nil {
 		log.Println("Error updating Owner")
@@ -189,10 +205,10 @@ func updateOwner(db *pgx.Conn) error {
 ### 5. Delete Owner
 
 ```go
-func deleteOwner(conn *pgx.Conn) error {
+func deleteOwner(ctx context.Context, conn *pgx.Conn) error {
 	query := "DELETE FROM owner WHERE name = 'John Doe'"
 
-	_, err := conn.Exec(context.Background(), query)
+	_, err := conn.Exec(ctx, query)
 
 	if err != nil {
 		log.Println("Error deleting Owner")
