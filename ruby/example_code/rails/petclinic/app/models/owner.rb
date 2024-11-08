@@ -1,5 +1,6 @@
 class Owner < ApplicationRecord
   has_many :pets, dependent: :destroy
+  has_one :vet
 
   validates :name, presence: true, length: { maximum: 30 }
   validates :city, presence: true, length: { maximum: 80 }

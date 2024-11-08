@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_10_31_171244) do
+ActiveRecord::Schema[7.2].define(version: 2024_11_07_085734) do
   create_schema "sys"
 
   # These are extensions that must be enabled in order to support this database
@@ -30,6 +30,21 @@ ActiveRecord::Schema[7.2].define(version: 2024_10_31_171244) do
     t.string "name", limit: 30
     t.date "birth_date"
     t.uuid "owner_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "specialties", primary_key: ["id", "name", "created_at", "updated_at"], force: :cascade do |t|
+    t.uuid "id", default: -> { "gen_random_uuid()" }, null: false
+    t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "vet_specialties", primary_key: ["id", "vet_id", "specialty_id", "created_at", "updated_at"], force: :cascade do |t|
+    t.uuid "id", default: -> { "gen_random_uuid()" }, null: false
+    t.uuid "vet_id"
+    t.uuid "specialty_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end

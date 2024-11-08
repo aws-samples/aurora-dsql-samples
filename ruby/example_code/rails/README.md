@@ -10,6 +10,7 @@
       2. Read
       3. Update
       4. Delete
+4. Relational Mapping Examples
 
 ## Prerequisites
 
@@ -26,7 +27,8 @@ You can access the AWS Management Console for Amazon DSQL at https://console.aws
 
 ### Driver Dependencies
 
-Rails 7.2 requires Ruby 3.1.0 or newer. You can download Ruby from the [official website](https://www.ruby-lang.org/en/downloads/). 
+Rails 7.2 requires Ruby 3.1.0 or newer, and our example is tested with Ruby 3.3.5.
+You can download Ruby from the [official website](https://www.ruby-lang.org/en/downloads/).
 
 Verify install
 ```bash
@@ -44,7 +46,7 @@ Verify install
 rails --version
 ```
 
-Install required postgres gem
+Install required gems
 
 ``` bash
 bundle install
@@ -183,7 +185,7 @@ class Owner < ApplicationRecord
 end
 ```
 
-Finally, create the database and generate the schema from the model files in `db/migrate`.
+Finally, generate the schema from the model files in `db/migrate`.
 
 ``` bash
 bin/rails db:migrate
@@ -216,3 +218,111 @@ Owner.find("<owner id>").update(telephone: "123-456-7891")
 ``` console
 Owner.find("<owner id>").destroy
 ```
+
+## Relational Mapping Examples
+
+The pet clinic example code base also contains some of the typical ralationships that are often
+used in an ORM type application.  This includes representations of one-to-one, one-to-many and
+also many-to-many definitions.  The following examples show how these are supported within
+Aurora DSQL, and enable building relational structured models in this environment.  The various
+model definitions capturing the relationships can be found in the `app/models` directory.
+
+The following examples will reuse the same owner instantiation created here.
+
+``` console
+john_smith = Owner.new(name: "John Smith", city: "Seattle", telephone: "123-456-7890")
+john_smith.save
+```
+
+### One-to-One Mapping
+
+For the pet clinic example app, there is a one-to-many relationship defined between the owner and
+pet model.  This can be observed in the code snippets below taken from the `app/models/owner.rb`
+model definition that shows the association.
+
+``` ruby
+class Owner < ApplicationRecord
+  ...
+  has_one :vet
+```
+
+Create a vet instantiation, associate it with the owner, then read it back to test the association.
+
+``` console
+dr_bob_best = Vet.create(name: "Dr. Bob Best")
+john_smith.vet=dr_bob_best
+john_smith.vet
+```
+
+### One-to-Many Mapping
+
+For the pet clinic example app, there is a one-to-many relationship defined between the owner and
+pet models.  This can be observed in the code snippets below taken from the `app/models/owner.rb` and
+the `app/models/pet.rb` model definitions respectively.
+
+``` ruby
+class Owner < ApplicationRecord
+  has_many :pets, dependent: :destroy
+```
+
+``` ruby
+class Pet < ApplicationRecord
+  belongs_to :owner
+```
+
+Create an owner with multiple pet instances, and then read the list of pets belonging to the owner.
+When the owner is deleted, the pets owned will be removed from the system.
+
+``` console
+fido = john_smith.pets.create(name: "Fido", birth_date: "2022-01-17")
+rex = john_smith.pets.create(name: "Rex", birth_date: "2023-10-01")
+john_smith.pets
+```
+
+### Many-to-Many Mapping
+
+For the pet clinic example app, there is a many-to-many relationship defined between a vet and a set
+of specialties that a particular vet has.  The relationship definition in this case makes use of an
+intermediary join table to map any number of vet instances to any number of skills that they possess.
+The definition for these relationships can be seen in the `app/models/vet.rb` and `app/models/specialty.rb`
+models, and in the `app/models/vet_specialty.rb` model which maintains the relationship data in a join table.
+
+``` ruby
+class Vet < ApplicationRecord
+  has_many :vet_specialties , dependent: :delete_all
+  has_many :specialties, through: :vet_specialties
+```
+
+``` ruby
+class Specialty < ApplicationRecord
+  has_many :vet_specialties
+  has_many :vets, through: :vet_specialties
+```
+
+``` ruby
+class VetSpecialty < ApplicationRecord
+  belongs_to :vet
+  belongs_to :specialty
+```
+
+Create a set of specialties for a vet and read this list back.  The specialties created
+in this example will exist even after the vet has been removed from the system.  Only
+the relationship captured in the vet specialties table will be removed on vet deletion.
+
+``` console
+  small_pets = Specialty.create(name: "small pets")
+  minor_surgery = Specialty.create(name: "minor surgery")
+  dr_bob_best.specialties << small_pets
+  dr_bob_best.specialties << minor_surgery
+  dr_bob_best.specialties
+```
+
+In order to see the many-to-many relationship mapping between all vets and specialties,
+retrieve the contents of the three tables with the following commands.
+
+``` console
+Vet.all
+Specialty.all
+VetSpecialty.all
+```
+

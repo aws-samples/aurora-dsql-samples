@@ -1,5 +1,6 @@
 class Vet < ApplicationRecord
-  has_one :owner
+  has_many :vet_specialties , dependent: :delete_all
+  has_many :specialties, through: :vet_specialties
 
   validates :name, presence: true, length: { maximum: 30 }
 
