@@ -44,22 +44,29 @@ async fn connect_to_cluster_pool(cluster_endpoint: &str, region: &str) -> Result
 }
 
 async fn generate_token(cluster_endpoint: &str, region: &str) -> Result<String, Error> {
-    let expire_time = std::time::Duration::new(900, 0); // 900 second expiry
     let chain =  DefaultCredentialsChain::builder().build().await;
     let token = generate_db_auth_token(
         cluster_endpoint,
-        expire_time,
         region,
         chain,
+        None // Optionally specify token expiry time
     ).await?;
 
     Ok(token)
 }
 ```
 
-## Create a table, insert, update and delete rows
+## Execute Examples
 
-``` rs
+### SQL CRUD Examples
+
+> [!Important]
+>
+> To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
+
+#### 1. Create Owner Table
+
+```rs
 async fn create_table(pool: &PgPool) -> Result<(), Error> {
     sqlx::query("DROP TABLE IF EXISTS owner").execute(&*pool).await?;
     sqlx::query(
@@ -74,6 +81,10 @@ async fn create_table(pool: &PgPool) -> Result<(), Error> {
     Ok(())
 }
 
+```
+#### 2. Create Owner
+
+```rs
 async fn insert_data(pool: &PgPool) -> Result<(), Error> {
     sqlx::query(
         "INSERT INTO owner(name, city, telephone) VALUES('Andrew', 'Vancouver', '6239087654')")
@@ -91,7 +102,11 @@ async fn insert_data(pool: &PgPool) -> Result<(), Error> {
     println!("Inserted 3 rows into owner");
     Ok(())
 }
+```
 
+#### 3. Read Owner
+
+```rs
 async fn fetch_data(pool: &PgPool) -> Result<(), Error> {
     let rows = sqlx::query("SELECT * FROM owner WHERE name='Andrew'").fetch_all(&*pool).await?;
 
@@ -103,7 +118,11 @@ async fn fetch_data(pool: &PgPool) -> Result<(), Error> {
     println!("Retrieved one row from owner: {:#?}", row);    
     Ok(())
 }
+```
 
+#### 4. Update Owner
+
+```rs
 async fn update_data(pool: &PgPool) -> Result<(), Error> {
     sqlx::query("UPDATE owner SET telephone='7811230000' WHERE name='Andrew'").execute(&*pool).await?;
 
@@ -114,7 +133,11 @@ async fn update_data(pool: &PgPool) -> Result<(), Error> {
     println!("Updated 1 row in owner");
     Ok(())
 }
+```
 
+#### 5. Delete Owner
+
+```rs
 async fn delete_data(pool: &PgPool) -> Result<(), Error> {
     sqlx::query("DELETE FROM OWNER WHERE telephone='7811230000'").execute(&*pool).await?;
 
@@ -125,7 +148,6 @@ async fn delete_data(pool: &PgPool) -> Result<(), Error> {
     Ok(())
 }
 ```
-
 ---
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. 

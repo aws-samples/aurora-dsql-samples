@@ -6,20 +6,24 @@ use aws_sigv4::{
     sign::v4::SigningParams,
 };
 
+// Default expiry is 15 minutes
+const DEFAULT_EXPIRY: Duration = Duration::new(900, 0);
+
 pub async fn generate_db_auth_token(
     hostname: impl AsRef<str>,
-    expires_in: Duration,
     region: impl AsRef<str>,
     provide_credentials: impl ProvideCredentials,
+    expiry_time: Option<Duration>
 ) -> anyhow::Result<String> {
     let credentials = provide_credentials.provide_credentials().await?;
 
     let identity = credentials.into();
 
     let mut signing_settings = SigningSettings::default();
-    signing_settings.expires_in = Some(expires_in);
+    signing_settings.expires_in = Some(expiry_time.unwrap_or(DEFAULT_EXPIRY));
     signing_settings.signature_location = SignatureLocation::QueryParams;
 
+    // The token expiration time is optional, and the default value 900 seconds
     let signing_params = SigningParams::builder()
         .identity(&identity)
         .region(region.as_ref())

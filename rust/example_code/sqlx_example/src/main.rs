@@ -107,13 +107,12 @@ async fn delete_data(pool: &PgPool) -> Result<(), Error> {
 }
 
 async fn generate_token(cluster_endpoint: &str, region: &str) -> Result<String, Error> {
-    let expire_time = std::time::Duration::new(900, 0); // 900 second expiry
     let chain =  DefaultCredentialsChain::builder().build().await;
     let token = generate_db_auth_token(
         cluster_endpoint,
-        expire_time,
         region,
         chain,
+        None
     ).await?;
 
     Ok(token)
