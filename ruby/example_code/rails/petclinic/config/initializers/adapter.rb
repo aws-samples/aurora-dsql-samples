@@ -7,13 +7,13 @@ require "aws-sigv4"
 class DsqlAuthTokenGenerator
   def call(host:, port:, user:)
     action = "DbConnectAdmin"
-    expires_in = 10
     region = "us-east-1"
     service = "xanadu"
     param_list = Aws::Query::ParamList.new
     param_list.set("Action", action)
     param_list.set("DBUser", user)
 
+    # The token expiration time is optional, and the default value 900 seconds
     signer = Aws::Sigv4::Signer.new(
       service: service,
       region: region,
@@ -23,8 +23,7 @@ class DsqlAuthTokenGenerator
     presigned_url = signer.presign_url(
       http_method: "GET",
       url: "https://#{host}/?#{param_list}",
-      body: "",
-      expires_in: expires_in
+      body: ""
     ).to_s
 
     print "Generated presigned URL: #{presigned_url}\n"

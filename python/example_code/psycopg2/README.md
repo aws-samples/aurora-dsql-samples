@@ -35,6 +35,7 @@ import boto3
 def connect_to_cluster(cluster_endpoint, region):
     client = boto3.client("axdbfrontend", region_name=region)
     # "DbConnect" action with a non-superuser can also be used
+    # The token expiration time is optional, and the default value 900 seconds
     password_token = client.generate_db_auth_token(cluster_endpoint, "DbConnectSuperuser", region)
 
     # connection parameters

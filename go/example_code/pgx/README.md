@@ -76,6 +76,7 @@ func getConnection(ctx context.Context, endpoint, region, schema string) (*pgx.C
 	}
 	staticCredentials := credentials.NewStaticCredentials(creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
 
+	// The token expiration time is optional, and the default value 900 seconds
 	token, err := utils.BuildAuthToken(endpoint, region, staticCredentials)
 
 	connConfig, err := pgx.ParseConfig(url)

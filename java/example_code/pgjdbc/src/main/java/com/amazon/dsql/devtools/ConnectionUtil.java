@@ -53,6 +53,7 @@ public class ConnectionUtil {
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
 
+        // The token expiration time is optional, and the default value 900 seconds
         return utilities.generateAuthenticationToken(builder -> builder.hostname(host)
                 .action(action)
                 .region(Region.of(regionName)));

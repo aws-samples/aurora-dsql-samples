@@ -22,6 +22,7 @@ rbenv install 3.3.5
 Open a Ruby on Rails app console to manually test console commands:
 
 ```
+cd petclinic
 bundle install
 bin/rails console
 ```

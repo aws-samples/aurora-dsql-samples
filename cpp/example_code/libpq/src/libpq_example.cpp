@@ -7,15 +7,16 @@ using namespace Aws;
 using namespace Aws::AxdbFrontend;
 using namespace Aws::AxdbFrontend::Model;
 
-std::string generateDBAuthToken(const std::string endpoint, const std::string action, const std::string region, const int expiresIn) {
+std::string generateDBAuthToken(const std::string endpoint, const std::string action, const std::string region) {
     Aws::SDKOptions options;
     Aws::InitAPI(options);
     AxdbFrontendClientConfiguration clientConfig;
     clientConfig.region = region;
     AxdbFrontendClient client{clientConfig};
     std::string token = "";
- 
-    const auto presignedString = client.GenerateDBAuthToken(endpoint, region, action, expiresIn);
+    
+    // The token expiration time is optional, and the default value 900 seconds
+    const auto presignedString = client.GenerateDBAuthToken(endpoint, region, action);
     if (presignedString.IsSuccess()) {
         token = presignedString.GetResult();
     } else {
@@ -35,8 +36,8 @@ void disconnect(PGconn *conn ) {
 
 PGconn* connectToCluster(std::string clusterEndpoint, std::string region) {
     std::string action = "DbConnectSuperuser";
-    int expiresIn = 3600;
-    std::string password = generateDBAuthToken(clusterEndpoint, action, region, expiresIn);
+
+    std::string password = generateDBAuthToken(clusterEndpoint, action, region);
     
     std::string dbname = "postgres";
     std::string user = "admin";

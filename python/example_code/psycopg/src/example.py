@@ -93,6 +93,8 @@ def delete_data(conn):
 
 def generate_token(cluster_endpoint, region):
     client = boto3.client("axdbfrontend", region_name=region)
+
+    # The token expiration time is optional, and the default value 900 seconds
     return client.generate_db_auth_token(cluster_endpoint, "DbConnectSuperuser", region)
 
 if __name__ == "__main__":

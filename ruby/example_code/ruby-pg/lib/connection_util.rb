@@ -4,7 +4,6 @@ require_relative 'token_generator'
 module ConnectionUtil
     def get_connection(cluster_endpoint, region)
         action = "DbConnectSuperUser"
-        expires_in = 3600
 
         credentials = Aws::SharedCredentials.new()
 
@@ -12,11 +11,11 @@ module ConnectionUtil
             token_gen = Aws::AxdbFrontend::AuthTokenGenerator.new({
                 :credentials => credentials
             })
-        
+            
+            # The token expiration time is optional, and the default value 900 seconds
             token = token_gen.generate_db_connect_superuser_auth_token({
                 :endpoint => cluster_endpoint,
-                :region => region,
-                :expires_in => 3600
+                :region => region
             })
 
             pg_connection = PG.connect(

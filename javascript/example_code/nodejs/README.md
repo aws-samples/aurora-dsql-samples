@@ -48,10 +48,10 @@ const { Client } = pg;
 
 async function getClient(clusterEndpoint, region) {
     const action = "DbConnectSuperuser";
-    const expiresIn = 3600;
     let token;
     try {
-        token = await generateToken(clusterEndpoint, action, region, expiresIn);
+        // The token expiration time is optional, and the default value 900 seconds
+        token = await generateToken(clusterEndpoint, action, region);
         const client = new Client({
             host: clusterEndpoint,
             user: "admin",
