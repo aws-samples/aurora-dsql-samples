@@ -1,0 +1,14 @@
+[package]
+name = "sqlx_example"
+version = "0.1.0"
+edition = "2021"
+include = ["/src"]
+
+[dependencies]
+tokio = { version = "1.28", features = ["full"] }
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls" , "postgres", "uuid"] }
+anyhow = { version = "1", features = ["backtrace"] }
+aws-config = "1.1"
+aws-credential-types = "1.1"
+aws-sigv4 = "1.1"
+url = "2.5"
