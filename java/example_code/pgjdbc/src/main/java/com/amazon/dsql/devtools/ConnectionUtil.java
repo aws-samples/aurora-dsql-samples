@@ -13,7 +13,7 @@
  * limitations under the License.
  */
  
- package com.amazon.axdb.devtools;
+ package com.amazon.dsql.devtools;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.axdbfrontend.AxdbFrontendUtilities;
@@ -28,22 +28,25 @@ import java.util.Properties;
 
 public class ConnectionUtil {
 
+    public static final String ADMIN = "admin";
+    public static final String OPTIONS = "options";
+
     public static Connection getConnection(String cluster, String region) throws SQLException {
 
         Properties props = new Properties();
 
         String url = "jdbc:postgresql://" + cluster + ":5432/postgres";
-        props.setProperty("user", "admin");
+        props.setProperty("user", ADMIN);
         props.setProperty("password", getPassword(cluster, region));
         // TBD: need to remove pooler from code when pooler becomes the default
-        props.setProperty("options", "axdb_opts=pooler=true");
-        return DriverManager.getConnection(url, props);
+        props.setProperty(OPTIONS, "axdb_opts=pooler=true");
+        return DriverManager.getConnection(url,
+                props);
 
     }
 
     private static String getPassword(String host, String regionName) {
         Action action = Action.DB_CONNECT_SUPERUSER;
-        Duration expiresIn = Duration.ofHours(1);
 
         AxdbFrontendUtilities utilities = AxdbFrontendUtilities.builder()
                 .region(Region.of(regionName))
@@ -52,7 +55,6 @@ public class ConnectionUtil {
 
         return utilities.generateAuthenticationToken(builder -> builder.hostname(host)
                 .action(action)
-                .region(Region.of(regionName))
-                .expiresIn(expiresIn));
+                .region(Region.of(regionName)));
     }
 }

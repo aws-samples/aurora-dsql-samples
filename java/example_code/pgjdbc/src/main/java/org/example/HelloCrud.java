@@ -6,11 +6,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.UUID;
 
-import com.amazon.axdb.devtools.ConnectionUtil;
+import com.amazon.dsql.devtools.ConnectionUtil;
 
 public class HelloCrud {
 
-    private static final String CLUSTER_ENDPOINT = "<your_cluster_endpoint>";
+    private static final String CLUSTER_ENDPOINT = "abcdefghijklmnopq123456.c0001.us-east-1.prod.sql.axdb.aws.dev";
     private static final String REGION = "us-east-1";
 
     public static void main(String[] args) {

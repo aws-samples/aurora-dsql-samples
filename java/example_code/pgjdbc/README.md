@@ -66,43 +66,50 @@ dependencies {
 Via Java
 
 ``` java
-package com.amazon.axdb.devtools;
+package com.amazon.dsql.devtools;
 
-import com.amazon.axdb.AxdbGenerateToken;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.services.axdbfrontend.AxdbFrontendUtilities;
+import software.amazon.awssdk.services.axdbfrontend.model.Action;
+import software.amazon.awssdk.regions.Region;
 
-import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Optional;
+import java.time.Duration;
 import java.util.Properties;
 
 public class ConnectionUtil {
 
-    public static Connection getConnection() throws SQLException {
+    public static final String ADMIN = "admin";
+    public static final String OPTIONS = "options";
+
+    public static Connection getConnection(String cluster, String region) throws SQLException {
 
         Properties props = new Properties();
-        String endpoint = "abcdefghijklmnopq123456.c0001.us-east-1.prod.sql.axdb.aws.dev";
-        Region region = Region.US_EAST_1;
 
-        String url = "jdbc:postgresql://" + endpoint + ":5432/postgres";
-        props.setProperty("user", "admin");
+        String url = "jdbc:postgresql://" + cluster + ":5432/postgres";
+        props.setProperty("user", ADMIN);
+        props.setProperty("password", getPassword(cluster, region));
+        // TBD: need to remove pooler from code when pooler becomes the default
+        props.setProperty(OPTIONS, "axdb_opts=pooler=true");
+        return DriverManager.getConnection(url,
+                props);
+
+    }
+
+    private static String getPassword(String host, String regionName) {
+        Action action = Action.DB_CONNECT_SUPERUSER;
+
         AxdbFrontendUtilities utilities = AxdbFrontendUtilities.builder()
-                .region(region)
+                .region(Region.of(regionName))
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
-        
-        String passwordToken = utilities.generateAuthenticationToken(builder -> {
-            builder.hostname(endpoint)
-                    .action(Action.DB_CONNECT_SUPERUSER)
-                    .region(region)
-                    // Optional, by default the token expires in 15 mins
-                    .expiresIn(Duration.ofHours(1));
-        });
-        props.setProperty("password", passwordToken);
-        return DriverManager.getConnection(url, props);
+
+        return utilities.generateAuthenticationToken(builder -> builder.hostname(host)
+                .action(action)
+                .region(Region.of(regionName)));
     }
-}
 ```
 
 ## Execute Examples

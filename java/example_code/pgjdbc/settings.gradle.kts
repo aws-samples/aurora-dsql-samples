@@ -1,2 +1,2 @@
-rootProject.name = "AxdbPGJDBCPetClinicExample"
+rootProject.name = "DSQLPGJDBCPetClinicExample"
 
