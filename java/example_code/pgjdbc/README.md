@@ -36,23 +36,6 @@ For example for pgJDBC:
 
 ## Obtaining the pgJDBC Driver for PostgreSQL
 
-### Direct Download
-The PostgreSQL JDBC Driver can be installed from pre-compiled packages that can be downloaded directly from the PostgreSQL JDBC site or Maven Central. To install the driver, obtain the corresponding JAR file and include it in the application's CLASSPATH.
-
-
-Example - Direct Download via wget
-
-``` bash
-wget https://jdbc.postgresql.org/download/postgresql-42.7.3.jar
-```
-
-
-Example - Adding the Driver to the CLASSPATH
-
-``` bash
-export CLASSPATH=$CLASSPATH:/home/userx/libs/postgresql-42.7.3.jar
-```
-
 
 ### As a Maven Dependency
 You can use Maven's dependency management to obtain the driver by adding the following configuration in the application's Project Object Model (POM) file:
