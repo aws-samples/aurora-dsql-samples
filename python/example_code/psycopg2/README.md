@@ -6,7 +6,7 @@
 2. Setup test running environment
 3. Connect to a cluster
 4. Execute Examples
-   1. SQL CRUD Examples
+   - SQL CRUD Examples
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ pip3 install "psycopg2-binary>=2.9"
 ## Connect to a cluster
 
 ```py
-import psycopg2>=2.9
+import psycopg2
 import boto3
 
 # Returns the connection object
@@ -60,19 +60,15 @@ def generate_token(cluster_endpoint, region):
 
 ### SQL CRUD Examples
 
+> [!Important]
+>
+> To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
+
+#### 1. Create Owner Table
+
 ```py
-def crud():
-    cluster_endpoint = 'abcdefghijklmnopqrst123456.c0001.us-east-1.prod.sql.axdb.aws.dev'
-    region = 'us-east-1'
-    conn = connect_to_cluster(cluster_endpoint, region)
-    try: 
-        create_table(conn)
-        insert_data(conn)
-        fetch_data(conn)
-        update_data(conn)
-        delete_data(conn)
-    finally:
-        conn.close()
+import psycopg2
+import boto3
 
 def create_table(conn):
     cur = conn.cursor()
@@ -86,11 +82,25 @@ def create_table(conn):
             primary key (id))"""
         )
 
+```
+#### 2. Create Owner
+
+```py
+import psycopg2
+import boto3
+
 def insert_data(conn):
     cur = conn.cursor()
     cur.execute("insert into owner(name, city, telephone) values('Andrew', 'vancouver', '6239087654')")
     cur.execute("insert into owner(name, city) values('Charles', 'richmond')")
     cur.execute("insert into owner(name, city, telephone) values('Zoya', 'langley', '6230005678')")
+```
+
+#### 3. Read Owner
+
+```py
+import psycopg2
+import boto3
 
 def fetch_data(conn):
     cur = conn.cursor()
@@ -101,6 +111,13 @@ def fetch_data(conn):
     assert row[1] == "Andrew"
     assert row[2] == "vancouver"
     assert row[3] == "6239087654"
+```
+
+#### 4. Update Owner
+
+```py
+import psycopg2
+import boto3
 
 def update_data(conn):
     cur = conn.cursor()
@@ -108,6 +125,13 @@ def update_data(conn):
     cur.execute("select telephone from owner where name='Andrew'")
     # Select the updated telephone number for the owner 'Andrew'
     assert cur.fetchone()[0] == "7811230000"
+```
+
+#### 5. Delete Owner
+
+```py
+import psycopg2
+import boto3
 
 def delete_data(conn):
     cur = conn.cursor()
@@ -115,7 +139,6 @@ def delete_data(conn):
     cur.execute("select * from owner where telephone='7811230000'")
     assert not cur.fetchone()
 ```
-
 ---
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. 

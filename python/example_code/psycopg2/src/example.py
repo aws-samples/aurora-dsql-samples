@@ -43,13 +43,13 @@ def crud():
 
 def create_table(conn):
     cur = conn.cursor()
-    cur.execute(b"drop table if exists owner")
+    cur.execute(b"DROP TABLE IF EXISTS owner")
     cur.execute(b"""
-        create table owner(
-            id uuid not null DEFAULT gen_random_uuid(),
-            name varchar(30) not null,
-            city varchar(80) not null, 
-            telephone varchar(20) default null,
+        CREATE TABLE owner(
+            id UUID NOT NULL DEFAULT gen_random_uuid(),
+            name VARCHAR(30) NOT NULL,
+            city VARCHAR(80) NOT NULL, 
+            telephone VARCHAR(20) DEFAULT NULL,
             primary key (id))"""
         )
     print('Created table owner')
@@ -57,14 +57,14 @@ def create_table(conn):
 def insert_data(conn):
     cur = conn.cursor()
     # Insert some rows
-    cur.execute("insert into owner(name, city, telephone) values('Andrew', 'vancouver', '6239087654')")
-    cur.execute("insert into owner(name, city) values('Charles', 'richmond')")
-    cur.execute("insert into owner(name, city, telephone) values('Zoya', 'langley', '6230005678')")
+    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('Andrew', 'vancouver', '6239087654')")
+    cur.execute("INSERT INTO owner(name, city) VALUES('Charles', 'richmond')")
+    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('Zoya', 'langley', '6230005678')")
     print('Inserted 3 rows into owner')
 
 def fetch_data(conn):
     cur = conn.cursor()
-    cur.execute("select * from owner where name='Andrew'")
+    cur.execute("SELECT * FROM owner WHERE name='Andrew'")
     row = cur.fetchone()
     print(f'Retrieved one row from owner: {row}')
     # Verify that the result we got is what we inserted before
@@ -75,16 +75,16 @@ def fetch_data(conn):
 
 def update_data(conn):
     cur = conn.cursor()
-    cur.execute("update owner set telephone='7811230000' where name='Andrew'")
-    cur.execute("select telephone from owner where name='Andrew'")
+    cur.execute("UPDATE owner SET telephone='7811230000' WHERE name='Andrew'")
+    cur.execute("SELECT telephone FROM owner WHERE name='Andrew'")
     # Select the updated telephone number for the owner 'Andrew'
     assert cur.fetchone()[0] == "7811230000"
     print('Updated one row in owner')
 
 def delete_data(conn):
     cur = conn.cursor()
-    cur.execute("delete from owner where telephone='7811230000'")
-    cur.execute("select * from owner where telephone='7811230000'")
+    cur.execute("DELETE FROM owner WHERE telephone='7811230000'")
+    cur.execute("SELECT * FROM owner WHERE telephone='7811230000'")
     assert not cur.fetchone()
     print('Deleted rows from owner')
 
