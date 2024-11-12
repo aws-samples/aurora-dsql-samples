@@ -1,10 +1,11 @@
-# SqlAlchemy with Aurora DSQL
+# SQLAlchemy with Aurora DSQL
 
 ## Table of Contents
 
 1. Prerequisites
 2. Setup the environment
 3. Connect to a cluster
+   1. Connection Pooling
 4. Create models
 5. Execute Examples
    1. SQL CRUD Examples
@@ -58,6 +59,9 @@ def create_dsql_engine():
 
     return engine
 ```
+
+### Connection Pooling
+In SQLAlchemy, [connection pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html#connection-pool-configuration) is enabled by default when the engine is created; each engine is automatically associated with a connection pool in the background. Once the connection pool is started, all the connections will have the initial set of credentials. The DSQL connection session expires after 1 hour, regardless of the token expiration time. The engine will need to create a new connection to work with DSQL. If the token is expired, the engine will not be able to create new connections to DSQL. A new engine has to be created for SQLAlchemy to pick up valid new credentials and create connections to DSQL. 
 
 ## Create models
 
