@@ -21,7 +21,7 @@ async fn connect_to_cluster_pool(cluster_endpoint: &str, region: &str) -> Result
 }
 
 async fn crud() -> Result<(), Box<dyn std::error::Error>> {
-    let cluster_endpoint = "weabtsifkc4hc6uk6kmdprr3si.c0001.us-east-1.prod.sql.axdb.aws.dev";
+    let cluster_endpoint = "34abtthuuuq5olna73yzdfalde.c0001.us-east-1.prod.sql.axdb.aws.dev";
     let region = "us-east-1";
     let mut pool = connect_to_cluster_pool(cluster_endpoint, region).await?;
 

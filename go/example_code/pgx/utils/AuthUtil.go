@@ -31,7 +31,6 @@ func BuildAuthToken(endpoint, region string, creds *credentials.Credentials) (st
 	}
 	values := req.URL.Query()
 	values.Set("Action", "DbConnectSuperuser")
-	//values.Set("DBUser", dbUser)
 	req.URL.RawQuery = values.Encode()
 
 	signer := v4.Signer{

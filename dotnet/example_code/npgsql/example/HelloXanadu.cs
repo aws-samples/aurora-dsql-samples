@@ -2,7 +2,7 @@
 using Example;
 using Amazon;
 
-string clusterEndpoint = "iyabtsicv4n64az4jwlngi2sgm.c0001.us-east-1.prod.sql.axdb.aws.dev";
+string clusterEndpoint = "oaabtthvldzvyq2xic4twlbcpu.c0001.us-east-1.prod.sql.axdb.aws.dev";
 RegionEndpoint region = RegionEndpoint.USEast1;
 
 using var conn = await ConnectionUtil.GetConnection(clusterEndpoint, region);

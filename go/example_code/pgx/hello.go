@@ -24,7 +24,7 @@ type Owner struct {
 
 const (
 	ADMIN    = "admin"
-	ENDPOINT = "abcdefghijklmnopq123456.c0001.us-east-1.prod.sql.axdb.aws.dev"
+	ENDPOINT = "m4abtthu7ac2mkhoxyvtt6knh4.c0001.us-east-1.prod.sql.axdb.aws.dev"
 	SCHEMA   = "postgres"
 	REGION   = "us-east-1"
 )

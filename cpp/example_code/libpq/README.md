@@ -249,7 +249,7 @@ using namespace Aws::AxdbFrontend::Model;
 
 void crud() {
     std::string region = "us-east-1";
-    std::string clusterEndpoint = "kqabtsifimwdv4sp7o2gbrclia.c0001.us-east-1.prod.sql.axdb.aws.dev";
+    std::string clusterEndpoint = "abcdefghijklmnopqrst123456.c0001.us-east-1.prod.sql.axdb.aws.dev";
 
     PGconn *conn = connectToCluster(clusterEndpoint, region);
 

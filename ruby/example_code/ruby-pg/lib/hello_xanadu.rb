@@ -29,7 +29,7 @@ def delete_owner(conn)
   conn.exec_params('DELETE FROM owner WHERE name = $1', ['John Doe'])
 end
 
-cluster_endpoint = "pqabtsiczsmygnwuykjcsrnowy.c0001.us-east-1.prod.sql.axdb.aws.dev"
+cluster_endpoint = "siabtthuahe5btniuym7ohbd7u.c0001.us-east-1.prod.sql.axdb.aws.dev"
 region = "us-east-1"
 
 begin

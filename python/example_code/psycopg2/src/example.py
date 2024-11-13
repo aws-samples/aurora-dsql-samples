@@ -28,7 +28,7 @@ def connect_to_cluster(cluster_endpoint, region):
     return conn
 
 def crud():
-    cluster_endpoint = 'yeabtpeveodnurcrcvnf6iobba.c0001.us-east-1.prod.sql.axdb.aws.dev'
+    cluster_endpoint = 'zaabtthmsxnjkd2xemc22cezsq.c0001.us-east-1.prod.sql.axdb.aws.dev'
     region = 'us-east-1'
     conn = connect_to_cluster(cluster_endpoint, region)
     try: 

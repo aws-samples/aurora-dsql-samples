@@ -39,7 +39,7 @@ development:
   # host: localhost
   # Set to Aurora DSQL instance hostname
   # host: <Aurora DSQL hostname>.c0001.us-east-1.gamma.sql.axdb.aws.dev
-  host: auabtrfzen7jp7vvfqesyyspba.c0001.us-east-1.gamma.sql.axdb.aws.dev
+  host: heabttht4usatqsp74vv2bp75m.c0001.us-east-1.prod.sql.axdb.aws.dev
 
   aws_rds_iam_auth_token_generator: dsql
   advisory_locks: false

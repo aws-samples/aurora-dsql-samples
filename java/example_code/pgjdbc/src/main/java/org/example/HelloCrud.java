@@ -10,7 +10,7 @@ import com.amazon.dsql.devtools.ConnectionUtil;
 
 public class HelloCrud {
 
-    private static final String CLUSTER_ENDPOINT = "abcdefghijklmnopq123456.c0001.us-east-1.prod.sql.axdb.aws.dev";
+    private static final String CLUSTER_ENDPOINT = "saabts2b5ug3av2ympxzzdqcye.c0001.us-east-1.prod.sql.axdb.aws.dev";
     private static final String REGION = "us-east-1";
 
     public static void main(String[] args) {

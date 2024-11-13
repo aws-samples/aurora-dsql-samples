@@ -152,7 +152,7 @@ void deleteOwner(PGconn *conn) {
 
 void crud() {
     std::string region = "us-east-1";
-    std::string clusterEndpoint = "kqabtsifimwdv4sp7o2gbrclia.c0001.us-east-1.prod.sql.axdb.aws.dev";
+    std::string clusterEndpoint = "4iabtthnplobb4p5pb23eahuiq.c0001.us-east-1.prod.sql.axdb.aws.dev";
 
     PGconn *conn = connectToCluster(clusterEndpoint, region);
 
