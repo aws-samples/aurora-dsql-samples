@@ -19,9 +19,9 @@ module Aws
       # Generates an auth token for the DbConnect action.
       #
       # @param [Hash] options
-      # @option options [String] :region The AWS region where the Xanadu Cluster
+      # @option options [String] :region The AWS region where the DSQL Cluster
       #  is hosted. Defaults to the region of the client.
-      # @option options [String] :endpoint The Xanadu endpoint host name.
+      # @option options [String] :endpoint The DSQL endpoint host name.
       # @option options [Integer] :expires_in (900) The number of seconds the
       #  presigned URL is valid for.
       # @return [String]
@@ -32,9 +32,9 @@ module Aws
       # Generates an auth token for the DbConnectSuperuser action.
       #
       # @param [Hash] options
-      # @option options [String] :region The AWS region where the Xanadu Cluster
+      # @option options [String] :region The AWS region where the DSQL Cluster
       #  is hosted. Defaults to the region of the client.
-      # @option options [String] :endpoint The Xanadu endpoint host name.
+      # @option options [String] :endpoint The DSQL endpoint host name.
       # @option options [Integer] :expires_in (900) The number of seconds the
       #  token is valid for.
       # @return [String]

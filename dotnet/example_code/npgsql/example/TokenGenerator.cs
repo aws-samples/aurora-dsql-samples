@@ -16,7 +16,7 @@ namespace Example
             string secretKey = awsCredentials.GetCredentials().SecretKey;
             string token = awsCredentials.GetCredentials().Token;
 
-            const string XanaduServiceName = "xanadu";
+            const string DsqlServiceName = "xanadu";
             const string HTTPGet = "GET";
             const string HTTPS = "https";
             const string URISchemeDelimiter = "://";
@@ -32,7 +32,7 @@ namespace Example
                 throw new ArgumentException("Hostname must not be null or empty.");
 
             GenerateDsqlAuthTokenRequest authTokenRequest = new GenerateDsqlAuthTokenRequest();
-            IRequest request = new DefaultRequest(authTokenRequest, XanaduServiceName)
+            IRequest request = new DefaultRequest(authTokenRequest, DsqlServiceName)
             {
                 UseQueryString = true,
                 HttpMethod = HTTPGet
@@ -46,7 +46,7 @@ namespace Example
             }
 
             var signingResult = AWS4PreSignedUrlSigner.SignRequest(request, null, new RequestMetrics(), immutableCredentials.AccessKey,
-                immutableCredentials.SecretKey, XanaduServiceName, region.SystemName);
+                immutableCredentials.SecretKey, DsqlServiceName, region.SystemName);
 
             var authorization = "&" + signingResult.ForQueryParameters;
             var url = AmazonServiceClient.ComposeUrl(request);

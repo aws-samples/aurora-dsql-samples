@@ -54,19 +54,19 @@
 ```cpp
 #include <libpq-fe.h>
 #include <aws/core/Aws.h>
-#include <aws/axdbfrontend/AxdbFrontendClient.h>
+#include <aws/dsql/dsqlClient.h>
 #include <iostream>
 
 using namespace Aws;
-using namespace Aws::AxdbFrontend;
-using namespace Aws::AxdbFrontend::Model;
+using namespace Aws::dsql;
+using namespace Aws::dsql::Model;
 
 std::string generateDBAuthToken(const std::string endpoint, const std::string action, const std::string region) {
     Aws::SDKOptions options;
     Aws::InitAPI(options);
-    AxdbFrontendClientConfiguration clientConfig;
+    dsqlClientConfiguration clientConfig;
     clientConfig.region = region;
-    AxdbFrontendClient client{clientConfig};
+    dsqlClient client{clientConfig};
     std::string token = "";
     
     // The token expiration time is optional, and the default value 900 seconds
@@ -82,7 +82,7 @@ std::string generateDBAuthToken(const std::string endpoint, const std::string ac
 }
 
 PGconn* connectToCluster(std::string clusterEndpoint, std::string region) {
-    std::string action = "DbConnectSuperuser";
+    std::string action = "DbConnectAdmin";
 
     std::string password = generateDBAuthToken(clusterEndpoint, action, region);
     
@@ -240,16 +240,16 @@ void deleteOwner(PGconn *conn) {
 ```cpp
 #include <libpq-fe.h>
 #include <aws/core/Aws.h>
-#include <aws/axdbfrontend/AxdbFrontendClient.h>
+#include <aws/dsql/dsqlClient.h>
 #include <iostream>
 
 using namespace Aws;
-using namespace Aws::AxdbFrontend;
-using namespace Aws::AxdbFrontend::Model;
+using namespace Aws::dsql;
+using namespace Aws::dsql::Model;
 
 void crud() {
     std::string region = "us-east-1";
-    std::string clusterEndpoint = "abcdefghijklmnopqrst123456.c0001.us-east-1.prod.sql.axdb.aws.dev";
+    std::string clusterEndpoint = "abcdefghijklmnopqrst123456.dsql.us-east-1.on.aws";
 
     PGconn *conn = connectToCluster(clusterEndpoint, region);
 

@@ -20,10 +20,10 @@
 * You must have an AWS account, and have your default credentials and AWS Region configured as described in the 
 [AWS Tools and SDKs Shared Configuration and Credentials Reference Guide](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html).
 * [Python 3.8.0 or later](https://www.python.org/) - You can verify your Python installation with `python3 -V`
-* AWS Xanadu python SDK is required to run psycopg with Xanadu. Following [Xanadu user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation. [TODO: update the link here with office link when the user guide is released]
+* Aurora DSQL python SDK is required to run psycopg with DSQL. Following [Aurora DSQL user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation. [TODO: update the link here with office link when the user guide is released]
 
 ## Setup the environment
-1. Install AWS DSQL SDK. Following (user guide)[https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html] for python SDK installation.
+1. Install Aurora DSQL SDK. Following (user guide)[https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html] for python SDK installation.
 
 2. On local environment, activate python virtual environment by running:
 ```sh
@@ -45,12 +45,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
 def create_dsql_engine():
-    hostname = "abcdefghijklmnopqrst123456.c0001.us-east-1.prod.sql.axdb.aws.dev"
+    hostname = "abcdefghijklmnopqrst123456.dsql.us-east-1.on.aws"
     region = "us-east-1"
-    client = boto3.client("axdbfrontend", region_name=region)
+    client = boto3.client("dsql", region_name=region)
     
     # The token expiration time is optional, and the default value 900 seconds
-    password_token = client.generate_db_auth_token(hostname, "DbConnectSuperuser", region)
+    password_token = client.generate_db_auth_token(hostname, "DbConnectAdmin", region)
 
     # Example on how to create engine for SQLAlchemy
     url = URL.create("postgresql", username="admin", password=password_token, 
@@ -61,7 +61,7 @@ def create_dsql_engine():
 ```
 
 ### Connection Pooling
-In SQLAlchemy, [connection pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html#connection-pool-configuration) is enabled by default when the engine is created; each engine is automatically associated with a connection pool in the background. Once the connection pool is started, all the connections will have the initial set of credentials. The DSQL connection session expires after 1 hour, regardless of the token expiration time. The engine will need to create a new connection to work with DSQL. If the token is expired, the engine will not be able to create new connections to DSQL. A new engine has to be created for SQLAlchemy to pick up valid new credentials and create connections to DSQL. 
+In SQLAlchemy, [connection pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html#connection-pool-configuration) is enabled by default when the engine is created; each engine is automatically associated with a connection pool in the background. Once the connection pool is started, all the connections will have the initial set of credentials. The Aurora DSQL connection session expires after 1 hour, regardless of the token expiration time. The engine will need to create a new connection to work with Aurora DSQL. If the token is expired, the engine will not be able to create new connections to Aurora DSQL. A new engine has to be created for SQLAlchemy to pick up valid new credentials and create connections to Aurora DSQL. 
 
 ## Create models
 

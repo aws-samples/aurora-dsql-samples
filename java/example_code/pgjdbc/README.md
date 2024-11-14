@@ -69,8 +69,8 @@ Via Java
 package com.amazon.dsql.devtools;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.services.axdbfrontend.AxdbFrontendUtilities;
-import software.amazon.awssdk.services.axdbfrontend.model.Action;
+import software.amazon.awssdk.services.dsql.dsqlUtilities;
+import software.amazon.awssdk.services.dsql.model.Action;
 import software.amazon.awssdk.regions.Region;
 
 import java.sql.Connection;
@@ -91,8 +91,6 @@ public class ConnectionUtil {
         String url = "jdbc:postgresql://" + cluster + ":5432/postgres";
         props.setProperty("user", ADMIN);
         props.setProperty("password", getPassword(cluster, region));
-        // TBD: need to remove pooler from code when pooler becomes the default
-        props.setProperty(OPTIONS, "axdb_opts=pooler=true");
         return DriverManager.getConnection(url,
                 props);
 
@@ -101,7 +99,7 @@ public class ConnectionUtil {
     private static String getPassword(String host, String regionName) {
         Action action = Action.DB_CONNECT_SUPERUSER;
 
-        AxdbFrontendUtilities utilities = AxdbFrontendUtilities.builder()
+        dsqlUtilities utilities = dsqlUtilities.builder()
                 .region(Region.of(regionName))
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();

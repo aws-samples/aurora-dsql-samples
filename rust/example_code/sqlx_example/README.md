@@ -16,7 +16,7 @@ The code examples in this topic show you how to use Amazon Distributed SQL with 
 ### Setup test running environment 
 
 1. Add sqlx to your Cargo.toml dependencies, for example `sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls" , "postgres"] }`. 
-2. Add the Amazon DSQL Rust SDK to your Cargo.toml file. [DSQL Rust SDK location TBA]
+2. Add the Amazon DSQL Rust SDK to your Cargo.toml file. [Aurora DSQL Rust SDK location TBA]
 3. Ensure you are authenticated with AWS credentials.
 
 ### Connect to a cluster
@@ -49,7 +49,7 @@ async fn generate_token(cluster_endpoint: &str, region: &str) -> Result<String, 
         cluster_endpoint,
         region,
         chain,
-        None // Optionally specify token expiry time
+        None // The token expiration time is optional, and the default value 900 seconds
     ).await?;
 
     Ok(token)

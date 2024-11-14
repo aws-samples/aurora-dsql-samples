@@ -43,7 +43,7 @@ ruby --version
 
 It should output something similar to `v3.2.6"`.
 
-### Install DSQL Connection
+### Install Aurora DSQL Connection
 
 - All the required dependencies are present in the `Gemfile` file. To get all the required dependencies, the following command
 
@@ -61,12 +61,12 @@ require_relative 'token-generator'
 
 module ConnectionUtil
     def get_connection(cluster_endpoint, region)
-        action = "DbConnectSuperUser"
+        action = "DbConnectAdmin"
 
         credentials = Aws::SharedCredentials.new()
 
         begin
-            token_gen = Aws::AxdbFrontend::AuthTokenGenerator.new({
+            token_gen = Aws::dsql::AuthTokenGenerator.new({
                 :credentials => credentials
             })
         

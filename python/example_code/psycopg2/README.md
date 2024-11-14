@@ -17,7 +17,7 @@
 
 ## Setup test running environment 
 
-1. Amazon DSQL python SDK is required to run psycopg2 with DSQL. Following [DSQL user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation.
+1. Amazon DSQL python SDK is required to run psycopg2 with DSQL. Following [Aurora DSQL user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation.
 
 2. Install the necessary packages using the following command:
 
@@ -33,11 +33,7 @@ import boto3
 
 # Returns the connection object
 def connect_to_cluster(cluster_endpoint, region):
-    client = boto3.client("axdbfrontend", region_name=region)
-    # "DbConnect" action with a non-superuser can also be used
-    # The token expiration time is optional, and the default value 900 seconds
-    password_token = client.generate_db_auth_token(cluster_endpoint, "DbConnectSuperuser", region)
-
+    password_token = generate_token(cluster_endpoint, region)
     # connection parameters
     dbname = "dbname=postgres"
     user = "user=admin"
@@ -47,13 +43,14 @@ def connect_to_cluster(cluster_endpoint, region):
 
     # Make a connection to the cluster
     conn = psycopg2.connect('%s %s %s %s %s' % (dbname, user, host, sslmode, password))
-
     conn.set_session(autocommit=True)
     return conn
 
 def generate_token(cluster_endpoint, region):
-    client = boto3.client("axdbfrontend", region_name=region)
-    return client.generate_db_auth_token(cluster_endpoint, "DbConnectSuperuser", region)
+    client = boto3.client("dsql", region_name=region)
+    # "DbConnect" action with a non-superuser can also be used
+    # The token expiration time is optional, and the default value 900 seconds
+    return client.generate_db_auth_token(cluster_endpoint, "DbConnectAdmin", region)
 ```
 
 ## Execute Examples

@@ -1,5 +1,5 @@
 {
-  "name": "xanadu_postgres_howto",
+  "name": "dsql_postgres_howto",
   "version": "1.0.0",
   "description": "How To",
   "main": "index.js",

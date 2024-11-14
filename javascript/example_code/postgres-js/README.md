@@ -29,7 +29,7 @@ node --version
 
 It should output something similar to `v18.x"`.
 
-### Install DSQL Connection
+### Install Aurora DSQL Connection
 
 - All the required dependencies are present in the `package.json` file. To get all the required dependencies, the following command
 
@@ -46,7 +46,7 @@ import { generateToken } from "./token-gen.js";
 import postgres from "postgres"
 
 async function getClient(clusterEndpoint, region) {
-    const action = "DbConnectSuperuser";
+    const action = "DbConnectAdmin";
     let token;
     try {
         // The token expiration time is optional, and the default value 900 seconds

@@ -52,7 +52,7 @@ Install required gems
 bundle install
 ```
 
-### Install DSQL Connection
+### Install Aurora DSQL Connection
 
 #### Configure the connection adapter for Aurora DSQL
 
@@ -78,7 +78,7 @@ class DsqlAuthTokenGenerator
   def call(host:, port:, user:)
     action = <DB Connect action> # "DbConnectAdmin or DbConnect" 
     region = <cluster region> # Eg: "us-east-1"
-    service = "xanadu"
+    service = "dsql"
     param_list = Aws::Query::ParamList.new
     param_list.set("Action", action)
     param_list.set("DBUser", user)
@@ -145,8 +145,8 @@ development:
   # domain sockets, so uncomment these lines.
   # host: localhost
   # Set to Aurora DSQL instance hostname
-  # host: <Aurora DSQL hostname>.c0001.us-east-1.gamma.sql.axdb.aws.dev
-  host: <cluster endpoint>
+  # host: {clusterId}.dsql.{region}.on.aws
+  host: abcdefghijklmnopqrst123456.dsql.us-east-1.on.aws
 
   # Remember that we defined dsql token generator in the `{app root directory}/config/initializers/adapter.rb`
   # We are providing it as the token generator to the adapter here.

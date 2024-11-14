@@ -1,8 +1,8 @@
-# AWS XANADU psycopg code examples
+# AWS DSQL psycopg code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the psycopg work with AWS XANADU. 
+The code examples in this topic show you how to use the psycopg work with AWS DSQL. 
 
 ## Run the examples
 

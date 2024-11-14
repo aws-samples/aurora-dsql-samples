@@ -52,12 +52,12 @@ namespace Example
             string secretKey = awsCredentials.GetCredentials().SecretKey;
             string token = awsCredentials.GetCredentials().Token;
 
-            const string XanaduServiceName = "xanadu";
+            const string DsqlServiceName = "dsql";
             const string HTTPGet = "GET";
             const string HTTPS = "https";
             const string URISchemeDelimiter = "://";
             const string ActionKey = "Action";
-            const string ActionValue = "DbConnectSuperuser";
+            const string ActionValue = "DbConnectAdmin";
             const string XAmzSecurityToken = "X-Amz-Security-Token";
 
             ImmutableCredentials immutableCredentials = new ImmutableCredentials(accessKey, secretKey, token) ?? throw new ArgumentNullException("immutableCredentials");
@@ -68,7 +68,7 @@ namespace Example
                 throw new ArgumentException("Hostname must not be null or empty.");
 
             GenerateDsqlAuthTokenRequest authTokenRequest = new GenerateDsqlAuthTokenRequest();
-            IRequest request = new DefaultRequest(authTokenRequest, XanaduServiceName)
+            IRequest request = new DefaultRequest(authTokenRequest, DsqlServiceName)
             {
                 UseQueryString = true,
                 HttpMethod = HTTPGet
@@ -82,7 +82,7 @@ namespace Example
             }
 
             var signingResult = AWS4PreSignedUrlSigner.SignRequest(request, null, new RequestMetrics(), immutableCredentials.AccessKey,
-                immutableCredentials.SecretKey, XanaduServiceName, region.SystemName);
+                immutableCredentials.SecretKey, DsqlServiceName, region.SystemName);
 
             var authorization = "&" + signingResult.ForQueryParameters;
             var url = AmazonServiceClient.ComposeUrl(request);
@@ -102,14 +102,14 @@ namespace Example
 }
 ```
 
-Connect to DSQL cluster.
+Connect to Aurora DSQL cluster.
 
 ```csharp
     public static class ConnectionUtil
     {
         public static async Task<NpgsqlConnection> GetConnection(string cluster, RegionEndpoint region)
         {
-            const string username = "axdb_superuser";
+            const string username = "admin";
             // The token expiration time is optional, and the default value 900 seconds
             string password = TokenGenerator.GenerateAuthToken(cluster, region);
             const string database = "postgres";

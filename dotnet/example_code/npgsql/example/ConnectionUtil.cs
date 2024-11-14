@@ -7,7 +7,7 @@ namespace Example
     {
         public static async Task<NpgsqlConnection> GetConnection(string cluster, RegionEndpoint region)
         {
-            const string username = "axdb_superuser";
+            const string username = "admin";
             // The token expiration time is optional, and the default value 900 seconds
             string password = TokenGenerator.GenerateAuthToken(cluster, region);
             const string database = "postgres";

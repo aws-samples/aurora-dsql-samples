@@ -13,7 +13,7 @@
 * You must have an AWS account, and have your default credentials and AWS Region configured as described in the 
 [AWS Tools and SDKs Shared Configuration and Credentials Reference Guide](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html).
 * [Python 3.8.0 or later](https://www.python.org/) - You can verify your Python installation with `python3 -V`
-* AWS Xanadu python SDK is required to run psycopg with Xanadu. Following [Xanadu user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation. [TODO: update the link here with office link when the user guide is released]
+* Aurora DSQL python SDK is required to run psycopg with Aurora DSQL. Following [Aurora DSQL user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation. [TODO: update the link here with office link when the user guide is released]
 
 ## Setup test running environment 
 1. On local environment, activate python virtual environment by running:
@@ -35,10 +35,10 @@ import psycopg
 import boto3
 
 def connect_to_cluster(cluster_endpoint, region):
-    client = boto3.client("axdbfrontend", region_name=region)
+    client = boto3.client("dsql", region_name=region)
     # "DbConnect" action with a non superuser can also be used
     # The token expiration time is optional, and the default value 900 seconds
-    password_token = client.generate_db_auth_token(cluster_endpoint, "DbConnectSuperuser", region)
+    password_token = client.generate_db_auth_token(cluster_endpoint, "DbConnectAdmin", region)
 
     # connection parameters
     dbname = "dbname=postgres"
