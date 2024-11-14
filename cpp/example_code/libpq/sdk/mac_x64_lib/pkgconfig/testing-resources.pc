@@ -1,0 +1,10 @@
+includedir=include
+libdir=lib
+
+Name: testing-resources
+Description: 
+Version: 1.11.445
+Cflags: -I${includedir} -fno-exceptions -std=c++11
+Libs: -L${libdir} -ltesting-resources 
+Libs.private: 
+Requires:  aws-cpp-sdk-core

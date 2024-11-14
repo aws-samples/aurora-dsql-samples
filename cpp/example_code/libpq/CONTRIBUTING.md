@@ -14,6 +14,8 @@ Please see the prerequisites section in README.md document.
 
 #### Edit the Makefile file
 
+##### Linux 
+
 In the Makefile located in the libpq/src directory edit the variables specifying path to the postgres include files and path to the location of the libpq library.
 
 Relace the /usr/local/pgsql/include and /usr/local/pgsql/lib with locations on your computer:
@@ -32,12 +34,34 @@ pg_config --includedir
 pg_config --libdir
 ```
 
+##### Mac 
+
+The Mac related variables are in the 'Mac' section of the make file.
+If necessary, adjust the directory locations. 
+For example:
+
+```
+COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk/usr/include/c++/v1
+
+# could be 
+
+COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk/usr/include/c++/v1
+```
+
 #### Build the program
 
 From the libpq/src directory run make command:
 
+##### Linux
+
 ```
 make
+```
+
+#### Mac 
+
+```
+make mac_x64
 ```
 
 This should result in the libpq_example executable program
@@ -52,9 +76,17 @@ This should result in the libpq_example executable program
 Run the commands below.
 Replace the paths in the commands below with the path on your computer.
 
+##### Linux
+
 ```
 export LD_LIBRARY_PATH="/usr/local/pgsql/lib:$LD_LIBRARY_PATH"
 export LD_LIBRARY_PATH="<your_path>/aurora-dsql-samples/cpp/example_code/libpq/sdk/lib:$LD_LIBRARY_PATH"
+```
+
+##### Mac
+
+```
+export DYLD_FALLBACK_LIBRARY_PATH=<your_path>/aurora-dsql-samples/cpp/example_code/libpq/sdk/mac_x64_lib
 ```
 
 #### Run the example program

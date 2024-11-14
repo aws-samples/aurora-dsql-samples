@@ -33,6 +33,10 @@
         ```
         sudo yum install libpq-devel
         ```
+      - On Mac libpq can be installed using brew
+        ```
+        brew install libpq
+        ```
       - The [official website](https://www.postgresql.org/download/) may have a package for libpq or psql which bundles libpq
       - The last resort, build from source which also can be obtained from [official website](https://www.postgresql.org/ftp/source/) 
 5. SSL Libraries
