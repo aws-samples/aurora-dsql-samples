@@ -4,5 +4,5 @@ pytest>=8
 
 # TODO: update the whl with package name once they are published to pypi
 # https://taskei.amazon.dev/tasks/P164113257
-sdk/boto3-1.35.42-py3-none-any.whl
-sdk/botocore-1.35.42-py3-none-any.whl
+sdk/boto3-1.35.60-py3-none-any.whl
+sdk/botocore-1.35.60-py3-none-any.whl

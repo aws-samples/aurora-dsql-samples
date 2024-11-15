@@ -4,9 +4,7 @@
 
 1. Prerequisites
 2. Setup test running environment
-3. Connect to a cluster
-4. Execute Examples
-   - SQL CRUD Examples
+3. Example using psycopg2 with Aurora DSQL
 
 ## Prerequisites
 
@@ -25,116 +23,61 @@
 pip3 install "psycopg2-binary>=2.9"
 ```
 
-## Connect to a cluster
+## Example using psycopg2 with Aurora DSQL
 
 ```py
 import psycopg2
 import boto3
 
-# Returns the connection object
-def connect_to_cluster(cluster_endpoint, region):
-    password_token = generate_token(cluster_endpoint, region)
+def main():
+    # Please replace with your own cluster endpoint
+    cluster_endpoint = 'foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws'
+    region = 'us-east-1'
+
+    # Generate a password token
+    client = boto3.client("dsql", region_name=region)
+    # The token expiration time is optional, and the default value 900 seconds
+    # if you are not using admin role, use generate_db_connect_auth_token instead
+    password_token = client.generate_db_connect_admin_auth_token(cluster_endpoint, region)
+
     # connection parameters
     dbname = "dbname=postgres"
     user = "user=admin"
     host = f'host={cluster_endpoint}'
     sslmode = "sslmode=require"
+    sslrootcert = "sslrootcert=system"
     password = f'password={password_token}'
 
     # Make a connection to the cluster
-    conn = psycopg2.connect('%s %s %s %s %s' % (dbname, user, host, sslmode, password))
+    conn = psycopg2.connect('%s %s %s %s %s %s' % (dbname, user, host, sslmode, sslrootcert, password))
+
     conn.set_session(autocommit=True)
-    return conn
 
-def generate_token(cluster_endpoint, region):
-    client = boto3.client("dsql", region_name=region)
-    # "DbConnect" action with a non-superuser can also be used
-    # The token expiration time is optional, and the default value 900 seconds
-    return client.generate_db_auth_token(cluster_endpoint, "DbConnectAdmin", region)
-```
-
-## Execute Examples
-
-### SQL CRUD Examples
-
-> [!Important]
->
-> To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
-
-#### 1. Create Owner Table
-
-```py
-import psycopg2
-import boto3
-
-def create_table(conn):
     cur = conn.cursor()
-    cur.execute(b"drop table if exists owner")
+    
     cur.execute(b"""
-        create table owner(
-            id uuid not null DEFAULT gen_random_uuid(),
-            name varchar(30) not null,
-            city varchar(80) not null, 
-            telephone varchar(20) default null,
-            primary key (id))"""
+        CREATE TABLE owner(
+            id uuid NOT NULL DEFAULT gen_random_uuid(),
+            name varchar(30) NOT NULL,
+            city varchar(80) NOT NULL,
+            telephone varchar(20) DEFAULT NULL,
+            PRIMARY KEY (id))"""
         )
 
-```
-#### 2. Create Owner
+    # Insert some rows
+    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')")
 
-```py
-import psycopg2
-import boto3
-
-def insert_data(conn):
-    cur = conn.cursor()
-    cur.execute("insert into owner(name, city, telephone) values('Andrew', 'vancouver', '6239087654')")
-    cur.execute("insert into owner(name, city) values('Charles', 'richmond')")
-    cur.execute("insert into owner(name, city, telephone) values('Zoya', 'langley', '6230005678')")
-```
-
-#### 3. Read Owner
-
-```py
-import psycopg2
-import boto3
-
-def fetch_data(conn):
-    cur = conn.cursor()
-    cur.execute("select * from owner where name='Andrew'")
+    cur.execute("SELECT * FROM owner WHERE name='John Doe'")
     row = cur.fetchone()
+    
     # Verify that the result we got is what we inserted before
-    assert row[0] is not None
-    assert row[1] == "Andrew"
-    assert row[2] == "vancouver"
-    assert row[3] == "6239087654"
-```
+    assert row[0] != None
+    assert row[1] == "John Doe"
+    assert row[2] == "Anytown"
+    assert row[3] == "555-555-1999"
 
-#### 4. Update Owner
-
-```py
-import psycopg2
-import boto3
-
-def update_data(conn):
-    cur = conn.cursor()
-    cur.execute("update owner set telephone='7811230000' where name='Andrew'")
-    cur.execute("select telephone from owner where name='Andrew'")
-    # Select the updated telephone number for the owner 'Andrew'
-    assert cur.fetchone()[0] == "7811230000"
-```
-
-#### 5. Delete Owner
-
-```py
-import psycopg2
-import boto3
-
-def delete_data(conn):
-    cur = conn.cursor()
-    cur.execute("delete from owner where telephone='7811230000'")
-    cur.execute("select * from owner where telephone='7811230000'")
-    assert not cur.fetchone()
+if __name__ == "__main__":
+    main()
 ```
 ---
 

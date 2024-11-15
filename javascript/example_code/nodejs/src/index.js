@@ -1,47 +1,67 @@
-import { v4 as uuidv4 } from 'uuid';
-import { getClient } from './connection-util.js';
+import { AxdbFrontendSigner } from "@aws-sdk/axdbfrontend-signer";
+import pg from "pg";
+import assert from "node:assert";
+const { Client } = pg;
 
-const createTables = async (client) => {
-  return client.query(`CREATE TABLE IF NOT EXISTS owner (
-    id UUID PRIMARY KEY,
-    name VARCHAR(30) NOT NULL,
-    city VARCHAR(80) NOT NULL,
-    telephone VARCHAR(20)
-  )`);
+async function example() {
+  let client;
+  const clusterEndpoint = "qiabttni4hrjfjbfepfsklcvuq.dsql-gamma.us-east-1.on.aws";
+  const region = "us-east-1";
+  try {
+    // The token expiration time is optional, and the default value 900 seconds
+    const signer = new AxdbFrontendSigner({
+      hostname: clusterEndpoint,
+      action: "DbConnectSuperuser",
+      region,
+    });
+    const token = await signer.getAuthToken();
+    // <https://node-postgres.com/apis/client>
+    // By default `rejectUnauthorized` is true in TLS options
+    // <https://nodejs.org/api/tls.html#tls_tls_connect_options_callback>
+    // The config does not offer any specific parameter to set sslmode to verify-full
+    // Settings are controlled either via connection string or by setting
+    // rejectUnauthorized to false in ssl options
+    client = new Client({
+      host: clusterEndpoint,
+      user: "admin",
+      password: token,
+      database: "postgres",
+      port: 5432,
+      sslmode: "verify-full",
+      // <https://node-postgres.com/announcements> for version 8.0
+      ssl: true
+    });
+
+    // Connect
+    await client.connect();
+
+    // Create a new table
+    await client.query(`CREATE TABLE IF NOT EXISTS owner (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(30) NOT NULL,
+      city VARCHAR(80) NOT NULL,
+      telephone VARCHAR(20)
+    )`);
+
+    // Insert some data
+    await client.query("INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)", 
+      ["John Doe", "Anytown", "555-555-1900"]
+    );
+
+    // Check that data is inserted by reading it back
+    const result = await client.query("SELECT id, city FROM owner where name='John Doe'");
+    assert.deepEqual(result.rows[0].city, "Anytown")
+    assert.notEqual(result.rows[0].id, null)
+
+    await client.query("DELETE FROM owner where name='John Doe'");
+
+  } catch (error) {
+    console.error(error);
+    raise
+  } finally {
+    client?.end()
+  }
+  Promise.resolve()
 }
 
-const createOwner = (client) => {
-  return client.query("INSERT INTO owner(id, name, city, telephone) VALUES($1, $2, $3, $4)", [uuidv4(), "John Doe", "Las Vegas", "555-555-5555"]);
-}
-
-const readOwner = async (client) => {
-  const result = await client.query("SELECT * FROM owner");
-  console.log(result.rows);
-  return Promise.resolve();
-}
-
-const updateOwner = (client) => {
-  return client.query("UPDATE owner SET telephone = $1 WHERE name = $2", ["888-888-8888", "John Doe"]);
-}
-
-const deleteOwner = (client) => {
-  return client.query("DELETE FROM owner WHERE name = $1", ["John Doe"]);
-}
-
-const clusterEndpoint = "m4abtthl5ti4xehekve7aljv7i.c0001.us-east-1.prod.sql.axdb.aws.dev";
-const region = "us-east-1";
-
-let client;
-try {
-  client = await getClient(clusterEndpoint, region);
-  await createTables(client);
-  await createOwner(client);
-  await readOwner(client);
-  await updateOwner(client);
-  await readOwner(client);
-  await deleteOwner(client);
-} catch (error) {
-  console.error(error);
-} finally {
-  client?.end()
-}
+export { example }

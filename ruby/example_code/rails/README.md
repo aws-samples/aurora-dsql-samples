@@ -146,13 +146,17 @@ development:
   # host: localhost
   # Set to Aurora DSQL instance hostname
   # host: {clusterId}.dsql.{region}.on.aws
-  host: abcdefghijklmnopqrst123456.dsql.us-east-1.on.aws
+  host: foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws
+
+  sslmode: verify-full
+  # Provide the path to the root certificate. 
+  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
+  sslrootcert: <replace with the path to root certificate>
 
   # Remember that we defined dsql token generator in the `{app root directory}/config/initializers/adapter.rb`
   # We are providing it as the token generator to the adapter here.
   aws_rds_iam_auth_token_generator: dsql
   advisory_locks: false
-  # TODO: Check if this really needs to be disabled
   prepared_statements: false
 ```
 
@@ -185,11 +189,13 @@ class Owner < ApplicationRecord
 end
 ```
 
-Finally, generate the schema from the model files in `db/migrate`.
+Generate the schema from the model files in db/migrate.
 
 ``` bash
 bin/rails db:migrate
 ```
+
+Finally, disable the `plpgsql` extension by modifying the `{app root directory}/db/schema.rb` . In order to disable the plpgsql extension, remove the `enable_extension "plgsql"` line.
 
 ## CRUD Examples
 

@@ -36,12 +36,12 @@ from sqlalchemy.sql import text
 from sqlalchemy.exc import SQLAlchemyError
 
 def create_dsql_engine():
-    hostname = "pmabtthm3cbd3jdh7bisyygs34.c0001.us-east-1.prod.sql.axdb.aws.dev"
+    hostname = "y4abttnmzvrrdtiv2bvn6abjsi.dsql-gamma.us-east-1.on.aws"
     region = "us-east-1"
-    client = boto3.client("axdbfrontend", region_name=region)
+    client = boto3.client("dsql", region_name=region)
     
     # The token expiration time is optional, and the default value 900 seconds
-    password_token = client.generate_db_auth_token(hostname, "DbConnectSuperuser", region)
+    password_token = client.generate_db_connect_admin_auth_token(hostname, region)
 
     # Example on how to create engine for SQLAlchemy
     url = URL.create("postgresql", username="admin", password=password_token, 
@@ -50,7 +50,7 @@ def create_dsql_engine():
     # TODO remove pooler option in sample code.
     # https://taskei.amazon.dev/tasks/P164113257
 
-    engine = create_engine(url, connect_args={"sslmode": "require"})
+    engine = create_engine(url, connect_args={"sslmode": "verify-full", "sslrootcert": "system"})
 
     return engine
 
@@ -80,9 +80,11 @@ class Pet(Base):
     owner_id = Column(
                 "owner_id", UUID, nullable=True
     )
+    # One to many
     owner = relationship("Owner", foreign_keys=[owner_id], primaryjoin="Owner.id == Pet.owner_id")
 
-# Define an association table for Vet and Speacialty
+# Define an association table for Vet and Speacialty, this is an intermediate table
+# that lets us define the may-to-many mapping
 class VetSpecialties(Base):
     __tablename__ = "vetSpecialties"
     
@@ -111,184 +113,76 @@ class Vet(Base):
                 "id", UUID, primary_key=True, default=text('gen_random_uuid()')
             )
     name = Column("name", String(30), nullable=False)
+    # Many-to-Many mapping
     specialties = relationship("Specialty", secondary=VetSpecialties.__table__,
         primaryjoin="foreign(VetSpecialties.vet_id)==Vet.id",
         secondaryjoin="foreign(VetSpecialties.specialty_id)==Specialty.id")
 
-# Create the necessary tables. 
-def create_all_tables(engine):
+def example():
+    # Create the engine
+    engine = create_dsql_engine()
+    
+    # Drop all tables
+    for table in Base.metadata.tables.values():
+        table.drop(engine, checkfirst=True)
+    
+    # Create all tables    
     for table in Base.metadata.tables.values():
         table.create(engine, checkfirst=True)
 
-def create_data_one_to_many(session):
+    session = Session(engine)
     # Owner-Pet relationship is one to many.
     ## Insert owners
-    john = Owner(name="John Doe", city="Seattle")
-    mary = Owner(name="Mary Li", telephone="93209753297", city="New York")
+    john_doe = Owner(name="John Doe", city="Anytown")
+    mary_major = Owner(name="Mary Major", telephone="555-555-0123", city="Anytown")
 
-    ## Add two pets owned by John. 
-    tom = Pet(name="Tom", birth_date="2006-10-25", owner=john)
-    emerald = Pet(name="Emerald", birth_date="2021-7-23", owner=john)
+    ## Add two pets. 
+    pet_1 = Pet(name="Pet-1", birth_date="2006-10-25", owner=john_doe)
+    pet_2 = Pet(name="Pet-2", birth_date="2021-7-23", owner=mary_major)
 
-    session.add_all([john, mary, tom, emerald])
-    session.commit()   
-
-def read_data_one_to_many(session):
+    session.add_all([john_doe, mary_major, pet_1, pet_2])
+    session.commit()  
+ 
     # Read back data for the pet.
-    pet_query = select(Pet).where(Pet.name == "Tom")
-    tom = session.execute(pet_query).fetchone()[0]
-    print(f"Tom ID: {tom.id}, Name: {tom.name}, Birth date: {tom.birth_date}, Owner ID: {tom.owner_id}")
+    pet_query = select(Pet).where(Pet.name == "Pet-1")
+    pet_1 = session.execute(pet_query).fetchone()[0]
 
     # Get the corresponding owner
-    owner_query = select(Owner).where(Owner.id == tom.owner_id)
-    john = session.execute(owner_query).fetchone()[0]
-    print(f"John ID: {john.id}, Name: {john.name}, City: {john.city}, Telephone: {john.telephone}")
+    owner_query = select(Owner).where(Owner.id == pet_1.owner_id)
+    john_doe = session.execute(owner_query).fetchone()[0]
 
     # Test: check read values
-    assert tom.name == "Tom"
-    assert str(tom.birth_date) == "2006-10-25"
+    assert pet_1.name == "Pet-1"
+    assert str(pet_1.birth_date) == "2006-10-25"
     # Owner must be what we have inserted
-    assert john.name == "John Doe"
-    assert john.city == "Seattle"
+    assert john_doe.name == "John Doe"
+    assert john_doe.city == "Anytown"
 
-def update_data_one_to_many(session):
-    # Read Mary and Tom
-    mary_query = select(Owner).where(Owner.name == "Mary Li")
-    mary = session.execute(mary_query).fetchone()[0]
-    pet_query = select(Pet).where(Pet.name == "Tom")
-    tom = session.execute(pet_query).fetchone()[0]
-
-    # Update the pet by changing the owner to mary
-    update_query = update(Pet).values({"owner_id":mary.id}).where(Pet.id == tom.id)
-    session.execute(update_query)
-
-    # Test: check updated value
-    pet_query = select(Pet).where(Pet.name == "Tom")
-    tom = session.execute(pet_query).fetchone()[0]
-    assert tom.owner_id == mary.id
-
-def delete_owner(session):
-    # Delete an owner
-    delete_query = delete(Owner).where(Owner.name == "John Doe")
-    session.execute(delete_query)
-
-    # Test: Check that owner is deleted
-    owner_query = select(Owner).where(Owner.name == "John Doe")
-    owners = session.execute(owner_query).fetchall()
-    assert len(owners) == 0
-
-def create_data_many_to_many(session):
-    # Vet-Specialty relationship is one to many.
-    exotic = Specialty(id="Exotic")
+    # Vet-Specialty relationship is many to many.
     dogs = Specialty(id="Dogs")
     cats = Specialty(id="Cats")
 
     ## Insert two vets with specialties, one vet without any specialty
-    jake = Vet(name="Jake",specialties=[exotic])
-    alice = Vet(name="Alice", specialties=[dogs, cats])
-    vince = Vet(name="Vince")
+    akua_mansa = Vet(name="Akua Mansa",specialties=[dogs])
+    carlos_salazar = Vet(name="Carlos Salazar", specialties=[dogs, cats])
 
-    session.add_all([exotic, dogs, cats, jake, alice, vince])
+    session.add_all([dogs, cats, akua_mansa, carlos_salazar])
     session.commit()   
 
-def read_data_many_to_many(session):
     # Read back data for the vets.
-    vet_query = select(Vet).where(Vet.name == "Jake")
-    jake = session.execute(vet_query).fetchone()[0]
+    vet_query = select(Vet).where(Vet.name == "Akua Mansa")
+    akua_mansa = session.execute(vet_query).fetchone()[0]
     
-    vet_query = select(Vet).where(Vet.name == "Alice")
-    alice = session.execute(vet_query).fetchone()[0]
-
-    vet_query = select(Vet).where(Vet.name == "Vince")
-    vince = session.execute(vet_query).fetchone()[0]
-
-    print(f"Jake ID: {jake.id}, Name: {jake.name}, Specialties: {jake.specialties}")
-    print(f"Alice ID: {alice.id}, Name: {alice.name}, Specialties: {alice.specialties}")
-    print(f"Vince ID: {vince.id}, Name: {vince.name}, Specialties: {vince.specialties}")
-
-    # Get the corresponding specialties for Jake and Alice 
-    specialties_query = select(Specialty).where(Specialty.id == jake.specialties[0].id)
-    exotic = session.execute(specialties_query).fetchone()[0]
-    print(f"Exotic ID: {exotic.id}")
-
-    # Child objects are ordered alphabetically, so cats will come before dogs
-    specialties_query = select(Specialty).where(Specialty.id == alice.specialties[0].id)
-    cats = session.execute(specialties_query).fetchone()[0]
-    print(f"Cats ID: {cats.id}")
-
-    specialties_query = select(Specialty).where(Specialty.id == alice.specialties[1].id)
-    dogs = session.execute(specialties_query).fetchone()[0]
-    print(f"Dogs ID: {dogs.id}")
-
+    vet_query = select(Vet).where(Vet.name == "Carlos Salazar")
+    carlos_salazar = session.execute(vet_query).fetchone()[0]
+    
     # Test: check read value
-    assert jake.name == "Jake"
-    assert exotic.id == "Exotic"
+    assert akua_mansa.name == "Akua Mansa"
+    assert akua_mansa.specialties[0].id == "Dogs"
 
-    assert alice.name == "Alice"
-    assert dogs.id == "Dogs"
-    assert cats.id == "Cats"
-
-    assert vince.name == "Vince"
-    assert vince.specialties == []
-
-def update_data_many_to_many_add_specialty(session):
-    vet_query = select(Vet).where(Vet.name == "Vince")
-    vince = session.execute(vet_query).fetchone()[0]
-
-    specialties_query = select(Specialty).where(Specialty.id == "Dogs")
-    dogs = session.execute(specialties_query).fetchone()[0]
-
-    # Update the vet by assigning Vince specialty dogs
-    vince.specialties.append(dogs)
-    session.commit()
-
-    # Test: Check updated value
-    specialties_query = select(Specialty).where(Specialty.id == vince.specialties[0].id)
-    dogs = session.execute(specialties_query).fetchone()[0]
-    assert dogs.id == "Dogs"
-
-def update_data_many_to_many_remove_specialty(session):
-    vet_query = select(Vet).where(Vet.name == "Vince")
-    vince = session.execute(vet_query).fetchone()[0]
-
-    specialties_query = select(Specialty).where(Specialty.id == "Dogs")
-    dogs = session.execute(specialties_query).fetchone()[0]
-
-    # Remove the specialty dogs from Vince, he should have no specialty now
-    vince.specialties.remove(dogs)
-    session.commit()
-
-    # Test: Check updated value
-    vince = session.execute(vet_query).fetchone()[0]
-    assert vince.specialties == []
-
-def crud():
-    # Create the engine
-    engine = create_dsql_engine()
-    
-    create_all_tables(engine)
-
-    session = Session(engine) 
-
-    create_data_one_to_many(session)
-
-    create_data_many_to_many(session)
-
-    read_data_one_to_many(session)
-    
-    update_data_one_to_many(session)
-
-    delete_owner(session)
-
-    read_data_many_to_many(session)
-
-    update_data_many_to_many_add_specialty(session)
-
-    update_data_many_to_many_remove_specialty(session)
-
-    # Drop all tables
-    for table in Base.metadata.tables.values():
-        table.drop(engine, checkfirst=True)
+    assert carlos_salazar.name == "Carlos Salazar"
+    assert carlos_salazar.specialties[0].id == "Cats"
+    assert carlos_salazar.specialties[1].id == "Dogs"
 
 # Execute SQL Statement with retry
 def exeucte_sql_statement_retry(engine, sql_statement, max_retries=None):
@@ -312,8 +206,6 @@ def run_retry():
     # Create the engine
     engine = create_dsql_engine()
 
-    table_name = "abc"
-
     # Create and drop the table, will retry until success is reached
     exeucte_sql_statement_retry(engine, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);")
     exeucte_sql_statement_retry(engine, "DROP TABLE IF EXISTS abc;")
@@ -326,5 +218,5 @@ def run_retry():
     exeucte_sql_statement_retry(engine, "DROP TABLE IF EXISTS abc;", 3)
 
 if __name__ == "__main__":
-    crud()
+    example()
     run_retry()

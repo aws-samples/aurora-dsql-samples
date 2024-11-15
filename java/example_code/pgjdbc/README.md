@@ -4,14 +4,7 @@
 
 1. Prerequisites
 2. Obtaining the pgJDBC Driver for PostgreSQL
-3. Connect to Cluster
-2. Execute Examples
-   1. SQL CRUD Examples
-      1. Create Owner Table
-      2. Create Owner
-      3. Read Owner
-      4. Update Owner
-      5. Delete Owner
+3. Example using pgJDBC with Aurora DSQL
 
 ## Prerequisites
 
@@ -61,185 +54,83 @@ dependencies {
 }
 ```
 
-## Connect to Cluster
-
-Via Java
+## Example using pgJDBC with Aurora DSQL
 
 ``` java
-package com.amazon.dsql.devtools;
+package org.example;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.services.dsql.dsqlUtilities;
-import software.amazon.awssdk.services.dsql.model.Action;
+import software.amazon.awssdk.services.dsql.DsqlUtilities;
 import software.amazon.awssdk.regions.Region;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.UUID;
 
-public class ConnectionUtil {
+public class Example {
 
-    public static final String ADMIN = "admin";
-    public static final String OPTIONS = "options";
-
+    // Get a connection to Aurora DSQL.
     public static Connection getConnection(String cluster, String region) throws SQLException {
 
         Properties props = new Properties();
 
-        String url = "jdbc:postgresql://" + cluster + ":5432/postgres";
-        props.setProperty("user", ADMIN);
-        props.setProperty("password", getPassword(cluster, region));
-        return DriverManager.getConnection(url,
-                props);
+        // Use the DefaultJavaSSLFactory so that Java's default trust store can be used
+        // to verify the server's root cert. 
+        String url = "jdbc:postgresql://" + cluster + ":5432/postgres?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory";
 
-    }
-
-    private static String getPassword(String host, String regionName) {
-        Action action = Action.DB_CONNECT_SUPERUSER;
-
-        dsqlUtilities utilities = dsqlUtilities.builder()
-                .region(Region.of(regionName))
+        DsqlUtilities utilities = DsqlUtilities.builder()
+                .region(Region.of(region))
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
 
         // The token expiration time is optional, and the default value 900 seconds
-        return utilities.generateAuthenticationToken(builder -> builder.hostname(host)
+        // If you are not using admin role use generateDbConnectAuthToken instead
+        String password = utilities.generateDbConnectAdminAuthToken(builder -> builder.hostname(cluster)
                 .action(action)
-                .region(Region.of(regionName)));
+                .region(Region.of(region)));
+
+        props.setProperty("user", "admin");
+        props.setProperty("password", password);
+        return DriverManager.getConnection(url, props);
+
     }
-```
 
-## Execute Examples
+    public static void main(String[] args) {
+        // Please replace with your own cluster endpoint
+        String cluster_endpoint = "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws";
+        String region = "us-east-1";
+        try (Connection conn = Example.getConnection(cluster_endpoint, region)) {
 
-### SQL CRUD Examples
+            // Create a new table named owner
+            Statement create = conn.createStatement();
+            create.executeUpdate("CREATE TABLE IF NOT EXISTS owner (id UUID PRIMARY KEY, name VARCHAR(255), city VARCHAR(255), telephone VARCHAR(255))");
+            create.close();
 
-> [!Important]
->
-> To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
+            // Insert some data
+            UUID uuid = UUID.randomUUID();
+            String insertSql = String.format("INSERT INTO owner (id, name, city, telephone) VALUES ('%s', 'John Doe', 'Anytown', '555-555-1999')", uuid);
+            Statement insert = conn.createStatement();
+            insert.executeUpdate(insertSql);
+            insert.close();
 
-#### 1. Create Owner Table
-
-> **Note**
->
-> Note that Aurora DSQL does not support SERIAL, so id is based on uuid (suggest best practice guide on this TBD: Update link)
-
-```java
-    private static void createTables(Connection conn) throws SQLException {
-        Statement st = conn.createStatement();
-        st.executeUpdate("CREATE TABLE IF NOT EXISTS owner (id UUID PRIMARY KEY, name VARCHAR(255), city VARCHAR(255), telephone VARCHAR(255))");
-        st.close();
-    }
-```
-
-#### 2. Create Owner
-
-``` java 
-package org.example;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.UUID;
-
-public class HelloCrud {
-...
-
-    public static void createOwner(Connection conn) {
-        UUID uuid = UUID.randomUUID();
-        String insertSql = String.format("INSERT INTO owner (id, name, city, telephone) VALUES ('%s', 'John Doe', 'Vancouver', '555 555-5555')", uuid);
-
-        try {
-            Statement st = conn.createStatement();
-            int rs = st.executeUpdate(insertSql);
-            st.close();
-            System.out.println("Owner created successfully.");
+            // Read back the data and assert they are present
+            String selectSQL = "SELECT * FROM owner";
+            Statement read = conn.createStatement();
+            ResultSet rs = read.executeQuery(selectSQL);
+            while (rs.next()) {
+                assert rs.getString("id") != null;
+                assert rs.getString("name").equals("John Doe");
+                assert rs.getString("city").equals("Anytown");
+                assert rs.getString("telephone").equals("555-555-1999");
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-    }
-
-...
-}
-```
-
-#### 3. Read Owner
-
-``` java
-package org.example;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.UUID;
-
-public class HelloCrud {
-...
-
-
-    private static void readOwner(Connection conn) throws SQLException {
-        String selectSQL = "SELECT * FROM owner";
-        try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                System.out.println("ID: " + rs.getString("id"));
-                System.out.println("Name: " + rs.getString("name"));
-                System.out.println("City: " + rs.getString("city"));
-                System.out.println("Telephone: " + rs.getString("telephone"));
-            }
-        }
-    }
-
-}
-```
-
-#### 4. Update Owner
-
-``` java
-package org.example;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.UUID;
-
-public class HelloCrud {
-...
-
-
-    private static void updateOwner(Connection conn) throws SQLException {
-        String updateSQL = "UPDATE owner SET telephone = '555-5555-1234' WHERE name = 'John Doe'";
-        Statement st = conn.createStatement();
-        int rs = st.executeUpdate(updateSQL);
-        st.close();
-    }
-
-}
-```
-
-#### 5. Delete Owner
-
-``` java
-package org.example;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.UUID;
-
-public class HelloCrud {
-...
-
-
-    private static void deleteOwner(Connection conn) throws SQLException {
-        String deleteSQL = "DELETE FROM owner WHERE name = ?";
-        Statement st = conn.createStatement();
-        st.executeUpdate("DELETE FROM owner WHERE name = 'John Doe'");
     }
 }
 ```

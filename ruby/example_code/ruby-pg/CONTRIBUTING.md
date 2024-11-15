@@ -19,6 +19,13 @@ bundle install
 ### Run the example tests
 
 ```sh
+# Needed if once if you do not have them already
+# Use the account credentials dedicated for ruby
+ada credentials update --role=Admin --account 864899869023 --once
+
+# Download the amazon's root certificate from the official trust store
+wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
+
 rspec
 ```
 

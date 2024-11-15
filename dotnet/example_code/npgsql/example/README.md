@@ -3,12 +3,7 @@
 ## Table of Contents
 
 1. Prerequisites
-2. Execute Examples
-   1. SQL CRUD Examples
-      1. Create
-      2. Read
-      3. Update
-      4. Delete
+2. Example using .NET with Npgsql to interact with Aurora DSQL
 
 ## Prerequisites
 
@@ -29,170 +24,53 @@
 #### Direct Download
 The .NET Npgsql Driver can be installed from the [official website](https://www.nuget.org/packages/Npgsql/8.0.5).
 
-### Connect to Cluster
+### Example using .NET with Npgsql to interact with Aurora DSQL
 
-Via .NET
-
-Define `TokenGenerator` class.
 ```csharp
-using Amazon.Runtime;
-using Amazon.Runtime.Internal;
-using Amazon.Runtime.Internal.Auth;
-using Amazon.Runtime.Internal.Util;
+using Npgsql;
+using Amazon;
 
-namespace Example
+class Example
 {
-    public static class TokenGenerator
+    public static async Task Run()
     {
-        public static string GenerateAuthToken(string? hostname, Amazon.RegionEndpoint region)
-        {
-            AWSCredentials awsCredentials = FallbackCredentialsFactory.GetCredentials();
+        // Please replace with your own cluster endpoint
+        string clusterEndpoint = "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws";
+        RegionEndpoint region = RegionEndpoint.USEast1;
 
-            string accessKey = awsCredentials.GetCredentials().AccessKey;
-            string secretKey = awsCredentials.GetCredentials().SecretKey;
-            string token = awsCredentials.GetCredentials().Token;
+        // Connect to a PostgreSQL database.
+        const string username = "admin";
+        // The token expiration time is optional, and the default value 900 seconds
+        string password = TokenGenerator.GenerateAuthToken(clusterEndpoint, region);
+        const string database = "postgres";
+        var connString = "Host=" + clusterEndpoint + ";Username=" + username + ";Password=" + password + ";Database=" + database + ";Port=" + 5432 + ";SSLMode=VerifyFull;";
 
-            const string DsqlServiceName = "dsql";
-            const string HTTPGet = "GET";
-            const string HTTPS = "https";
-            const string URISchemeDelimiter = "://";
-            const string ActionKey = "Action";
-            const string ActionValue = "DbConnectAdmin";
-            const string XAmzSecurityToken = "X-Amz-Security-Token";
+        var conn = new NpgsqlConnection(connString);
+        await conn.OpenAsync();
 
-            ImmutableCredentials immutableCredentials = new ImmutableCredentials(accessKey, secretKey, token) ?? throw new ArgumentNullException("immutableCredentials");
-            ArgumentNullException.ThrowIfNull(region);
+        // Create a table.
+        using var create = new NpgsqlCommand("CREATE TABLE IF NOT EXISTS owner (id UUID PRIMARY KEY, name VARCHAR(30) NOT NULL, city VARCHAR(80) NOT NULL, telephone VARCHAR(20))", conn);
+        create.ExecuteNonQuery();
 
-            hostname = hostname?.Trim();
-            if (string.IsNullOrEmpty(hostname))
-                throw new ArgumentException("Hostname must not be null or empty.");
+        // Create an owner.
+        var uuid = Guid.NewGuid();
+        using var insert = new NpgsqlCommand("INSERT INTO owner(id, name, city, telephone) VALUES(@id, @name, @city, @telephone)", conn);
+        insert.Parameters.AddWithValue("id", uuid);
+        insert.Parameters.AddWithValue("name", "John Doe");
+        insert.Parameters.AddWithValue("city", "Anytown");
+        insert.Parameters.AddWithValue("telephone", "555-555-5555");
+        insert.ExecuteNonQuery();
 
-            GenerateDsqlAuthTokenRequest authTokenRequest = new GenerateDsqlAuthTokenRequest();
-            IRequest request = new DefaultRequest(authTokenRequest, DsqlServiceName)
-            {
-                UseQueryString = true,
-                HttpMethod = HTTPGet
-            };
-            request.Parameters.Add(ActionKey, ActionValue);
-            request.Endpoint = new UriBuilder(HTTPS, hostname).Uri;
+        // Read the owner.
+        using var select = new NpgsqlCommand("SELECT * FROM owner where id=@id", conn);
+        select.Parameters.AddWithValue("id", uuid);
+        using var reader = await select.ExecuteReaderAsync();
+        System.Diagnostics.Debug.Assert(reader.HasRows, "no owner found");
 
-            if (immutableCredentials.UseToken)
-            {
-                request.Parameters[XAmzSecurityToken] = immutableCredentials.Token;
-            }
+        System.Diagnostics.Debug.WriteLine(reader.Read());
 
-            var signingResult = AWS4PreSignedUrlSigner.SignRequest(request, null, new RequestMetrics(), immutableCredentials.AccessKey,
-                immutableCredentials.SecretKey, DsqlServiceName, region.SystemName);
-
-            var authorization = "&" + signingResult.ForQueryParameters;
-            var url = AmazonServiceClient.ComposeUrl(request);
-
-            // remove the https:// and append the authorization
-            return url.AbsoluteUri[(HTTPS.Length + URISchemeDelimiter.Length)..] + authorization;
-        }
-
-        private class GenerateDsqlAuthTokenRequest : AmazonWebServiceRequest
-        {
-            public GenerateDsqlAuthTokenRequest()
-            {
-                ((IAmazonWebServiceRequest)this).SignatureVersion = SignatureVersion.SigV4;
-            }
-        }
+        // Close the connection.
+        conn.Close();
     }
-}
-```
-
-Connect to Aurora DSQL cluster.
-
-```csharp
-    public static class ConnectionUtil
-    {
-        public static async Task<NpgsqlConnection> GetConnection(string cluster, RegionEndpoint region)
-        {
-            const string username = "admin";
-            // The token expiration time is optional, and the default value 900 seconds
-            string password = TokenGenerator.GenerateAuthToken(cluster, region);
-            const string database = "postgres";
-            var connString = "Host=" + cluster + ";Username=" + username + ";Password=" + password + ";Database=" + database + ";Port=" + 5432 + ";SSLMode=Require;";
-
-            var conn = new NpgsqlConnection(connString);
-            await conn.OpenAsync();
-            return conn;
-        }
-    }
-
-await using var conn = new NpgsqlConnection(connString);
-```
-
-## SQL CRUD Examples
-
-> [!Important]
->
-> To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
-
-### 1. Create Owner Table
-
-> **Note**
->
-> Note that Aurora DSQL does not support SERIAL, so id is based on uuid (suggest best practice guide on this TBD: Update link)
-
-```csharp
-void CreateTable(NpgsqlConnection conn) 
-{
-    using var cmd = new NpgsqlCommand("CREATE TABLE IF NOT EXISTS owner (id UUID PRIMARY KEY, name VARCHAR(30) NOT NULL, city VARCHAR(80) NOT NULL, telephone VARCHAR(20))", conn);
-    cmd.ExecuteNonQuery();
-}
-```
-
-### 2. Create Owner
-
-```csharp
-void CreateOwner(NpgsqlConnection conn)
-{
-    using var cmd = new NpgsqlCommand("INSERT INTO owner(id, name, city, telephone) VALUES(@id, @name, @city, @telephone)", conn);
-    cmd.Parameters.AddWithValue("id", Guid.NewGuid());
-    cmd.Parameters.AddWithValue("name", "John Doe");
-    cmd.Parameters.AddWithValue("city", "Las Vegas");
-    cmd.Parameters.AddWithValue("telephone", "555-555-5555");
-    cmd.ExecuteNonQuery();
-}
-```
-
-### 3. Read Owner
-``` csharp
-void ReadOwner(NpgsqlConnection conn)
-{
-    using var cmd = new NpgsqlCommand("SELECT * FROM owner", conn);
-    using var reader = cmd.ExecuteReader();
-    while (reader.Read())
-    {
-        Console.WriteLine("ID: " + reader.GetGuid(0));
-        Console.WriteLine("Name: " + reader.GetString(1));
-        Console.WriteLine("City: " + reader.GetString(2));
-        Console.WriteLine("Telephone: " + reader.GetString(3));
-    }
-}
-```
-
-### 4. Update Owner
-
-```csharp
-void UpdateOwner(NpgsqlConnection conn)
-{
-    using var cmd = new NpgsqlCommand("UPDATE owner SET telephone = @telephone WHERE name = @name", conn);
-    cmd.Parameters.AddWithValue("telephone", "888-888-8888");
-    cmd.Parameters.AddWithValue("name", "John Doe");
-    cmd.ExecuteNonQuery();
-}
-```
-
-### 5. Delete Owner
-
-```csharp
-void DeleteOwner(NpgsqlConnection conn)
-{
-    using var cmd = new NpgsqlCommand("DELETE FROM owner WHERE name = @name", conn);
-    cmd.Parameters.AddWithValue("name", "John Doe");
-    cmd.ExecuteNonQuery();
 }
 ```

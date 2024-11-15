@@ -4,13 +4,7 @@
 
 1. Prerequisites
 2. Obtaining the pgx driver for Go
-3. Connect to cluster
-4. Execute Examples
-   1. SQL CRUD Examples
-      1. Create
-      2. Read
-      3. Update
-      4. Delete
+3. Example using go with pgx to interact with Aurora DSQL
 
 ## Prerequisites
 
@@ -42,28 +36,75 @@ Example
 go get github.com/jackc/pgx/v5
 ```
 
-### Connect to Cluster
-
-Via Go
+### Example using go with pgx to interact with Aurora DSQL
 
 ```go
-func getConnectUrl(endpoint, schema string) string {
-	var sb strings.Builder
+package main
 
-	user := ADMIN
-	sb.WriteString("postgres://")
-	sb.WriteString(endpoint)
-	sb.WriteString(":5432/")
-	sb.WriteString(schema)
-	sb.WriteString("?")
-	sb.WriteString("user=")
-	sb.WriteString(user)
-	url := sb.String()
-	return url
+import (
+	"context"
+	"fmt"
+	_ "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/aws/signer/v4"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+)
+
+// Define a structure to represent our table.
+// Please follow on to see how we will unpack a result into this structure.
+type Owner struct {
+	Id        string `json:"id"`
+	Name      string `json:"name"`
+	City      string `json:"city"`
+	Telephone string `json:"telephone"`
 }
 
-func getConnection(ctx context.Context, endpoint, region, schema string) (*pgx.Conn, error) {
-	url := getConnectUrl(endpoint, schema)
+const (
+	// Please replace with your own cluster endpoint
+	ENDPOINT = "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
+	REGION   = "us-east-1"
+)
+
+// Generate the password token needed to establish a connection
+func generateAuthToken(creds *credentials.Credentials, action string) (string, error) {
+	// the scheme is arbitrary and is only needed because validation of the URL requires one.
+	endpoint := "https://" + ENDPOINT
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+	values := req.URL.Query()
+	values.Set("Action", action)
+	req.URL.RawQuery = values.Encode()
+
+	signer := v4.Signer{
+		Credentials: creds,
+	}
+	_, err = signer.Presign(req, nil, "dsql", REGION, 15*time.Minute, time.Now())
+	if err != nil {
+		return "", err
+	}
+
+	url := req.URL.String()[len("https://"):]
+
+	return url, nil
+}
+
+// Create a connection to Aurora DSQL
+func getConnection(ctx context.Context) (*pgx.Conn, error) {
+	// Build connection URL
+	var sb strings.Builder
+	sb.WriteString("postgres://")
+	sb.WriteString(ENDPOINT)
+	sb.WriteString(":5432/postgres?user=admin&sslmode=verify-full")
+	url := sb.String()
 
 	sess, err := session.NewSession()
 	if err != nil {
@@ -74,15 +115,22 @@ func getConnection(ctx context.Context, endpoint, region, schema string) (*pgx.C
 	if err != nil {
 		return nil, err
 	}
-	staticCredentials := credentials.NewStaticCredentials(creds.AccessKeyID, creds.SecretAccessKey, creds.SessionToken)
+	staticCredentials := credentials.NewStaticCredentials(
+		creds.AccessKeyID,
+		creds.SecretAccessKey,
+		creds.SessionToken,
+	)
 
 	// The token expiration time is optional, and the default value 900 seconds
-	token, err := utils.BuildAuthToken(endpoint, region, staticCredentials)
+	// If you are not connecting as admin, use DbConnect action instead
+	token, err := generateAuthToken(staticCredentials, "DbConnectAdmin")
+	if err != nil {
+		return nil, err
+	}
 
 	connConfig, err := pgx.ParseConfig(url)
 	// To avoid issues with parse config set the password directly in config
 	connConfig.Password = token
-
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to parse config: %v\n", err)
 		os.Exit(1)
@@ -92,129 +140,63 @@ func getConnection(ctx context.Context, endpoint, region, schema string) (*pgx.C
 
 	return conn, err
 }
-```
 
-## SQL CRUD Examples
+// Illustrates how to interact with Aurora DSQL
+func example() error {
+	ctx := context.Background()
 
-> [!Important]
->
-> To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
+	// Establish connection
+	conn, err := getConnection(ctx)
+	if err != nil {
+		return err
+	}
 
-## Owner Type
-
-```
-...
-type Owner struct {
-	Id        string `json:"id"`
-	Name      string `json:"name"`
-	City      string `json:"city"`
-	Telephone string `json:"telephone"`
-}
-```
-
-### 1. Create Owner Table
-
-> **Note**
->
-> Note that Aurora DSQL does not support SERIAL, so id is based on uuid (suggest best practice guide on this TBD: Update link)
-
-```go
-func createTables(ctx context.Context, db *pgx.Conn) error {
-    _, err := db.Exec(ctx, `
+	// Create owner table
+	_, err = conn.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS owner (
-			id UUID PRIMARY KEY,
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			name VARCHAR(255),
 			city VARCHAR(255),
 			telephone VARCHAR(255)
 		)
 	`)
-    if err != nil {
-        return err
-    }
-    return nil
-}
-```
+	if err != nil {
+		return err
+	}
 
-### 2. Create Owner
+	// Insert data
+	query := `INSERT INTO owner (id, name, city, telephone) VALUES ($1, $2, $3, $4)`
+	_, err = conn.Exec(ctx, query, uuid.New(), "John Doe", "Anytown", "555-555-1999")
 
-```go
-func createOwner(ctx context.Context, conn *pgx.Conn) error {
-   // Define the SQL query to insert a new owner record.
-   query := `
-          INSERT INTO owner (id, name, city, telephone) VALUES ($1, $2, $3, $4)
-      `
+	if err != nil {
+		return err
+	}
 
-   owner_id := uuid.New()
+	owners := []Owner{}
 
-   _, err := conn.Exec(ctx, query, owner_id.String(), "John Doe", "Vancouver", "555 555-5555")
-
-   if err != nil {
-      log.Println("Error Inserting Owner")
-      return err
-   }
-   return nil
-}
-```
-
-### 3. Read Owner
-
-```go
-func readOwner(ctx context.Context, conn *pgx.Conn) error {
-	//var id string
-
-	rowArray := Owner{}
-	// Define the SQL query to read the new owner record.
-	query := `select id, name, city, telephone from owner`
-
+	// Read the inserted data back
+	query = `SELECT id, name, city, telephone FROM owner where name='John Doe'`
+	
 	rows, err := conn.Query(ctx, query)
 	defer rows.Close()
-
-	for rows.Next() {
-		err := rows.Scan(&rowArray.Id, &rowArray.Name, &rowArray.City, &rowArray.Telephone)
-		if err != nil {
-			log.Fatal(err)
-		}
+	
+	owners, err = pgx.CollectRows(rows, pgx.RowToStructByName[Owner])
+	fmt.Println(owners)
+	if err != nil || owners[0].Name != "John Doe" || owners[0].City != "Anytown" {
+		panic("Error retrieving data")
 	}
 
-	fmt.Println(rowArray)
+	defer conn.Close(ctx)
 
-	if err != nil {
-		log.Println("Error retrieving Owner")
-		return err
-	}
 	return nil
 }
-```
 
-### 4. Update Owner
-
-```go
-func updateOwner(ctx context.Context, db *pgx.Conn) error {
-	// Define the SQL query to insert a new owner record.
-	query := "UPDATE owner SET telephone = '555-5555-1234' WHERE name = 'John Doe'"
-
-	_, err := db.Exec(ctx, query)
-
+// Run example
+func main() {
+	err := example()
 	if err != nil {
-		log.Println("Error updating Owner")
-		return err
+		fmt.Fprintf(os.Stderr, "Unable to run example: %v\n", err)
+		os.Exit(1)
 	}
-	return nil
-}
-```
-
-### 5. Delete Owner
-
-```go
-func deleteOwner(ctx context.Context, conn *pgx.Conn) error {
-	query := "DELETE FROM owner WHERE name = 'John Doe'"
-
-	_, err := conn.Exec(ctx, query)
-
-	if err != nil {
-		log.Println("Error deleting Owner")
-		return err
-	}
-	return nil
 }
 ```

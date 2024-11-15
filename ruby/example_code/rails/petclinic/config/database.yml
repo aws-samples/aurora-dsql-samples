@@ -39,7 +39,12 @@ development:
   # host: localhost
   # Set to Aurora DSQL instance hostname
   # host: <Aurora DSQL hostname>.c0001.us-east-1.gamma.sql.axdb.aws.dev
-  host: heabttht4usatqsp74vv2bp75m.c0001.us-east-1.prod.sql.axdb.aws.dev
+  host: huabttnonxz4oajpjn53txpdue.dsql-gamma.us-east-1.on.aws
+
+  sslmode: verify-full
+  # Provide the path to the root certificate. 
+  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
+  sslrootcert: ./root.pem
 
   aws_rds_iam_auth_token_generator: dsql
   advisory_locks: false

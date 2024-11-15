@@ -9,7 +9,7 @@ use aws_sigv4::{
 // Default expiry is 15 minutes
 const DEFAULT_EXPIRY: Duration = Duration::new(900, 0);
 
-pub async fn generate_db_auth_token(
+pub async fn generate_db_connect_admin_auth_token(
     hostname: impl AsRef<str>,
     region: impl AsRef<str>,
     provide_credentials: impl ProvideCredentials,
@@ -27,12 +27,12 @@ pub async fn generate_db_auth_token(
     let signing_params = SigningParams::builder()
         .identity(&identity)
         .region(region.as_ref())
-        .name("xanadu")
+        .name("dsql")
         .time(SystemTime::now())
         .settings(signing_settings)
         .build()?;
 
-    let url = format!("https://{}/?Action=DbConnectSuperuser", hostname.as_ref());
+    let url = format!("https://{}/?Action=DbConnectAdmin", hostname.as_ref());
 
     let signable_request =
         SignableRequest::new("GET", &url, std::iter::empty(), SignableBody::Bytes(&[]))?;

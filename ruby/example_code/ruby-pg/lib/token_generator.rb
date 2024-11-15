@@ -4,7 +4,7 @@ require 'aws-sdk-core'
 require 'aws-sigv4'
 
 module Aws
-  module AxdbFrontend
+  module DSQL
     # TODO: add docs
     #
     # @see <add public link>
@@ -29,7 +29,7 @@ module Aws
         presigned_token(options, 'DbConnect')
       end
 
-      # Generates an auth token for the DbConnectSuperuser action.
+      # Generates an auth token for the DbConnectAdmin action.
       #
       # @param [Hash] options
       # @option options [String] :region The AWS region where the DSQL Cluster
@@ -38,8 +38,8 @@ module Aws
       # @option options [Integer] :expires_in (900) The number of seconds the
       #  token is valid for.
       # @return [String]
-      def generate_db_connect_superuser_auth_token(options = {})
-        presigned_token(options, 'DbConnectSuperuser')
+      def generate_db_connect_admin_auth_token(options = {})
+        presigned_token(options, 'DbConnectAdmin')
       end
 
       private
@@ -52,7 +52,7 @@ module Aws
         param_list.set('Action', action)
 
         signer = Aws::Sigv4::Signer.new(
-          service: 'xanadu',
+          service: 'dsql',
           region: region,
           credentials_provider: @credentials
         )

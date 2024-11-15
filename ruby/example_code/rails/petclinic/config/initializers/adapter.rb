@@ -8,7 +8,7 @@ class DsqlAuthTokenGenerator
   def call(host:, port:, user:)
     action = "DbConnectAdmin"
     region = "us-east-1"
-    service = "xanadu"
+    service = "dsql"
     param_list = Aws::Query::ParamList.new
     param_list.set("Action", action)
     param_list.set("DBUser", user)

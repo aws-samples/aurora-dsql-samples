@@ -4,7 +4,7 @@ plugins {
 }
 
 application {
-    mainClass = "org.example.HelloCrud"
+    mainClass = "org.example.Example"
 }
 
 group = "org.example"

@@ -2,6 +2,6 @@ psycopg[binary,pool]>=3
 pytest>=8
 
 # TODO: update the whl with package name once they are published to pypi
-sdk/boto3-1.35.42-py3-none-any.whl
-sdk/botocore-1.35.42-py3-none-any.whl
+sdk/boto3-1.35.60-py3-none-any.whl
+sdk/botocore-1.35.60-py3-none-any.whl
 

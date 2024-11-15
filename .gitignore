@@ -3,3 +3,8 @@
 **/*/psycopg_venv/
 **/*/.pytest_cache/
 **/*/box/
+
+.vscode
+
+**/*/target/
+**/*/*.pem

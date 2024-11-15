@@ -3,13 +3,7 @@
 ## Table of Contents
 
 1. Prerequisites
-2. Execute Examples
-   1. Connect to Cluster
-   2. SQL CRUD Examples
-      1. Create
-      2. Read
-      3. Update
-      4. Delete
+2. Example using libpq with Aurora DSQL
 
 ## Prerequisites
 
@@ -58,27 +52,28 @@
 ```cpp
 #include <libpq-fe.h>
 #include <aws/core/Aws.h>
-#include <aws/dsql/dsqlClient.h>
+#include <aws/dsql/DsqlClient.h>
 #include <iostream>
 
 using namespace Aws;
-using namespace Aws::dsql;
-using namespace Aws::dsql::Model;
+using namespace Aws::Dsql;
+using namespace Aws::Dsql::Model;
 
 std::string generateDBAuthToken(const std::string endpoint, const std::string action, const std::string region) {
     Aws::SDKOptions options;
     Aws::InitAPI(options);
-    dsqlClientConfiguration clientConfig;
+    DsqlClientConfiguration clientConfig;
     clientConfig.region = region;
-    dsqlClient client{clientConfig};
+    DsqlClient client{clientConfig};
     std::string token = "";
     
     // The token expiration time is optional, and the default value 900 seconds
-    const auto presignedString = client.GenerateDBAuthToken(endpoint, region, action);
+    // If you aren not using admin role to connect, use GenerateDBConnectAuthToken instead
+    const auto presignedString = client.GenerateDBConnectAdminAuthToken(endpoint, region);
     if (presignedString.IsSuccess()) {
         token = presignedString.GetResult();
     } else {
-        std::cerr << "Token Generation Failed." << std::endl;
+        std::cerr << "Token generation failed." << std::endl;
     }
 
     Aws::ShutdownAPI(options);
@@ -86,9 +81,7 @@ std::string generateDBAuthToken(const std::string endpoint, const std::string ac
 }
 
 PGconn* connectToCluster(std::string clusterEndpoint, std::string region) {
-    std::string action = "DbConnectAdmin";
-
-    std::string password = generateDBAuthToken(clusterEndpoint, action, region);
+    std::string password = generateDBAuthToken(clusterEndpoint, region);
     
     std::string dbname = "postgres";
     std::string user = "admin";
@@ -107,75 +100,47 @@ PGconn* connectToCluster(std::string clusterEndpoint, std::string region) {
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
-        std::cerr << "Error while connecting to the database server: " <<  PQerrorMessage(conn) << std::endl;
+        std::cerr << "Error while connecting to the database server: " << PQerrorMessage(conn) << std::endl;
         PQfinish(conn);
        return NULL;
     }
 
     return conn;
 }
-```
 
-## SQL CRUD Examples
+void example(PGconn *conn) {
 
+    // Create a table
+    std::string create = "CREATE TABLE IF NOT EXISTS owner (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name VARCHAR(30) NOT NULL, city VARCHAR(80) NOT NULL, telephone VARCHAR(20))";
 
-### 1. Create Owner Table
+    PGresult *createResponse = PQexec(conn, create.c_str());
+    ExecStatusType createStatus = PQresultStatus(createResponse);
+    PQclear(createResponse);
 
-> [!Note]
->
-> Note that Aurora DSQL does not support SERIAL, so id is based on uuid.
-
-```cpp
-#include <libpq-fe.h>
-#include <iostream>
-
-void createTables(PGconn *conn) {
-    std::string query = "CREATE TABLE IF NOT EXISTS owner (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name VARCHAR(30) NOT NULL, city VARCHAR(80) NOT NULL, telephone VARCHAR(20))";
-
-    PGresult *res = PQexec(conn, query.c_str());
-    ExecStatusType resStatus = PQresultStatus(res);
-    PQclear(res);
-
-    if (resStatus != PGRES_COMMAND_OK) {
+    if (createStatus != PGRES_COMMAND_OK) {
         std::cerr << "Create Table failed - " << PQerrorMessage(conn) << std::endl;        
     }
-}
-```
-
-### 2. Create Owner
-
-```cpp
-#include <libpq-fe.h>
-#include <iostream>
-
-void createOwner(PGconn *conn) {
-    std::string query = "INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Vancouver', '555 555-5555')";
-
-    PGresult *res = PQexec(conn, query.c_str());
-    ExecStatusType resStatus = PQresultStatus(res);
-    PQclear(res);
     
-    if (resStatus != PGRES_COMMAND_OK) {
+    // Insert data into the table
+    std::string insert = "INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')";
+
+    PGresult *insertResponse = PQexec(conn, insert.c_str());
+    ExecStatusType insertStatus = PQresultStatus(insertResponse);
+    PQclear(insertResponse);
+    
+    if (insertStatus != PGRES_COMMAND_OK) {
         std::cerr << "Insert failed - " << PQerrorMessage(conn) << std::endl;        
-    }        
-}
-```
+    }
+    
+    // Read the data we inserted
+    std::string select = "SELECT * FROM owner";
 
-### 3. Read Owner
+    PGresult *selectResponse = PQexec(conn, select.c_str());
+    ExecStatusType selectStatus = PQresultStatus(res);
 
-```cpp
-#include <libpq-fe.h>
-#include <iostream>
-
-void readOwner(PGconn *conn) {
-    std::string query = "SELECT * FROM owner";
-
-    PGresult *res = PQexec(conn, query.c_str());
-    ExecStatusType resStatus = PQresultStatus(res);
-
-    if (resStatus != PGRES_TUPLES_OK) {
+    if (selectStatus != PGRES_TUPLES_OK) {
         std::cerr << "Select failed - " << PQerrorMessage(conn) << std::endl;
-        PQclear(res);
+        PQclear(selectResponse);
         return;
     }
 
@@ -200,60 +165,11 @@ void readOwner(PGconn *conn) {
     }
     PQclear(res);
 }
-```
 
-### 4. Update Owner
-
-```cpp
-#include <libpq-fe.h>
-#include <iostream>
-
-void updateOwner(PGconn *conn) {
-    std::string query = "UPDATE owner SET telephone = '555-5555-1234' WHERE name = 'John Doe'";
-
-    PGresult *res = PQexec(conn, query.c_str());
-    ExecStatusType resStatus = PQresultStatus(res);
-    PQclear(res);
-    
-    if (resStatus != PGRES_COMMAND_OK) {
-        std::cerr << "Update failed - " << PQerrorMessage(conn) << std::endl;        
-    }        
-}
-```
-
-### 5. Delete Owner
-
-```cpp
-#include <libpq-fe.h>
-#include <iostream>
-
-void deleteOwner(PGconn *conn) {
-    std::string query = "DELETE FROM owner WHERE name = 'John Doe'";
-    PGresult *res = PQexec(conn, query.c_str());
-    ExecStatusType resStatus = PQresultStatus(res);
-    PQclear(res);
-    
-    if (resStatus != PGRES_COMMAND_OK) {
-        std::cerr << "Delete failed - " << PQerrorMessage(conn) << std::endl;        
-    }        
-}
-```
-
-### Example program using the functionality
-
-```cpp
-#include <libpq-fe.h>
-#include <aws/core/Aws.h>
-#include <aws/dsql/dsqlClient.h>
-#include <iostream>
-
-using namespace Aws;
-using namespace Aws::dsql;
-using namespace Aws::dsql::Model;
-
-void crud() {
+int main(int argc, char *argv[]) {
     std::string region = "us-east-1";
-    std::string clusterEndpoint = "abcdefghijklmnopqrst123456.dsql.us-east-1.on.aws";
+    // Please replace with your own cluster endpoint
+    std::string clusterEndpoint = "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws";
 
     PGconn *conn = connectToCluster(clusterEndpoint, region);
 
@@ -261,18 +177,9 @@ void crud() {
         std::cerr << "Failed to get connection. Exiting." << std::endl;
         return;
     }
-    createTables(conn);
-    createOwner(conn);
-    readOwner(conn);
-    updateOwner(conn);
-    readOwner(conn);
-    deleteOwner(conn);
-    readOwner(conn);
-    disconnect(conn);
-}
+    
+    example(conn);
 
-int main(int argc, char *argv[]) {
-    crud();
     return 0;
 }
 ```

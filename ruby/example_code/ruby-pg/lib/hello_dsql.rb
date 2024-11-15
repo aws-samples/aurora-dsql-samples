@@ -1,49 +1,65 @@
-require_relative 'connection_util.rb'
-require 'securerandom'
+require 'pg'
+require_relative 'token_generator'
 
-def create_tables(conn)
+def example()
+  cluster_endpoint = 'huabttnonxz4oajpjn53txpdue.dsql-gamma.us-east-1.on.aws'
+  region = 'us-east-1'
+  credentials = Aws::SharedCredentials.new()
+
+  begin
+      token_generator = Aws::DSQL::AuthTokenGenerator.new({
+          :credentials => credentials
+      })
+      
+      # The token expiration time is optional, and the default value 900 seconds
+      # if you are not using admin role, use generate_db_connect_auth_token instead
+      token = token_generator.generate_db_connect_admin_auth_token({
+          :endpoint => cluster_endpoint,
+          :region => region
+      })
+
+      conn = PG.connect(
+        host: cluster_endpoint,
+        user: 'admin',
+        password: token,
+        dbname: 'postgres',
+        port: 5432,
+        sslmode: 'verify-full',
+        sslrootcert: "./root.pem"
+      )
+  rescue => _error
+      raise
+  end
+
+  # Create the owner table
   conn.exec('CREATE TABLE IF NOT EXISTS owner (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(30) NOT NULL,
     city VARCHAR(80) NOT NULL,
     telephone VARCHAR(20)
   )')
-end
 
-def create_owner(conn)
-  conn.exec_params('INSERT INTO owner(id, name, city, telephone) VALUES($1, $2, $3, $4)', [SecureRandom.uuid, 'John Doe', 'Las Vegas', '555-555-5555'])
-end
+  # Insert an owner
+  conn.exec_params('INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)',
+    ['John Doe', 'Anytown', '555-555-0055'])
 
-def read_owner(conn)
-  pg_result = conn.exec('SELECT * FROM owner')
-  pg_result.each do |row|
-    puts row
-  end
-end
+  # Read the result back
+  result = conn.exec("SELECT city FROM owner where name='John Doe'")
 
-def update_owner(conn)
-  conn.exec('UPDATE owner SET telephone = $1 WHERE name = $2', ['888-888-8888', 'John Doe'])
-end
+  # Raise error if we are unable to read
+  raise "must have fetched a row" unless result.ntuples == 1
+  raise "must have fetched right city" unless result[0]["city"] == 'Anytown'
 
-def delete_owner(conn)
-  conn.exec_params('DELETE FROM owner WHERE name = $1', ['John Doe'])
-end
+  # Delete data we just inserted
+  conn.exec("DELETE FROM owner where name='John Doe'")
 
-cluster_endpoint = "siabtthuahe5btniuym7ohbd7u.c0001.us-east-1.prod.sql.axdb.aws.dev"
-region = "us-east-1"
-
-begin
-  pg_connection = ConnectionUtil.get_connection(cluster_endpoint, region)
-  create_tables(pg_connection)
-  create_owner(pg_connection)
-  read_owner(pg_connection)
-  update_owner(pg_connection)
-  read_owner(pg_connection)
-  delete_owner(pg_connection)
 rescue => error
   puts error.full_message
 ensure
-  unless pg_connection.nil?
-    pg_connection.finish()
+  unless conn.nil?
+    conn.finish()
   end
 end
+
+# Run the example
+example()

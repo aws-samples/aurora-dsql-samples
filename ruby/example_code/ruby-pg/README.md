@@ -4,27 +4,11 @@
 
 1. Prerequisites
 
-2. SQL CRUD Examples
-   1. Create
-   2. Read
-   3. Update
-   4. Delete
+2. Using Ruby-pg to interact with Aurora DSQL
 
 ## Prerequisites
 
-You must have a `default` profile in your `~/.aws/credentials` file with the following variables
-  * `aws_access_key_id=<your_access_key_id>`
-  * `aws_secret_access_key=<your_secret_access_key>`
-  * `aws_session_token=<your_session_token>`
-
-Your `~/.aws/credentials` file should look as depicted below
-
-```bash
-[default]
-aws_access_key_id=<your_access_key_id>
-aws_secret_access_key=<your_secret_access_key>
-aws_session_token=<your_session_token>
-```
+- [Created an AWS account and configured the credentials and AWS Region](https://alpha.www.docs.aws.a2z.com/sdkref/latest/guide/creds-config-files.html).
 
 ### Create Cluster
 
@@ -51,103 +35,74 @@ It should output something similar to `v3.2.6"`.
 bundle install
 ```
 
-### Connect to the Aurora DSQL Cluster
-
-Via Ruby
+### Using Ruby-pg to interact with Aurora DSQL
 
 ```ruby
 require 'pg'
 require_relative 'token-generator'
 
-module ConnectionUtil
-    def get_connection(cluster_endpoint, region)
-        action = "DbConnectAdmin"
+def example()
+  # Please replace with your own cluster endpoint
+  cluster_endpoint = 'foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws'
+  region = 'us-east-1'
+  credentials = Aws::SharedCredentials.new()
 
-        credentials = Aws::SharedCredentials.new()
+  begin
+      token_generator = Aws::DSQL::AuthTokenGenerator.new({
+          :credentials => credentials
+      })
+      
+      # The token expiration time is optional, and the default value 900 seconds
+      # if you are not using admin role, use generate_db_connect_auth_token instead
+      token = token_generator.generate_db_connect_admin_auth_token({
+          :endpoint => cluster_endpoint,
+          :region => region
+      })
 
-        begin
-            token_gen = Aws::dsql::AuthTokenGenerator.new({
-                :credentials => credentials
-            })
-        
-            # The token expiration time is optional, and the default value 900 seconds
-            token = token_gen.generate_db_connect_superuser_auth_token({
-                :endpoint => cluster_endpoint,
-                :region => region
-            })
+      conn = PG.connect(
+        host: cluster_endpoint,
+        user: 'admin',
+        password: token,
+        dbname: 'postgres',
+        port: 5432,
+        sslmode: 'verify-full',
+        # Can be fetched from https://www.amazontrust.com/repository/
+        sslrootcert: "<path to amazon's root certificate>"
+      )
+  rescue => _error
+      raise
+  end
 
-            pg_connection = PG.connect(
-                            host: cluster_endpoint,
-                            user: 'admin',
-                            password: token,
-                            dbname: 'postgres',
-                            port: 5432,
-                            sslmode: 'require'
-            )
-            return pg_connection
-        rescue => error
-            raise
-        end
-    end
-    module_function :get_connection
-end
-```
-
-## SQL CRUD Examples
-
-### 1. Create Owner Table
-
-Note that DSL does not support SERIAL so id is based on uuid see (suggest best practice guide on this)
-
-```ruby
-def create_tables(conn)
+  # Create the owner table
   conn.exec('CREATE TABLE IF NOT EXISTS owner (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(30) NOT NULL,
     city VARCHAR(80) NOT NULL,
     telephone VARCHAR(20)
   )')
-end
-```
 
-### 2. Create Owner
+  # Insert an owner
+  conn.exec_params('INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)',
+    ['John Doe', 'Anytown', '555-555-0055'])
 
-```ruby
+  # Read the result back
+  result = conn.exec("SELECT city FROM owner where name='John Doe'")
 
-def create_owner(conn)
-  conn.exec_params('INSERT INTO owner(id, name, city, telephone) VALUES($1, $2, $3, $4)', [SecureRandom.uuid, 'John Doe', 'Las Vegas', '555-555-5555'])
-end
-```
+  # Raise error if we are unable to read
+  raise "must have fetched a row" unless result.ntuples == 1
+  raise "must have fetched right city" unless result[0]["city"] == 'Anytown'
 
-### 3. Read Owner
+  # Delete data that we just inserted
+  conn.exec("DELETE FROM owner where name='John Doe'")
 
-```ruby
-def read_owner(conn)
-  pg_result = conn.exec('SELECT * FROM owner')
-  pg_result.each do |row|
-    puts row
+rescue => error
+  puts error.full_message
+ensure
+  unless conn.nil?
+    conn.finish()
   end
 end
-```
 
-### 4. Update Owner
-
-```ruby
-def update_owner(conn)
-  conn.exec('UPDATE owner SET telephone = $1 WHERE name = $2', ['888-888-8888', 'John Doe'])
-end
-```
-
-### 5. Delete Owner
-
-```ruby
-def delete_owner(conn)
-  conn.exec_params('DELETE FROM owner WHERE name = $1', ['John Doe'])
-end
-```
-
-### 6. Terminate Connection
-
-```ruby
-conn.finish()
+# Run the example
+example()
 ```

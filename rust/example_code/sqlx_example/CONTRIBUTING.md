@@ -18,7 +18,14 @@ Ensure you are authenticated with AWS credentials. No other setup is needed besi
 
 In a terminal run the following command from the sqlx_example:
 ```sh
+# Use the account credentials dedicated for rust
+ada credentials update --role=Admin --account 688567293585 --once
+
 cargo test
+
+# you can also execute the binary
+cargo build
+./target/debug/sqlx_example
 ```
 
 ---

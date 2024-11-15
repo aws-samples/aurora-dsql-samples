@@ -17,7 +17,7 @@
     <PackageReference Include="Npgsql" Version="8.0.5" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
-    <Compile Include="../ConnectionUtil.cs" Link="ConnectionUtil.cs" />
+    <Compile Include="../Example.cs" Link="Example.cs" />
     <Compile Include="../TokenGenerator.cs" Link="TokenGenerator.cs" />
   </ItemGroup>
 

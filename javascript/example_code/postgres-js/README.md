@@ -4,11 +4,7 @@
 
 1. Prerequisites
 
-2. SQL CRUD Examples
-   1. Create
-   2. Read
-   3. Update
-   4. Delete
+2. Example using Postgres-js with Aurora DSQL
 
 ## Prerequisites
 
@@ -37,97 +33,64 @@ It should output something similar to `v18.x"`.
 npm install
 ```
 
-### Connect to the Aurora DSQL Cluster
-
-Via Javascript
+### Example using Postgres-js with Aurora DSQL
 
 ```javascript
-import { generateToken } from "./token-gen.js";
+import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import postgres from "postgres"
 
-async function getClient(clusterEndpoint, region) {
-    const action = "DbConnectAdmin";
-    let token;
-    try {
-        // The token expiration time is optional, and the default value 900 seconds
-        token = await generateToken(clusterEndpoint, action, region);
-        const sql = postgres({
-            host: clusterEndpoint,
-            user: "admin",
-            password: token,
-            database: "postgres",
-            port: 5432,
-            ssl: "require",
-          });
-        return Promise.resolve(sql)
-    } catch (error) {
-        return Promise.reject(error);
-    }
-}
+import assert from "node:assert";
 
-export { getClient }
-```
+let client;
+try {
+  // Please replace with your own cluster endpoint
+  const clusterEndpoint = "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
+  // Generate a password token
+  // The token expiration time is optional, and the default value 900 seconds
+  // If you are not using admin user, use `DbConnect` action instead.
+  const signer = new DsqlSigner({
+    hostname: clusterEndpoint,
+    action: "DbConnectSuperuser",
+    region,
+  });
+  const token = await signer.getAuthToken();
 
-## SQL CRUD Examples
+  // Setup connection
+  client = postgres({
+      host: clusterEndpoint,
+      user: "admin",
+      password: token,
+      database: "postgres",
+      port: 5432,
+      ssl: true,
+    });
 
-### 1. Create Owner Table
-
-Note that DSL does not support SERIAL so id is based on uuid see (suggest best practice guide on this)
-
-```javascript
-const createTables = async (client) => {
-  return client`CREATE TABLE IF NOT EXISTS owner (
-    id UUID PRIMARY KEY,
+  // Create a table
+  await client`CREATE TABLE IF NOT EXISTS owner (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(30) NOT NULL,
     city VARCHAR(80) NOT NULL,
     telephone VARCHAR(20)
   )`;
+
+  // Insert some data
+  await client`INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1900')`
+
+  // Check that data is inserted by reading it back
+  const result = await client`SELECT id, city FROM owner where name='John Doe'`;
+  assert.deepEqual(result[0].city, "Anytown")
+  assert.notEqual(result[0].id, null)
+
+} catch (error) {
+  console.error(error);
+  raise
+} finally {  
+  client?.end();
 }
 ```
 
-### 2. Create Owner
-
-```javascript
-const createOwner = async (client) => {
-  const owners = [{
-    id: uuidv4(),
-    name: "John Doe",
-    city: "Las Vegas",
-    telephone: "555-555-555"
-  }];
-  
-  return client`INSERT INTO owner ${ client(owners) }`
-}
-```
-
-### 3. Read Owner
-
-```javascript
-const readOwner = async (client) => {
-  const result = await client`SELECT * FROM owner`;
-  console.log(result);
-  return Promise.resolve();
-}
-```
-
-### 4. Update Owner
-
-```javascript
-const updateOwner = async (client) => {
-  return client`UPDATE owner SET telephone = '888-888-8888' WHERE name = 'John Doe'`
-}
-```
-
-### 5. Delete Owner
-
-```javascript
-const deleteOwner = async (client) => {
-  return client`DELETE FROM owner WHERE name = 'John Doe'`
-}
-```
-
-### 6. Terminate Connection
-
-```javascript
-await client.end();
-```
+[!Important]
+>
+> Prepared statements do not work with postgres-js during preview. This is because,
+> Aurora DSQL does not support Flush postgres message. Postgres-js uses Flush
+> while executing a prepared statement.

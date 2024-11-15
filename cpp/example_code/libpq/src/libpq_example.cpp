@@ -82,7 +82,7 @@ void createTables(PGconn *conn) {
 }
 
 void createOwner(PGconn *conn) {
-    std::string query = "INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Vancouver', '555 555-5555')";
+    std::string query = "INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1900')";
 
     PGresult *res = PQexec(conn, query.c_str());
     ExecStatusType resStatus = PQresultStatus(res);

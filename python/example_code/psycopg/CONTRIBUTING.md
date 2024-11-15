@@ -19,6 +19,8 @@ source setup.sh
 ### Run the example tests
 
 ```sh
+# Use the account credentials dedicated for python
+ada credentials update --role=Admin --account 481665088575 --once
 pytest test/test_example.py
 ```
 

@@ -11,4 +11,10 @@ anyhow = { version = "1", features = ["backtrace"] }
 aws-config = "1.1"
 aws-credential-types = "1.1"
 aws-sigv4 = "1.1"
+rand = "0.8"
 url = "2.5"
+uuid = { version = "1.11", features = ["v4"] }
+
+[[bin]]
+name = "sqlx_example"
+path = "src/main.rs"

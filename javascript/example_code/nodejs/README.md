@@ -4,11 +4,7 @@
 
 1. Prerequisites
 
-2. SQL CRUD Examples
-   1. Create
-   2. Read
-   3. Update
-   4. Delete
+2. Example using Node-js with Aurora DSQL
 
 ## Prerequisites
 
@@ -37,95 +33,60 @@ It should output something similar to `v18.x"`.
 npm install
 ```
 
-### Connect to the Aurora DSQL Cluster
-
-Via Javascript
+### Example using Node-js with Aurora DSQL
 
 ```javascript
+import { v4 as uuidv4 } from 'uuid';
+import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import pg from "pg";
-import { generateToken } from "./token-gen.js";
+import assert from "node:assert";
 const { Client } = pg;
 
-async function getClient(clusterEndpoint, region) {
-    const action = "DbConnectAdmin";
-    let token;
-    try {
-        // The token expiration time is optional, and the default value 900 seconds
-        token = await generateToken(clusterEndpoint, action, region);
-        const client = new Client({
-            host: clusterEndpoint,
-            user: "admin",
-            password: token,
-            database: "postgres",
-            port: 5432,
-            ssl: {
-                require: true,
-                rejectUnauthorized: false
-            }
-        });
-        await client.connect();
-        return Promise.resolve(client);
-    } catch (error) {
-        return Promise.reject(error);
-    }
-}
+let client;
+try {
+  // The token expiration time is optional, and the default value 900 seconds
+  // If you are not using admin user, use `DbConnect` action instead.
+  const signer = new DsqlSigner({
+    // Please replace with your own cluster endpoint
+    hostname: 'foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws',
+    action: "DbConnectAdmin",
+    region,
+  });
+  const token = await signer.getAuthToken();
+  const client = new Client({
+    host: clusterEndpoint,
+    user: "admin",
+    password: token,
+    database: "postgres",
+    port: 5432,
+    ssl: true
+  });
 
-export { getClient }
-```
+  // Connect
+  await client.connect();
 
-## SQL CRUD Examples
-
-### 1. Create Owner Table
-
-Note that DSL does not support SERIAL so id is based on uuid see (suggest best practice guide on this)
-
-```javascript
-const createTables = async (client) => {
-  return client.query(`CREATE TABLE IF NOT EXISTS owner (
-    id UUID PRIMARY KEY,
+  // Create a new table
+  await client.query(`CREATE TABLE IF NOT EXISTS owner (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(30) NOT NULL,
     city VARCHAR(80) NOT NULL,
     telephone VARCHAR(20)
   )`);
+
+  // Insert some data
+  await client.query("INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)", 
+    ["John Doe", "Anytown", "555-555-5555"]
+  );
+
+  // Check that data is inserted by reading it back
+  const result = await client.query("SELECT id, city FROM owner where name='John Doe'");
+  assert.deepEqual(result.rows[0].city, "Anytown")
+  assert.notEqual(result.rows[0].id, null)
+
+} catch (error) {
+  console.error(error);
+  raise
+} finally {
+  client?.end()
 }
-```
-
-### 2. Create Owner
-
-```javascript
-const createOwner = (client) => {
-  return client.query("INSERT INTO owner(id, name, city, telephone) VALUES($1, $2, $3, $4)", [uuidv4(), "John Doe", "Las Vegas", "555-555-5555"]);
-}
-```
-
-### 3. Read Owner
-
-```javascript
-const readOwner = async (client) => {
-  const result = await client.query("SELECT * FROM owner");
-  console.log(result.rows);
-  return Promise.resolve();
-}
-```
-
-### 4. Update Owner
-
-```javascript
-const updateOwner = (client) => {
-  return client.query("UPDATE owner SET telephone = $1 WHERE name = $2", ["888-888-8888", "John Doe"]);
-}
-```
-
-### 5. Delete Owner
-
-```javascript
-const deleteOwner = (client) => {
-  return client.query("DELETE FROM owner WHERE name = $1", ["John Doe"]);
-}
-```
-
-### 6. Terminate Connection
-
-```javascript
-await client.end();
 ```

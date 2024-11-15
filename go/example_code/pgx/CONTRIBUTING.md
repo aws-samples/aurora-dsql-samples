@@ -19,9 +19,14 @@ Ensure you are authenticated with AWS credentials. No other setup is needed besi
 In a terminal run the following commands:
 
 ```sh
+# Use the account credentials dedicated for golang
+ada credentials update --role=Admin --account 774305617129 --once
 go env -w GOPROXY=direct
+go test
+
+# you can also do to run the example
 go build
-./hello_crud
+./example 
 ```
 
 ---

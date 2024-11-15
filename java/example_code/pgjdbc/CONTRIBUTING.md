@@ -6,11 +6,11 @@ Steps:
 
 ### Set cluster endpoint
 
-Update the following code of `src/main/java/org/example/HelloCrud.java`. Set `<your_cluster_endpoint>` to your cluster endpoint. Set REGION to your cluster region.
+Update the following code of `src/main/java/org/example/Example.java`. Set `<your_cluster_endpoint>` to your cluster endpoint. Set REGION to your cluster region.
 
 ```
-private static final String CLUSTER_ENDPOINT = "<your_cluster_endpoint>";
-private static final String REGION = "us-east-1";
+String cluster_endpoint = "<your_cluster_endpoint>";
+String REGION = "<cluster region>";
 ```
 
 
@@ -18,14 +18,17 @@ private static final String REGION = "us-east-1";
 
 From root of this repository
 
-The CRUD examples described below are all contained in `HelloCrud.java`
+The CRUD examples described below are all contained in `Example.java`
 
 #### Maven
 
 ```
+# Use the account credentials dedicated for java
+ada credentials update --role=Admin --account 897729098254 --once
 mvn validate
+mvn initialize
 mvn clean compile assembly:single
-java -jar target/helloDSQL-1.0-SNAPSHOT-jar-with-dependencies.jar
+java -jar target/AuroraDSQLExample-1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
 
 #### Gradle

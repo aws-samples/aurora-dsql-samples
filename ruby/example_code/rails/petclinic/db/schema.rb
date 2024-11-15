@@ -16,6 +16,13 @@ ActiveRecord::Schema[7.2].define(version: 2024_11_07_085734) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
+  create_table "owner", primary_key: ["id", "name", "city", "telephone"], force: :cascade do |t|
+    t.uuid "id", default: -> { "gen_random_uuid()" }, null: false
+    t.string "name", limit: 30, null: false
+    t.string "city", limit: 80, null: false
+    t.string "telephone", limit: 20
+  end
+
   create_table "owners", primary_key: ["id", "name", "city", "telephone", "created_at", "updated_at"], force: :cascade do |t|
     t.uuid "id", default: -> { "gen_random_uuid()" }, null: false
     t.string "name", limit: 30

@@ -22,6 +22,8 @@ dotnet add package xunit --version 2.9.2
 ### Run the example tests
 
 ```sh
+# Use the account credentials dedicated for dotnet
+ada credentials update --role=Admin --account 816069133683 --once
 cd ExampleTest.Tests
 dotnet test
 ```

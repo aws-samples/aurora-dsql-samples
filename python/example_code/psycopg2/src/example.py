@@ -10,89 +10,60 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import boto3
-import psycopg2
 
-def connect_to_cluster(cluster_endpoint, region):
-    password_token = generate_token(cluster_endpoint, region)
+import psycopg2
+import boto3
+
+def main():
+    cluster_endpoint = 'y4abttnmzvrrdtiv2bvn6abjsi.dsql-gamma.us-east-1.on.aws'
+    region = 'us-east-1'
+
+    # Generate a password token
+    client = boto3.client("dsql", region_name=region)
+    # The token expiration time is optional, and the default value 900 seconds
+    password_token = client.generate_db_connect_admin_auth_token(cluster_endpoint, region)
+
     # connection parameters
     dbname = "dbname=postgres"
     user = "user=admin"
     host = f'host={cluster_endpoint}'
-    sslmode = "sslmode=require"
+    sslmode = "sslmode=verify-full"
+    sslrootcert = "sslrootcert=system"
     password = f'password={password_token}'
 
     # Make a connection to the cluster
-    conn = psycopg2.connect('%s %s %s %s %s' % (dbname, user, host, sslmode, password))
+    conn = psycopg2.connect('%s %s %s %s %s %s' % (dbname, user, host, sslmode, sslrootcert, password))
+
     conn.set_session(autocommit=True)
-    return conn
 
-def crud():
-    cluster_endpoint = 'zaabtthmsxnjkd2xemc22cezsq.c0001.us-east-1.prod.sql.axdb.aws.dev'
-    region = 'us-east-1'
-    conn = connect_to_cluster(cluster_endpoint, region)
-    try: 
-        create_table(conn)
-        insert_data(conn)
-        fetch_data(conn)
-        update_data(conn)
-        delete_data(conn)
-    finally:
-        conn.close()
-
-
-def create_table(conn):
     cur = conn.cursor()
-    cur.execute(b"DROP TABLE IF EXISTS owner")
+    
     cur.execute(b"""
-        CREATE TABLE owner(
-            id UUID NOT NULL DEFAULT gen_random_uuid(),
-            name VARCHAR(30) NOT NULL,
-            city VARCHAR(80) NOT NULL, 
-            telephone VARCHAR(20) DEFAULT NULL,
-            primary key (id))"""
+        CREATE TABLE IF NOT EXISTS owner(
+            id uuid NOT NULL DEFAULT gen_random_uuid(),
+            name varchar(30) NOT NULL,
+            city varchar(80) NOT NULL,
+            telephone varchar(20) DEFAULT NULL,
+            PRIMARY KEY (id))"""
         )
-    print('Created table owner')
 
-def insert_data(conn):
-    cur = conn.cursor()
     # Insert some rows
-    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('Andrew', 'vancouver', '6239087654')")
-    cur.execute("INSERT INTO owner(name, city) VALUES('Charles', 'richmond')")
-    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('Zoya', 'langley', '6230005678')")
-    print('Inserted 3 rows into owner')
+    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')")
 
-def fetch_data(conn):
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM owner WHERE name='Andrew'")
+    # Read back what we have inserted
+    cur.execute("SELECT * FROM owner WHERE name='John Doe'")
     row = cur.fetchone()
-    print(f'Retrieved one row from owner: {row}')
+    
     # Verify that the result we got is what we inserted before
     assert row[0] != None
-    assert row[1] == "Andrew"
-    assert row[2] == "vancouver"
-    assert row[3] == "6239087654"
-
-def update_data(conn):
-    cur = conn.cursor()
-    cur.execute("UPDATE owner SET telephone='7811230000' WHERE name='Andrew'")
-    cur.execute("SELECT telephone FROM owner WHERE name='Andrew'")
-    # Select the updated telephone number for the owner 'Andrew'
-    assert cur.fetchone()[0] == "7811230000"
-    print('Updated one row in owner')
-
-def delete_data(conn):
-    cur = conn.cursor()
-    cur.execute("DELETE FROM owner WHERE telephone='7811230000'")
-    cur.execute("SELECT * FROM owner WHERE telephone='7811230000'")
-    assert not cur.fetchone()
-    print('Deleted rows from owner')
-
-
-def generate_token(cluster_endpoint, region):
-    client = boto3.client("axdbfrontend", region_name=region)
-    # The token expiration time is optional, and the default value 900 seconds
-    return client.generate_db_auth_token(cluster_endpoint, "DbConnectSuperuser", region)
+    assert row[1] == "John Doe"
+    assert row[2] == "Anytown"
+    assert row[3] == "555-555-1999"
+    
+    # Insert some rows
+    # Placing this cleanup the table after the example. If we run the example
+    # again we do not have to worry about data inserted by previous runs
+    cur.execute("DELETE FROM owner where name = 'John Doe'")
 
 if __name__ == "__main__":
-    crud()
+    main()

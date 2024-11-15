@@ -5,14 +5,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.example</groupId>
-    <artifactId>helloDSQL</artifactId>
+    <artifactId>AuroraDSQLExample</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <mainClass>org.example.HelloCrud</mainClass>
+        <mainClass>org.example.Example</mainClass>
         <!-- local.repository.folder>${pom.basedir}/libs/</local.repository.folder -->
     </properties>
 
@@ -96,7 +96,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>org.example.HelloCrud</mainClass>
+                            <mainClass>org.example.Example</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -107,7 +107,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.example.HelloCrud</mainClass>
+                            <mainClass>org.example.Example</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

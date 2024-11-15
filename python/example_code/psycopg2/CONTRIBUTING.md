@@ -19,7 +19,9 @@ source setup.sh
 ### Run the example tests
 
 ```sh
-pytest test/test_example_psycopg2.py
+# Use the account credentials dedicated for python
+ada credentials update --role=Admin --account 481665088575 --once
+pytest test/test_example.py
 ```
 
 ---
