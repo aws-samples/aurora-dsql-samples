@@ -6,6 +6,7 @@
 2. Setup the environment
 3. Connect to a cluster
    1. Connection Pooling
+   2. SQLAlchemy With psycopg3 Is Not Supported
 4. Create models
 5. Execute Examples
    1. SQL CRUD Examples
@@ -64,6 +65,9 @@ def create_dsql_engine():
 
 ### Connection Pooling
 In SQLAlchemy, [connection pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html#connection-pool-configuration) is enabled by default when the engine is created; each engine is automatically associated with a connection pool in the background. Once the connection pool is started, all the connections will have the initial set of credentials. The Aurora DSQL connection session expires after 1 hour, regardless of the token expiration time. The engine will need to create a new connection to work with Aurora DSQL. If the token is expired, the engine will not be able to create new connections to Aurora DSQL. A new engine has to be created for SQLAlchemy to pick up valid new credentials and create connections to Aurora DSQL. 
+
+### SQLAlchemy With psycopg3 Is Not Supported
+SQLAlchemy working with psycopg3 could not work with Aurora DSQL due to `savepoint` not supported by Aurora DSQL. 
 
 ## Create models
 
