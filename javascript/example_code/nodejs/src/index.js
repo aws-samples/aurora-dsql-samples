@@ -1,4 +1,4 @@
-import { AxdbFrontendSigner } from "@aws-sdk/axdbfrontend-signer";
+import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import pg from "pg";
 import assert from "node:assert";
 const { Client } = pg;
@@ -9,12 +9,11 @@ async function example() {
   const region = "us-east-1";
   try {
     // The token expiration time is optional, and the default value 900 seconds
-    const signer = new AxdbFrontendSigner({
+    const signer = new DsqlSigner({
       hostname: clusterEndpoint,
-      action: "DbConnectSuperuser",
       region,
     });
-    const token = await signer.getAuthToken();
+    const token = await signer.getDbConnectAdminAuthToken();
     // <https://node-postgres.com/apis/client>
     // By default `rejectUnauthorized` is true in TLS options
     // <https://nodejs.org/api/tls.html#tls_tls_connect_options_callback>
@@ -27,7 +26,6 @@ async function example() {
       password: token,
       database: "postgres",
       port: 5432,
-      sslmode: "verify-full",
       // <https://node-postgres.com/announcements> for version 8.0
       ssl: true
     });

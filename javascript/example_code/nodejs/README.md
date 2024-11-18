@@ -36,7 +36,6 @@ npm install
 ### Example using Node-js with Aurora DSQL
 
 ```javascript
-import { v4 as uuidv4 } from 'uuid';
 import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import pg from "pg";
 import assert from "node:assert";
@@ -49,10 +48,9 @@ try {
   const signer = new DsqlSigner({
     // Please replace with your own cluster endpoint
     hostname: 'foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws',
-    action: "DbConnectAdmin",
     region,
   });
-  const token = await signer.getAuthToken();
+  const token = await signer.getDbConnectAdminAuthToken();
   const client = new Client({
     host: clusterEndpoint,
     user: "admin",

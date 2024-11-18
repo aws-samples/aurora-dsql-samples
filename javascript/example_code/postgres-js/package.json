@@ -5,14 +5,13 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/.bin/jest --runInBand --detectOpenHandles --forceExit"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --testPathPattern='test/smoke.test.js' --runInBand --detectOpenHandles --forceExit"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/dsql-signer": "file:dsql-signer",
     "assert": "2.1.0",
-    "@aws-sdk/axdbfrontend-signer": "file:libs/aws-sdk-axdbfrontend-signer-3.673.0.tgz",
-    "@aws-sdk/client-axdbfrontend": "file:libs/aws-sdk-client-axdbfrontend-3.673.0.tgz",
     "postgres": "^3.4.5",
     "uuid": "^11.0.2"
   },

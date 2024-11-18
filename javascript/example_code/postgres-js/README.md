@@ -50,10 +50,9 @@ try {
   // If you are not using admin user, use `DbConnect` action instead.
   const signer = new DsqlSigner({
     hostname: clusterEndpoint,
-    action: "DbConnectSuperuser",
     region,
   });
-  const token = await signer.getAuthToken();
+  const token = await signer.getDbConnectAdminAuthToken();
 
   // Setup connection
   client = postgres({

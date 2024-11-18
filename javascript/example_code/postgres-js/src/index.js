@@ -1,4 +1,4 @@
-import { AxdbFrontendSigner } from "@aws-sdk/axdbfrontend-signer";
+import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import postgres from "postgres"
 
 import assert from "node:assert";
@@ -10,15 +10,14 @@ async function example() {
   try {
     // Generate a password token
     // The token expiration time is optional, and the default value 900 seconds
-    const signer = new AxdbFrontendSigner({
+    const signer = new DsqlSigner({
       hostname: clusterEndpoint,
-      action: "DbConnectSuperuser",
       region,
     });
-    const token = await signer.getAuthToken();
+    const token = await signer.getDbConnectAdminAuthToken();
 
     // Setup connection
-    // <https://node-postgres.com/apis/client>
+    // <https://github.com/porsager/postgres?tab=readme-ov-file#all-postgres-options>
     // By default `rejectUnauthorized` is true in TLS options
     // <https://nodejs.org/api/tls.html#tls_tls_connect_options_callback>
     // The config does not offer any specific parameter to set sslmode to verify-full
