@@ -70,34 +70,24 @@ PG::AWS_RDS_IAM.auth_token_generators.add :dsql do
 end
 
 require "aws-sigv4"
+require_relative 'auth_token_generator'
 
-# This is our custom DB auth token generator
-# TODO: Once the aws-sdk for DSQL is available change token generation mechanism.
-# use the ruby sdk to generate token instead.
 class DsqlAuthTokenGenerator
   def call(host:, port:, user:)
-    action = <DB Connect action> # "DbConnectAdmin or DbConnect" 
-    region = <cluster region> # Eg: "us-east-1"
-    service = "dsql"
-    param_list = Aws::Query::ParamList.new
-    param_list.set("Action", action)
-    param_list.set("DBUser", user)
-    
+    region = "us-east-1"
+    credentials = Aws::SharedCredentials.new()
+
+    token_generator = Aws::DSQL::AuthTokenGenerator.new({
+        :credentials => credentials
+    })
+
     # The token expiration time is optional, and the default value 900 seconds
-    signer = Aws::Sigv4::Signer.new(
-      service: service,
-      region: region,
-      credentials_provider: Aws::SharedCredentials.new()
-    )
+    # if you are not using admin role, use generate_db_connect_auth_token instead
+    token = token_generator.generate_db_connect_admin_auth_token({
+        :endpoint => host,
+        :region => region
+    })
 
-    presigned_url = signer.presign_url(
-      http_method: "GET",
-      url: "https://#{host}/?#{param_list}",
-      body: ""
-    ).to_s
-
-    # Remove extra scheme for token
-    presigned_url[8..-1]
   end
 end
 
@@ -106,7 +96,7 @@ end
 require "active_record/connection_adapters/postgresql/schema_statements"
 
 module ActiveRecord::ConnectionAdapters::PostgreSQL::SchemaStatements
-  # Aurora DSQL does not support setting min_messages in the connection parameters
+  # DSQL does not support setting min_messages in the connection parameters
   def client_min_messages=(level); end
 end
 
@@ -116,12 +106,11 @@ class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
 
   def set_standard_conforming_strings; end
 
-  # Aurora DSQL does not support running multiple DDL or DDL + DML statements in the same transaction
+  # Avoid error running multiple DDL or DDL + DML statements in the same transaction
   def supports_ddl_transactions?
     false
   end
 end
-
 ```
 
 ##### Use the adapter in database configuration

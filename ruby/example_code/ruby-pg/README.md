@@ -39,7 +39,8 @@ bundle install
 
 ```ruby
 require 'pg'
-require_relative 'token-generator'
+require 'aws-sdk-core'
+require_relative 'auth_token_generator'
 
 def example()
   # Please replace with your own cluster endpoint

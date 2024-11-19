@@ -1,13 +1,12 @@
 # frozen_string_literal: true
 
-require 'aws-sdk-core'
 require 'aws-sigv4'
 
 module Aws
   module DSQL
-    # TODO: add docs
-    #
-    # @see <add public link>
+    # A utility class that generates an auth token that supports database
+    # logins for DSQL clusters. IAM credentials are used for authentication
+    # instead of the database password.
     class AuthTokenGenerator
       # @option options [Credentials] :credentials An object that
       #   responds to `#credentials` returning another object that responds to
