@@ -28,7 +28,7 @@ const (
 	REGION   = "us-east-1"
 )
 
-func GenerateAuthToken(creds *credentials.Credentials, action string) (string, error) {
+func GenerateDbConnectAdminAuthToken(creds *credentials.Credentials) (string, error) {
 	// the scheme is arbitrary and is only needed because validation of the URL requires one.
 	endpoint := "https://" + ENDPOINT
 	req, err := http.NewRequest("GET", endpoint, nil)
@@ -36,7 +36,7 @@ func GenerateAuthToken(creds *credentials.Credentials, action string) (string, e
 		return "", err
 	}
 	values := req.URL.Query()
-	values.Set("Action", action)
+	values.Set("Action", "DbConnectAdmin")
 	req.URL.RawQuery = values.Encode()
 
 	signer := v4.Signer{
@@ -77,7 +77,7 @@ func getConnection(ctx context.Context) (*pgx.Conn, error) {
 
 	// The token expiration time is optional, and the default value 900 seconds
 	// If you are not connecting as admin, use DbConnect action instead
-	token, err := GenerateAuthToken(staticCredentials, "DbConnectAdmin")
+	token, err := GenerateDbConnectAdminAuthToken(staticCredentials)
 	if err != nil {
 		return nil, err
 	}

@@ -20,7 +20,6 @@
 
    It should output something similar to `go version go1.23.2 darwin/arm64`. (your version could be different)
 
-- AWS SDK: Ensure that you setup the latest version of the AWS Go SDK [official website](https://github.com/aws/aws-sdk-go-v2)
 
 For example for pgx:
 
@@ -73,72 +72,71 @@ const (
 )
 
 // Generate the password token needed to establish a connection
-func generateAuthToken(creds *credentials.Credentials, action string) (string, error) {
-	// the scheme is arbitrary and is only needed because validation of the URL requires one.
-	endpoint := "https://" + ENDPOINT
-	req, err := http.NewRequest("GET", endpoint, nil)
-	if err != nil {
-		return "", err
-	}
-	values := req.URL.Query()
-	values.Set("Action", action)
-	req.URL.RawQuery = values.Encode()
+func GenerateDbConnectAdminAuthToken(creds *credentials.Credentials) (string, error) {
+   // the scheme is arbitrary and is only needed because validation of the URL requires one.
+   endpoint := "https://" + ENDPOINT
+   req, err := http.NewRequest("GET", endpoint, nil)
+   if err != nil {
+      return "", err
+   }
+   values := req.URL.Query()
+   values.Set("Action", "DbConnectAdmin")
+   req.URL.RawQuery = values.Encode()
 
-	signer := v4.Signer{
-		Credentials: creds,
-	}
-	_, err = signer.Presign(req, nil, "dsql", REGION, 15*time.Minute, time.Now())
-	if err != nil {
-		return "", err
-	}
+   signer := v4.Signer{
+      Credentials: creds,
+   }
+   _, err = signer.Presign(req, nil, "dsql", REGION, 15*time.Minute, time.Now())
+   if err != nil {
+      return "", err
+   }
 
-	url := req.URL.String()[len("https://"):]
+   url := req.URL.String()[len("https://"):]
 
-	return url, nil
+   return url, nil
 }
 
-// Create a connection to Aurora DSQL
 func getConnection(ctx context.Context) (*pgx.Conn, error) {
-	// Build connection URL
-	var sb strings.Builder
-	sb.WriteString("postgres://")
-	sb.WriteString(ENDPOINT)
-	sb.WriteString(":5432/postgres?user=admin&sslmode=verify-full")
-	url := sb.String()
+   // Build connection URL
+   var sb strings.Builder
+   sb.WriteString("postgres://")
+   sb.WriteString(ENDPOINT)
+   sb.WriteString(":5432/postgres?user=admin&sslmode=verify-full")
+   url := sb.String()
 
-	sess, err := session.NewSession()
-	if err != nil {
-		return nil, err
-	}
+   sess, err := session.NewSession()
+   if err != nil {
+      return nil, err
+   }
 
-	creds, err := sess.Config.Credentials.Get()
-	if err != nil {
-		return nil, err
-	}
-	staticCredentials := credentials.NewStaticCredentials(
-		creds.AccessKeyID,
-		creds.SecretAccessKey,
-		creds.SessionToken,
-	)
+   creds, err := sess.Config.Credentials.Get()
+   if err != nil {
+      return nil, err
+   }
+   staticCredentials := credentials.NewStaticCredentials(
+      creds.AccessKeyID,
+      creds.SecretAccessKey,
+      creds.SessionToken,
+   )
 
-	// The token expiration time is optional, and the default value 900 seconds
-	// If you are not connecting as admin, use DbConnect action instead
-	token, err := generateAuthToken(staticCredentials, "DbConnectAdmin")
-	if err != nil {
-		return nil, err
-	}
+   // The token expiration time is optional, and the default value 900 seconds
+   // If you are not connecting as admin, use DbConnect action instead
+   token, err := GenerateDbConnectAdminAuthToken(staticCredentials)
+   if err != nil {
+      return nil, err
+   }
 
-	connConfig, err := pgx.ParseConfig(url)
-	// To avoid issues with parse config set the password directly in config
-	connConfig.Password = token
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to parse config: %v\n", err)
-		os.Exit(1)
-	}
+   connConfig, err := pgx.ParseConfig(url)
+   // To avoid issues with parse config set the password directly in config
+   connConfig.Password = token
+   if err != nil {
+      fmt.Fprintf(os.Stderr, "Unable to parse config: %v\n", err)
+      os.Exit(1)
+   }
 
-	conn, err := pgx.ConnectConfig(ctx, connConfig)
+   conn, err := pgx.ConnectConfig(ctx, connConfig)
 
-	return conn, err
+   return conn, err
 }
 
 // Illustrates how to interact with Aurora DSQL
