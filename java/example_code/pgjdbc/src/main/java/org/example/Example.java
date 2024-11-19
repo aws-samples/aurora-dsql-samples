@@ -1,8 +1,7 @@
 package org.example;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.services.axdbfrontend.AxdbFrontendUtilities;
-import software.amazon.awssdk.services.axdbfrontend.model.Action;
+import software.amazon.awssdk.services.dsql.DsqlUtilities;
 import software.amazon.awssdk.regions.Region;
 
 import java.sql.Connection;
@@ -20,20 +19,18 @@ public class Example {
     public static Connection getConnection(String cluster, String region) throws SQLException {
 
         Properties props = new Properties();
-        
-        // Use the DefaultJavaSSLFactory so that Java's default trust store can be used
-        // to verify the server's root cert. 
-        String url = "jdbc:postgresql://" + cluster + ":5432/postgres?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory";
-        Action action = Action.DB_CONNECT_SUPERUSER;
 
-        AxdbFrontendUtilities utilities = AxdbFrontendUtilities.builder()
+        // Use the DefaultJavaSSLFactory so that Java's default trust store can be used
+        // to verify the server's root cert.
+        String url = "jdbc:postgresql://" + cluster + ":5432/postgres?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory";
+
+        DsqlUtilities utilities = DsqlUtilities.builder()
                 .region(Region.of(region))
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
 
         // The token expiration time is optional, and the default value 900 seconds
-        String password = utilities.generateAuthenticationToken(builder -> builder.hostname(cluster)
-                .action(action)
+        String password = utilities.generateDbConnectAdminAuthToken(builder -> builder.hostname(cluster)
                 .region(Region.of(region)));
 
         props.setProperty("user", "admin");

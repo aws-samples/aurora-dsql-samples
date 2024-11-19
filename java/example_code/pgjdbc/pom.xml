@@ -30,7 +30,7 @@
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk.services</groupId>
-            <artifactId>axdbfrontend</artifactId>
+            <artifactId>dsql</artifactId>
             <version>1.0</version>
         </dependency>
         <dependency>
@@ -121,10 +121,10 @@
                 <version>3.1.2</version>
                 <configuration>
                     <groupId>software.amazon.awssdk.services</groupId>
-                    <artifactId>axdbfrontend</artifactId>
+                    <artifactId>dsql</artifactId>
                     <version>1.0</version>
                     <packaging>jar</packaging>
-                    <file>libs/AwsJavaSdk-AxdbFrontend-2.0.jar</file>
+                    <file>libs/AwsJavaSdk-Dsql-2.0.jar</file>
                     <generatePom>true</generatePom>
                 </configuration>
                 <executions>

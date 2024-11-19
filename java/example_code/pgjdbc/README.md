@@ -80,7 +80,7 @@ public class Example {
         Properties props = new Properties();
 
         // Use the DefaultJavaSSLFactory so that Java's default trust store can be used
-        // to verify the server's root cert. 
+        // to verify the server's root cert.
         String url = "jdbc:postgresql://" + cluster + ":5432/postgres?sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory";
 
         DsqlUtilities utilities = DsqlUtilities.builder()
@@ -91,7 +91,6 @@ public class Example {
         // The token expiration time is optional, and the default value 900 seconds
         // If you are not using admin role use generateDbConnectAuthToken instead
         String password = utilities.generateDbConnectAdminAuthToken(builder -> builder.hostname(cluster)
-                .action(action)
                 .region(Region.of(region)));
 
         props.setProperty("user", "admin");
