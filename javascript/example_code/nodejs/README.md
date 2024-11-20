@@ -73,7 +73,7 @@ try {
 
   // Insert some data
   await client.query("INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)", 
-    ["John Doe", "Anytown", "555-555-5555"]
+    ["John Doe", "Anytown", "555-555-0150"]
   );
 
   // Check that data is inserted by reading it back

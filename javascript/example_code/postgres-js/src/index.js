@@ -42,7 +42,7 @@ async function example() {
     )`;
 
     // Insert some data
-    await client`INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1900')`
+    await client`INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-0150')`
 
     // Check that data is inserted by reading it back
     const result = await client`SELECT id, city FROM owner where name='John Doe'`;

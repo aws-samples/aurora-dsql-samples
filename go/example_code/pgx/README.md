@@ -164,7 +164,7 @@ func example() error {
 
 	// Insert data
 	query := `INSERT INTO owner (id, name, city, telephone) VALUES ($1, $2, $3, $4)`
-	_, err = conn.Exec(ctx, query, uuid.New(), "John Doe", "Anytown", "555-555-1999")
+	_, err = conn.Exec(ctx, query, uuid.New(), "John Doe", "Anytown", "555-555-0150")
 
 	if err != nil {
 		return err

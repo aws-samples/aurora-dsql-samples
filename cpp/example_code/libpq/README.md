@@ -122,7 +122,7 @@ void example(PGconn *conn) {
     }
     
     // Insert data into the table
-    std::string insert = "INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')";
+    std::string insert = "INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-0150')";
 
     PGresult *insertResponse = PQexec(conn, insert.c_str());
     ExecStatusType insertStatus = PQresultStatus(insertResponse);

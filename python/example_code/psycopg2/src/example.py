@@ -48,7 +48,7 @@ def main():
         )
 
     # Insert some rows
-    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')")
+    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-0150')")
 
     # Read back what we have inserted
     cur.execute("SELECT * FROM owner WHERE name='John Doe'")
@@ -58,7 +58,7 @@ def main():
     assert row[0] != None
     assert row[1] == "John Doe"
     assert row[2] == "Anytown"
-    assert row[3] == "555-555-1999"
+    assert row[3] == "555-555-0150"
     
     # Insert some rows
     # Placing this cleanup the table after the example. If we run the example

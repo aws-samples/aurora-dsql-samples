@@ -112,7 +112,7 @@ public class Example {
 
             // Insert some data
             UUID uuid = UUID.randomUUID();
-            String insertSql = String.format("INSERT INTO owner (id, name, city, telephone) VALUES ('%s', 'John Doe', 'Anytown', '555-555-1999')", uuid);
+            String insertSql = String.format("INSERT INTO owner (id, name, city, telephone) VALUES ('%s', 'John Doe', 'Anytown', '555-555-0150')", uuid);
             Statement insert = conn.createStatement();
             insert.executeUpdate(insertSql);
             insert.close();
@@ -125,7 +125,7 @@ public class Example {
                 assert rs.getString("id") != null;
                 assert rs.getString("name").equals("John Doe");
                 assert rs.getString("city").equals("Anytown");
-                assert rs.getString("telephone").equals("555-555-1999");
+                assert rs.getString("telephone").equals("555-555-0150");
             }
         } catch (SQLException e) {
             e.printStackTrace();

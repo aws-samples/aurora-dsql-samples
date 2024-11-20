@@ -58,7 +58,7 @@ class Example
         insert.Parameters.AddWithValue("id", uuid);
         insert.Parameters.AddWithValue("name", "John Doe");
         insert.Parameters.AddWithValue("city", "Anytown");
-        insert.Parameters.AddWithValue("telephone", "555-555-5555");
+        insert.Parameters.AddWithValue("telephone", "555-555-0150");
         insert.ExecuteNonQuery();
 
         // Read the owner.

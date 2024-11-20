@@ -191,7 +191,7 @@ Finally, disable the `plpgsql` extension by modifying the `{app root directory}/
 ### 2. Create Owner
 
 ``` console
-owner = Owner.new(name: "John Smith", city: "Seattle", telephone: "123-456-7890")
+owner = Owner.new(name: "John Doe", city: "Anytown", telephone: "555-555-0150")
 owner.save
 owner
 ```
@@ -205,7 +205,7 @@ Owner.find("<owner id>")
 ### 4. Update Owner
 
 ``` console
-Owner.find("<owner id>").update(telephone: "123-456-7891")
+Owner.find("<owner id>").update(telephone: "555-555-0123")
 ```
 
 ### 5. Delete Owner
@@ -225,8 +225,8 @@ model definitions capturing the relationships can be found in the `app/models` d
 The following examples will reuse the same owner instantiation created here.
 
 ``` console
-john_smith = Owner.new(name: "John Smith", city: "Seattle", telephone: "123-456-7890")
-john_smith.save
+john_doe = Owner.new(name: "John Doe", city: "Anytown", telephone: "555-555-0150")
+john_doe.save
 ```
 
 ### One-to-One Mapping
@@ -244,9 +244,9 @@ class Owner < ApplicationRecord
 Create a vet instantiation, associate it with the owner, then read it back to test the association.
 
 ``` console
-dr_bob_best = Vet.create(name: "Dr. Bob Best")
-john_smith.vet=dr_bob_best
-john_smith.vet
+dr_carlos_salazar = Vet.create(name: "Dr. Carlos Salazar")
+john_doe.vet=dr_carlos_salazar
+john_doe.vet
 ```
 
 ### One-to-Many Mapping
@@ -269,9 +269,9 @@ Create an owner with multiple pet instances, and then read the list of pets belo
 When the owner is deleted, the pets owned will be removed from the system.
 
 ``` console
-fido = john_smith.pets.create(name: "Fido", birth_date: "2022-01-17")
-rex = john_smith.pets.create(name: "Rex", birth_date: "2023-10-01")
-john_smith.pets
+pet1 = john_doe.pets.create(name: "Pet-1", birth_date: "2022-01-17")
+pet2 = john_doe.pets.create(name: "Pet-2", birth_date: "2023-10-01")
+john_doe.pets
 ```
 
 ### Many-to-Many Mapping
@@ -307,9 +307,9 @@ the relationship captured in the vet specialties table will be removed on vet de
 ``` console
   small_pets = Specialty.create(name: "small pets")
   minor_surgery = Specialty.create(name: "minor surgery")
-  dr_bob_best.specialties << small_pets
-  dr_bob_best.specialties << minor_surgery
-  dr_bob_best.specialties
+  dr_carlos_salazar.specialties << small_pets
+  dr_carlos_salazar.specialties << minor_surgery
+  dr_carlos_salazar.specialties
 ```
 
 In order to see the many-to-many relationship mapping between all vets and specialties,
