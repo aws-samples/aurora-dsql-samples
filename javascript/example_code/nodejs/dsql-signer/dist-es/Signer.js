@@ -5,7 +5,7 @@ import { getRuntimeConfig } from "./runtimeConfig";
 export class DsqlSigner {
     constructor(configuration) {
         this.protocol = "https:";
-        this.service = "xanadu";
+        this.service = "dsql";
         const runtimeConfiguration = getRuntimeConfig(configuration);
         this.credentials = runtimeConfiguration.credentials;
         this.hostname = runtimeConfiguration.hostname;

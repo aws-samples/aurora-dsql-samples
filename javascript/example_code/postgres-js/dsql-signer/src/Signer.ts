@@ -46,7 +46,7 @@ export class DsqlSigner {
   private readonly hostname: string;
   private readonly protocol: string = "https:";
   private readonly region: string | Provider<string>;
-  private readonly service: string = "xanadu";
+  private readonly service: string = "dsql";
   private readonly sha256: ChecksumConstructor;
   private readonly expiresIn: number;
 

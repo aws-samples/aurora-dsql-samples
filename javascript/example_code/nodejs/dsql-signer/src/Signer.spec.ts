@@ -124,5 +124,6 @@ describe("dsql-signer", () => {
     expect(token).toContain("X-Amz-Expires=1000");
     expect(token).toContain("X-Amz-Credential=allParamsAccessKey");
     expect(token).toContain("X-Amz-Security-Token=allParamsSessionToken");
+    expect(token).toContain("%2Fdsql%2F");
   });
 });
