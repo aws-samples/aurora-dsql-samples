@@ -78,7 +78,7 @@ namespace Model
 
     ///@{
     /**
-     * <p>The time of when Aurora DSQL created the cluster.</p>
+     * <p>The time of when created the cluster.</p>
      */
     inline const Aws::Utils::DateTime& GetCreationTime() const{ return m_creationTime; }
     inline void SetCreationTime(const Aws::Utils::DateTime& value) { m_creationTime = value; }

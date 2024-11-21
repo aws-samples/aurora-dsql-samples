@@ -3,7 +3,7 @@ libdir=lib
 
 Name: aws-cpp-sdk-dsql
 Description: 
-Version: 1.11.451
+Version: 1.11.453
 Cflags: -I${includedir} -fno-exceptions -std=c++11
 Libs: -L${libdir} -laws-cpp-sdk-dsql 
 Libs.private: 

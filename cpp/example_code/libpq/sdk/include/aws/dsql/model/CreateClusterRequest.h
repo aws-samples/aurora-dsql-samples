@@ -71,8 +71,8 @@ namespace Model
      * only once. With an idempotent request, if the original request completes
      * successfully. The subsequent retries with the same client token return the
      * result from the original successful request and they have no additional
-     * effect.</p> <p>If you don't specify a client token, the AWS SDK automatically
-     * generates one.</p>
+     * effect.</p> <p>If you don't specify a client token, the Amazon Web Services SDK
+     * automatically generates one.</p>
      */
     inline const Aws::String& GetClientToken() const{ return m_clientToken; }
     inline bool ClientTokenHasBeenSet() const { return m_clientTokenHasBeenSet; }

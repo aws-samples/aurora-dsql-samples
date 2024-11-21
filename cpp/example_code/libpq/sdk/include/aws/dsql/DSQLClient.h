@@ -19,11 +19,11 @@ namespace DSQL
    * <p>This is an interface reference for Amazon Aurora DSQL. It contains
    * documentation for one of the programming or command line interfaces you can use
    * to manage Amazon Aurora DSQL.</p> <p>Amazon Aurora DSQL is a serverless,
-   * distributed SQL database suitable for workloads of any size. Aurora DSQL is
+   * distributed SQL database suitable for workloads of any size. <pre><code> is
    * available in both single-Region and multi-Region configurations, so your
    * clusters and databases are always available even if an Availability Zone or an
-   * AWS Region are unavailable. Aurora DSQL lets you focus on using your data to
-   * acquire new insights for your business and customers.</p>
+   * Amazon Web Services Region are unavailable. lets you focus on using your data to
+   * acquire new insights for your business and customers.&lt;/p&gt; </code></pre>
    */
   class AWS_DSQL_API DSQLClient : public Aws::Client::AWSJsonClient, public Aws::Client::ClientWithAsyncTemplateMethods<DSQLClient>
   {
@@ -110,9 +110,11 @@ namespace DSQL
 
         /**
          * <p>Creates a multi-Region cluster in Amazon Aurora DSQL. Multi-Region clusters
-         * require a list of Regions. Aurora DSQL creates clusters in these Regions and
-         * links all of the clusters together in which you want to create clusters that are
-         * linked together.</p><p><h3>See Also:</h3>   <a
+         * require a linked Region list, which is an array of the Regions in which you want
+         * to create clusters to link to the original cluster, which provides higher
+         * availability. Multi-Region clusters also require a witness Region, which
+         * receives all data that you write to linked clusters.</p><p><h3>See Also:</h3>  
+         * <a
          * href="http://docs.aws.amazon.com/goto/WebAPI/dsql-2018-05-10/CreateMultiRegionClusters">AWS
          * API Reference</a></p>
          */
@@ -338,7 +340,7 @@ namespace DSQL
         }
 
         Aws::Utils::Outcome<String, DSQLError> GenerateDBConnectAuthToken(const Aws::String& hostname, const Aws::String& region, long long expiresIn = 900);
-        Aws::Utils::Outcome<String, DSQLError> GenerateDBConnectSuperuserAuthToken(const Aws::String& hostname, const Aws::String& region, long long expiresIn = 900);
+        Aws::Utils::Outcome<String, DSQLError> GenerateDBConnectAdminAuthToken(const Aws::String& hostname, const Aws::String& region, long long expiresIn = 900);
 
       void OverrideEndpoint(const Aws::String& endpoint);
       std::shared_ptr<DSQLEndpointProviderBase>& accessEndpointProvider();

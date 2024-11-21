@@ -38,8 +38,7 @@ namespace Model
 
     ///@{
     /**
-     * <p>An array of the Regions in which you want to create multi-Region
-     * clusters.</p>
+     * <p>An array of the Regions in which you want to create additional clusters.</p>
      */
     inline const Aws::Vector<Aws::String>& GetLinkedRegionList() const{ return m_linkedRegionList; }
     inline bool LinkedRegionListHasBeenSet() const { return m_linkedRegionListHasBeenSet; }
@@ -72,8 +71,7 @@ namespace Model
 
     ///@{
     /**
-     * <p>The witness region of a multi-region cluster. The Witness Region doesn't
-     * store any data, but it helps the other Regions .</p>
+     * <p>The Region to receive all data you write to linked clusters.</p>
      */
     inline const Aws::String& GetWitnessRegion() const{ return m_witnessRegion; }
     inline bool WitnessRegionHasBeenSet() const { return m_witnessRegionHasBeenSet; }
@@ -92,8 +90,8 @@ namespace Model
      * only once. With an idempotent request, if the original request completes
      * successfully. The subsequent retries with the same client token return the
      * result from the original successful request and they have no additional
-     * effect.</p> <p>If you don't specify a client token, the AWS SDK automatically
-     * generates one.</p>
+     * effect.</p> <p>If you don't specify a client token, the Amazon Web Services SDK
+     * automatically generates one.</p>
      */
     inline const Aws::String& GetClientToken() const{ return m_clientToken; }
     inline bool ClientTokenHasBeenSet() const { return m_clientTokenHasBeenSet; }

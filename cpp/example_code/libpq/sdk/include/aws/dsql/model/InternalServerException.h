@@ -51,9 +51,7 @@ namespace Model
     ///@}
 
     ///@{
-    /**
-     * <p>Retry after seconds.</p>
-     */
+    
     inline int GetRetryAfterSeconds() const{ return m_retryAfterSeconds; }
     inline bool RetryAfterSecondsHasBeenSet() const { return m_retryAfterSecondsHasBeenSet; }
     inline void SetRetryAfterSeconds(int value) { m_retryAfterSecondsHasBeenSet = true; m_retryAfterSeconds = value; }

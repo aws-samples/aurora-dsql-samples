@@ -50,9 +50,7 @@ namespace Model
     ///@}
 
     ///@{
-    /**
-     * <p>Resource Id</p>
-     */
+    
     inline const Aws::String& GetResourceId() const{ return m_resourceId; }
     inline bool ResourceIdHasBeenSet() const { return m_resourceIdHasBeenSet; }
     inline void SetResourceId(const Aws::String& value) { m_resourceIdHasBeenSet = true; m_resourceId = value; }
@@ -64,9 +62,7 @@ namespace Model
     ///@}
 
     ///@{
-    /**
-     * <p>Resource Type</p>
-     */
+    
     inline const Aws::String& GetResourceType() const{ return m_resourceType; }
     inline bool ResourceTypeHasBeenSet() const { return m_resourceTypeHasBeenSet; }
     inline void SetResourceType(const Aws::String& value) { m_resourceTypeHasBeenSet = true; m_resourceType = value; }
