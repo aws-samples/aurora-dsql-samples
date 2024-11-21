@@ -52,23 +52,23 @@
 ```cpp
 #include <libpq-fe.h>
 #include <aws/core/Aws.h>
-#include <aws/dsql/DsqlClient.h>
+#include <aws/dsql/DSQLClient.h>
 #include <iostream>
 
 using namespace Aws;
-using namespace Aws::Dsql;
-using namespace Aws::Dsql::Model;
+using namespace Aws::DSQL;
+using namespace Aws::DSQL::Model;
 
-std::string generateDBAuthToken(const std::string endpoint, const std::string action, const std::string region) {
+std::string generateDBAuthToken(const std::string endpoint, const std::string region) {
     Aws::SDKOptions options;
     Aws::InitAPI(options);
-    DsqlClientConfiguration clientConfig;
+    DSQLClientConfiguration clientConfig;
     clientConfig.region = region;
-    DsqlClient client{clientConfig};
+    DSQLClient client{clientConfig};
     std::string token = "";
     
     // The token expiration time is optional, and the default value 900 seconds
-    // If you aren not using admin role to connect, use GenerateDBConnectAuthToken instead
+    // If you are not using admin role to connect, use GenerateDBConnectAuthToken instead
     const auto presignedString = client.GenerateDBConnectAdminAuthToken(endpoint, region);
     if (presignedString.IsSuccess()) {
         token = presignedString.GetResult();
@@ -136,7 +136,7 @@ void example(PGconn *conn) {
     std::string select = "SELECT * FROM owner";
 
     PGresult *selectResponse = PQexec(conn, select.c_str());
-    ExecStatusType selectStatus = PQresultStatus(res);
+    ExecStatusType selectStatus = PQresultStatus(selectResponse);
 
     if (selectStatus != PGRES_TUPLES_OK) {
         std::cerr << "Select failed - " << PQerrorMessage(conn) << std::endl;
@@ -145,25 +145,25 @@ void example(PGconn *conn) {
     }
 
     // Retrieve the number of rows and columns in the result
-    int rows = PQntuples(res);
-    int cols = PQnfields(res);
+    int rows = PQntuples(selectResponse);
+    int cols = PQnfields(selectResponse);
     std::cout << "Number of rows: " << rows << std::endl;
     std::cout << "Number of columns: " << cols << std::endl;
 
     // Output the column names
     for (int i = 0; i < cols; i++) {
-        std::cout << PQfname(res, i) << " \t\t\t ";
+        std::cout << PQfname(selectResponse, i) << " \t\t\t ";
     }
     std::cout << std::endl;
 
     // Output all the rows and column values
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
-            std::cout << PQgetvalue(res, i, j) << "\t";
+            std::cout << PQgetvalue(selectResponse, i, j) << "\t";
         }
         std::cout << std::endl;
     }
-    PQclear(res);
+    PQclear(selectResponse);
 }
 
 int main(int argc, char *argv[]) {
@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
 
     if (conn == NULL) {
         std::cerr << "Failed to get connection. Exiting." << std::endl;
-        return;
+        return -1;
     }
     
     example(conn);

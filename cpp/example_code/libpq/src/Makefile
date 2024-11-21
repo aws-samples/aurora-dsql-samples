@@ -5,7 +5,7 @@
 # Common 
 AWS_INC_DIR=-I ../sdk/include
 
-LIBS=-lpq -laws-cpp-sdk-axdbfrontend -laws-cpp-sdk-core 
+LIBS=-lpq -laws-cpp-sdk-dsql -laws-cpp-sdk-core 
 
 # Linux
 PG_INC_DIR=-I /usr/local/pgsql/include

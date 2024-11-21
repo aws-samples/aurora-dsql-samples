@@ -61,7 +61,7 @@ add_library(AWS::aws-crt-cpp SHARED IMPORTED)
 
 set_target_properties(AWS::aws-crt-cpp PROPERTIES
   INTERFACE_COMPILE_DEFINITIONS "AWS_CRT_CPP_USE_IMPORT_EXPORT;AWS_CRT_CPP_USE_IMPORT_EXPORT"
-  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include;/Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk/usr/include/c++/v1;/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"
+  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include;/Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk/usr/include/c++/v1;/Library/Developer/CommandLineTools/usr/lib/clang/16/include"
   INTERFACE_LINK_LIBRARIES "AWS::aws-c-http;AWS::aws-c-mqtt;AWS::aws-c-cal;AWS::aws-c-auth;AWS::aws-c-common;AWS::aws-c-io;AWS::aws-checksums;AWS::aws-c-event-stream;AWS::aws-c-s3"
 )
 

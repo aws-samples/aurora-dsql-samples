@@ -3,7 +3,7 @@ libdir=lib
 
 Name: testing-resources
 Description: 
-Version: 1.11.445
+Version: 1.11.451
 Cflags: -I${includedir} -fno-exceptions -std=c++11
 Libs: -L${libdir} -ltesting-resources 
 Libs.private: 

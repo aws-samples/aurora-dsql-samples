@@ -59,7 +59,7 @@ endif()
 add_library(aws-cpp-sdk-core SHARED IMPORTED)
 
 set_target_properties(aws-cpp-sdk-core PROPERTIES
-  INTERFACE_COMPILE_DEFINITIONS "AWS_SDK_VERSION_MAJOR=1;AWS_SDK_VERSION_MINOR=11;AWS_SDK_VERSION_PATCH=445;USE_IMPORT_EXPORT=1"
+  INTERFACE_COMPILE_DEFINITIONS "AWS_SDK_VERSION_MAJOR=1;AWS_SDK_VERSION_MINOR=11;AWS_SDK_VERSION_PATCH=451;USE_IMPORT_EXPORT=1"
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include;${_IMPORT_PREFIX}/include"
   INTERFACE_LINK_LIBRARIES "AWS::aws-crt-cpp;AWS::aws-c-http;AWS::aws-c-mqtt;AWS::aws-c-cal;AWS::aws-c-auth;AWS::aws-c-common;AWS::aws-c-io;AWS::aws-checksums;AWS::aws-c-event-stream;AWS::aws-c-s3;AWS::aws-c-compression;AWS::aws-c-sdkutils;AWS::aws-crt-cpp"
 )
