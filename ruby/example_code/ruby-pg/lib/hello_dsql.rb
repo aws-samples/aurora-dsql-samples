@@ -1,6 +1,5 @@
 require 'pg'
-require 'aws-sdk-core'
-require_relative 'auth_token_generator'
+require 'aws-sdk-dsql'
 
 def example()
   cluster_endpoint = 'huabttnonxz4oajpjn53txpdue.dsql-gamma.us-east-1.on.aws'

@@ -2,8 +2,8 @@ PG::AWS_RDS_IAM.auth_token_generators.add :dsql do
   DsqlAuthTokenGenerator.new
 end
 
-require "aws-sigv4"
-require_relative 'auth_token_generator'
+require 'aws-sigv4'
+require 'aws-sdk-dsql'
 
 class DsqlAuthTokenGenerator
   def call(host:, port:, user:)
