@@ -8,3 +8,4 @@
 
 **/*/target/
 **/*/*.pem
+**/*/node_modules
