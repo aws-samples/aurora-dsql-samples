@@ -6,7 +6,7 @@ using Amazon.Runtime.Internal.Util;
 
 public static class TokenGenerator
 {
-    public static string GenerateAuthToken(string? hostname, Amazon.RegionEndpoint region)
+    public static string GenerateDbConnectAdminAuthToken(string? hostname, Amazon.RegionEndpoint region)
     {
         AWSCredentials awsCredentials = FallbackCredentialsFactory.GetCredentials();
 

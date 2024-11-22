@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="./libs/aws-crt.dll" />
+    <Reference Include="./libs/aws-crt-auth.dll" />
+    <Reference Include="./libs/aws-crt-checksums.dll" />
+    <Reference Include="./libs/aws-crt-http.dll" />
+    <Reference Include="./libs/AWSSDK.Core.dll" />
+    <Reference Include="./libs/AWSSDK.DSQL.dll" />
+    <Reference Include="./libs/AWSSDK.Extensions.CrtIntegration.dll" />
+    <Reference Include="./libs/AWSSDK.Extensions.NETCore.Setup.dll" />
+  </ItemGroup>
+
+</Project>

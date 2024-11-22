@@ -12,7 +12,7 @@ class Example
         // Connect to a PostgreSQL database.
         const string username = "admin";
         // The token expiration time is optional, and the default value 900 seconds
-        string password = TokenGenerator.GenerateAuthToken(clusterEndpoint, region);
+        string password = TokenGenerator.GenerateDbConnectAdminAuthToken(clusterEndpoint, region);
         const string database = "postgres";
         var connString = "Host=" + clusterEndpoint + ";Username=" + username + ";Password=" + password + ";Database=" + database + ";Port=" + 5432 + ";SSLMode=VerifyFull;";
 
@@ -50,5 +50,10 @@ class Example
 
         // Close the connection.
         conn.Close();
+    }
+
+    public static async Task Main(string[] args)
+    {
+        await Run();
     }
 }
