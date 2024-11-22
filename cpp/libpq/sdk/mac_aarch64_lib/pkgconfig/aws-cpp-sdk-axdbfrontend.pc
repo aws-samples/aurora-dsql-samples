@@ -1,0 +1,10 @@
+includedir=include
+libdir=lib
+
+Name: aws-cpp-sdk-axdbfrontend
+Description: 
+Version: 1.11.428
+Cflags: -I${includedir} -fno-exceptions -std=c++11
+Libs: -L${libdir} -laws-cpp-sdk-axdbfrontend 
+Libs.private: 
+Requires:  aws-cpp-sdk-core
