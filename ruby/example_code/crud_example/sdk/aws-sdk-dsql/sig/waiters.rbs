@@ -1,0 +1,33 @@
+# WARNING ABOUT GENERATED CODE
+#
+# This file is generated. See the contributing guide for more information:
+# https://github.com/aws/aws-sdk-ruby/blob/version-3/CONTRIBUTING.md
+#
+# WARNING ABOUT GENERATED CODE
+
+module Aws
+  module DSQL
+    module Waiters
+
+      class ClusterActive
+        def initialize: (?client: Client, ?max_attempts: Integer, ?delay: Integer, ?before_attempt: Proc, ?before_wait: Proc) -> void
+                      | (?Hash[Symbol, untyped]) -> void
+
+        def wait: (
+                    identifier: ::String
+                  ) -> Client::_GetClusterResponseSuccess
+                | (Hash[Symbol, untyped]) -> Client::_GetClusterResponseSuccess
+      end
+
+      class ClusterNotExists
+        def initialize: (?client: Client, ?max_attempts: Integer, ?delay: Integer, ?before_attempt: Proc, ?before_wait: Proc) -> void
+                      | (?Hash[Symbol, untyped]) -> void
+
+        def wait: (
+                    identifier: ::String
+                  ) -> Client::_GetClusterResponseSuccess
+                | (Hash[Symbol, untyped]) -> Client::_GetClusterResponseSuccess
+      end
+    end
+  end
+end
