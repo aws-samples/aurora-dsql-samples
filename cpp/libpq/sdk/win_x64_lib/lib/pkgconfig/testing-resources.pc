@@ -1,0 +1,10 @@
+includedir=include
+libdir=lib
+
+Name: testing-resources
+Description: 
+Version: 1.11.454
+Cflags: -I${includedir} 
+Libs: -L${libdir} -ltesting-resources 
+Libs.private: 
+Requires:  aws-cpp-sdk-core

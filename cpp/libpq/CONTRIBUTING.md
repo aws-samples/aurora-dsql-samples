@@ -48,6 +48,24 @@ COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk/
 COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk/usr/include/c++/v1
 ```
 
+##### Windows 
+
+The Windows related variables are in the 'Windows' section of the make file
+
+Update the PG_INC_DIR_WIN_64 variable with the location for postgres includes on your computer.
+**Note:** Make sure to add the /I before the path. See the example below.
+
+
+Update the LIBPQ_DIR_WIN_x64 variable with the location of libpq libraries location on your computer.
+
+
+For example:
+
+```
+PG_INC_DIR_WIN_64=/I "C:\Program Files\PostgreSQL\16\include"
+LIBPQ_DIR_WIN_x64="C:\Program Files\PostgreSQL\16\lib"
+```
+
 #### Build the program
 
 From the libpq/src directory run make command:
@@ -65,6 +83,18 @@ make mac_x64
 ```
 
 This should result in the libpq_example executable program
+
+#### Windows 
+
+Open the Visual Studio x64 Native Tools Command Prompt.
+This can be done from Windows menu under Visual Studio folder.
+
+In the Visual Studio x64 Native Tools Command Prompt go to the libpq/src directory.
+Run the following command:
+
+```
+nmake windows_x64
+```
 
 ### Run the example program
 
@@ -89,12 +119,29 @@ export LD_LIBRARY_PATH="<your_path>/aurora-dsql-samples/cpp/example_code/libpq/s
 export DYLD_FALLBACK_LIBRARY_PATH=<your_path>/aurora-dsql-samples/cpp/example_code/libpq/sdk/mac_x64_lib
 ```
 
+##### Windows 
+
+Add the location of aws-sdk libraries as well as libpq librarie to the path.
+
+```
+set PATH=%PATH%;<your_path>aurora-dsql-samples\cpp\libpq\sdk\win_x64_lib\bin;C:\Program Files\PostgreSQL\16\bin
+```
+
+
 #### Run the example program
 
 From the libpq/src directory run:
 
+##### Linux and Mac
+
 ```
 ./libpq_example
+```
+
+##### Windows 
+
+```
+libpq_example.exe
 ```
 
 ### Troubleshooting
