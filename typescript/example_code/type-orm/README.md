@@ -76,7 +76,7 @@ export default getDataSource();
 
 #### TypeORM DataSource options: Synchronize: true and MigrationsRun: true does not work with DSQL
 
-Attempting to create or modify tables using `synchronize: true` or `migrationsRun: false` will result in an error. This can be worked around by creating a migrations table in advance with `Primary Key` with a type different than `SERIAL` and creating the tables using a migrations file and the `--transaction none` flag enabled.
+Attempting to create or modify tables using `synchronize: true` or `migrationsRun: false` will result in an error. This can be worked around by creating a migrations table in advance with `Primary Key` with a type different than `SERIAL` and creating the tables using a migrations file and the `--transaction none` flag enabled. The main issue with setting `migrationsRun` and `synchronize` to `true` is that both operations will start a transaction and create `SQL` commands with multiple ddl statements which are not supported by DSQL.
 
 #### Foreign key constraints
 
@@ -90,7 +90,7 @@ In TypeORM, [connection pooling](https://typeorm.io/data-source-options#common-d
 
 > [!NOTE]
 >
-> Note that Aurora DSQL does not support SERIAL, so id is based on uuid (suggest best practice guide on this TBD: Update link)
+> Note that Aurora DSQL does not support SERIAL, so id is based on a globally unique id (suggest best practice guide on this TBD: Update link). Using a unique id strategy for database ids guarantees globally unique identifiers across different systems and databases, making them ideal for distributed systems.
 
 Owner table has one-to-many relationship with Pet table.
 Vet table has many-to-many relationship with Specialty table.
