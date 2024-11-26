@@ -36,7 +36,7 @@ from sqlalchemy.sql import text
 from sqlalchemy.exc import SQLAlchemyError
 
 def create_dsql_engine():
-    hostname = "y4abttnmzvrrdtiv2bvn6abjsi.dsql-gamma.us-east-1.on.aws"
+    hostname = "byabtukcd2r2kshmiy7ydeu5va.dsql-gamma.us-east-1.on.aws"
     region = "us-east-1"
     client = boto3.client("dsql", region_name=region)
     
@@ -121,10 +121,6 @@ class Vet(Base):
 def example():
     # Create the engine
     engine = create_dsql_engine()
-    
-    # Drop all tables
-    for table in Base.metadata.tables.values():
-        table.drop(engine, checkfirst=True)
     
     # Create all tables    
     for table in Base.metadata.tables.values():
