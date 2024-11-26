@@ -42,7 +42,8 @@ Console.WriteLine(getClusterResponse.Status);
 
 ListClustersRequest listClustersRequest = new();
 ListClustersResponse listClustersResponse = await client.ListClustersAsync(listClustersRequest);
-Console.WriteLine(listClustersResponse.Clusters);
+
+Console.WriteLine(IEnumerableToString(listClustersResponse.Clusters.Select(x => x.Identifier)));
 
 #endregion
 
@@ -68,3 +69,44 @@ DeleteClusterResponse deleteClusterResponse = await client.DeleteClusterAsync(de
 Console.WriteLine(deleteClusterResponse.Status);
 
 #endregion
+
+#region Multi Region Cluster
+
+
+LinkedClusterProperties linkedClusterPropertiesEast1 = new()
+{
+    DeletionProtectionEnabled = false,
+    Tags = { { "Name", "use1-example-cluster" }, { "Usecase", "testing-mr-use1" } }
+};
+
+LinkedClusterProperties linkedClusterPropertiesEast2 = new()
+{
+    DeletionProtectionEnabled = false,
+    Tags = { { "Name", "use2-example-cluster" }, { "Usecase", "testing-mr-use2" } }
+};
+
+const string witnessRegion = "us-west-2";
+CreateMultiRegionClustersRequest createMultiRegionClustersRequest = new()
+{
+    LinkedRegionList = [region.SystemName, "us-east-2"],
+    WitnessRegion = witnessRegion,
+    ClusterProperties = { { "us-east-1", linkedClusterPropertiesEast1 }, { "us-east-2", linkedClusterPropertiesEast2 } }
+};
+
+CreateMultiRegionClustersResponse createMultiRegionClustersResponse = await client.CreateMultiRegionClustersAsync(createMultiRegionClustersRequest);
+Console.WriteLine(IEnumerableToString(createMultiRegionClustersResponse.LinkedClusterArns));
+
+DeleteMultiRegionClustersRequest deleteMultiRegionClustersRequest = new()
+{
+    LinkedClusterArns = createMultiRegionClustersResponse.LinkedClusterArns
+};
+
+DeleteMultiRegionClustersResponse deleteMultiRegionClustersResponse = await client.DeleteMultiRegionClustersAsync(deleteMultiRegionClustersRequest);
+Console.WriteLine(deleteMultiRegionClustersResponse.ResponseMetadata.RequestId);
+
+#endregion
+
+static string IEnumerableToString(IEnumerable<string> strings)
+{
+    return ("[" + string.Join(", ", strings))[..^2] + "]";
+}
