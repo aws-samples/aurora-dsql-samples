@@ -14,7 +14,10 @@ aws-sigv4 = "1.1"
 rand = "0.8"
 url = "2.5"
 uuid = { version = "1.11", features = ["v4"] }
+rsa = "0.9.7"
+rustls = "0.23.19"
+
 
 [[bin]]
-name = "sqlx_example"
+name = "sqlx"
 path = "src/main.rs"
