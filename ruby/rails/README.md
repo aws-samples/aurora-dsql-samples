@@ -9,6 +9,7 @@ The code examples in this topic show you how to use the Ruby on Rails work with 
 ### Prerequisites
 
 * ruby version == 3.3.5 is needed
+* AWS credentials file is configured
 
 ### Setup test running environment 
 
@@ -32,5 +33,10 @@ wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
 export CLUSTER_ENDPOINT="<your cluster endpoint from us-east-1>"
 cd petclinic
 bundle install
+
+# Generate the schema from the model files in db/migrate.
+bin/rails db:migrate
+
+# Start the rails console
 bin/rails console
 ```
