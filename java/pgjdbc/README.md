@@ -19,16 +19,6 @@ export REGION="<your cluster region>"
 mvn test
 ```
 
-#### Gradle
-
-```sh
-export CLUSTER_ENDPOINT="<your cluster endpoint>"
-export REGION="<your cluster region>"
-gradle wrapper
-
-./gradlew run
-```
-
 ---
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
