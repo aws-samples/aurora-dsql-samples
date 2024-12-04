@@ -1,4 +1,4 @@
-# AWS DSQL Rust code examples
+# Aurora DSQL Rust code examples
 
 ## Overview
 

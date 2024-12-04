@@ -1,8 +1,8 @@
-# AWS DSQL Ruby on Rails code examples
+# Aurora DSQL Ruby on Rails code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the Ruby on Rails work with AWS DSQL. 
+The code examples in this topic show you how to use the Ruby on Rails work with Aurora DSQL. 
 
 ## Run the examples
 

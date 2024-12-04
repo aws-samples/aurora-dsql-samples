@@ -1,8 +1,8 @@
-# AWS DSQL Node-Postgres code examples
+# Aurora DSQL Node-Postgres code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the Node-Postgres work with AWS DSQL. 
+The code examples in this topic show you how to use the Node-Postgres work with Aurora DSQL. 
 
 ## Run the examples
 
