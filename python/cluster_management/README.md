@@ -10,7 +10,7 @@ The code examples in this topic show you how to use the AWS Python SDK with DSQL
 
 * python version >=3.8.0 is needed
 
-### Setup test running environment 
+### Setup test running environment
 
 ```sh
 source setup.sh
@@ -20,11 +20,11 @@ source setup.sh
 
 ```sh
 # Use the account credentials dedicated for python
-python src/example.py
+pytest test/test_example.py
 ```
 
 ---
 
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. 
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 SPDX-License-Identifier: Apache-2.0
