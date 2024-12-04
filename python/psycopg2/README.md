@@ -14,6 +14,7 @@ The code examples in this topic show you how to use psycopg2 with Amazon Distrib
 
 ```sh
 source setup.sh
+source box/bin/activate
 ```
 
 ### Run the example tests

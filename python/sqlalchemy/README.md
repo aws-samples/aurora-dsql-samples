@@ -14,6 +14,7 @@ The code examples in this topic show you how to use the SQLAlchemy work with AWS
 
 ```sh
 source setup.sh
+source box/bin/activate
 ```
 
 ### Run the example tests

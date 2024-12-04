@@ -35,6 +35,7 @@ def main(cluster_endpoint, region):
 
     cur = conn.cursor()
         
+    cur.execute("DROP TABLE IF EXISTS owner")
     cur.execute(b"""
         CREATE TABLE IF NOT EXISTS owner(
             id uuid NOT NULL DEFAULT gen_random_uuid(),
