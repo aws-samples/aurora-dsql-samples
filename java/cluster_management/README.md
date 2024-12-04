@@ -1,4 +1,4 @@
-# Aurora DSQL Node-Postgres code examples
+# Aurora DSQL Java PgJDBC code examples
 
 ## Overview
 
