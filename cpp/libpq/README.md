@@ -13,7 +13,7 @@ A c++ compiler that supports c++11 standard or newer.
 The AWS SDK for C++ installed
 
 - The instructions how to get and install the sdk can be found in the [Official site](https://docs.aws.amazon.com/sdk-for-cpp/v1/developer-guide/welcome.html)
-- The path to the AWS SDK libraries and include files will need to be specified for compilation.
+- The path to the AWS SDK libraries and include files will need to be specified for compilation
 - The path to the AWS SDK libraries will need to be specified for execution
 
 **Note**
@@ -27,11 +27,11 @@ cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ 
 
 #### Libpq library and Postgres include files
 
-- The path to the Libpq library and include files will need to be specified for compilation.
+- The path to the Libpq library and include files will need to be specified for compilation
 - The path to the Libpq library will need to be specified for execution
 - Obtaining Libpq library
     - It is installed with postgres installation. Therefore, if postgres is installed on the system the libpq is present in ../postgres_install_dir/lib, ../postgres_install_dir/include
-    - It is installed when psql client program is installed, similarily as with postgres installation. 
+    - It is installed when psql client program is installed, similarily as with postgres installation
     - On some systems libpq can be installed through package manager (if the package exists for the system) e.g.
         ```
         sudo yum install libpq-devel

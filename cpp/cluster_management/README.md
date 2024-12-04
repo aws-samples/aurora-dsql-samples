@@ -15,7 +15,7 @@ A c++ compiler that supports c++11 standard or newer.
 The AWS SDK for C++ installed
 
 - The instructions for how to get and install the sdk can be found in the [Official site](https://docs.aws.amazon.com/sdk-for-cpp/v1/developer-guide/welcome.html)
-- The path to the AWS SDK libraries and include files will need to be specified for compilation.
+- The path to the AWS SDK libraries and include files will need to be specified for compilation
 - The path to the AWS SDK libraries will need to be specified for execution
 
 **Note**
