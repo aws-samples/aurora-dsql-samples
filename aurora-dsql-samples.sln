@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.002.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet", "dotnet", "{5956F8E0-4405-4847-9A82-5F8726B7065C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "example", "dotnet\cluster_management\example.csproj", "{C2FE9AA4-DB57-4D96-B0CE-6CEEFBBA12CD}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "example (1)", "dotnet\npgsql\example.csproj", "{A56692EF-B930-49C0-AD0B-44C44801729B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "cluster_management", "cluster_management", "{7AE32E70-AA14-4E75-84CE-D24F0A77747D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExampleTest.Tests", "dotnet\cluster_management\ExampleTest.Tests\ExampleTest.Tests.csproj", "{EFC5BC59-53DC-4E89-9115-A36219464966}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "npgsql", "npgsql", "{53953105-31BD-4110-AD58-B34CDBE9E036}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExampleTest.Tests", "dotnet\npgsql\ExampleTest.Tests\ExampleTest.Tests.csproj", "{98522076-63CF-489D-A69C-3B33F29FF554}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C2FE9AA4-DB57-4D96-B0CE-6CEEFBBA12CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C2FE9AA4-DB57-4D96-B0CE-6CEEFBBA12CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C2FE9AA4-DB57-4D96-B0CE-6CEEFBBA12CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C2FE9AA4-DB57-4D96-B0CE-6CEEFBBA12CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A56692EF-B930-49C0-AD0B-44C44801729B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A56692EF-B930-49C0-AD0B-44C44801729B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A56692EF-B930-49C0-AD0B-44C44801729B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A56692EF-B930-49C0-AD0B-44C44801729B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EFC5BC59-53DC-4E89-9115-A36219464966}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EFC5BC59-53DC-4E89-9115-A36219464966}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EFC5BC59-53DC-4E89-9115-A36219464966}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EFC5BC59-53DC-4E89-9115-A36219464966}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98522076-63CF-489D-A69C-3B33F29FF554}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98522076-63CF-489D-A69C-3B33F29FF554}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98522076-63CF-489D-A69C-3B33F29FF554}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98522076-63CF-489D-A69C-3B33F29FF554}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C2FE9AA4-DB57-4D96-B0CE-6CEEFBBA12CD} = {5956F8E0-4405-4847-9A82-5F8726B7065C}
+		{A56692EF-B930-49C0-AD0B-44C44801729B} = {5956F8E0-4405-4847-9A82-5F8726B7065C}
+		{7AE32E70-AA14-4E75-84CE-D24F0A77747D} = {5956F8E0-4405-4847-9A82-5F8726B7065C}
+		{EFC5BC59-53DC-4E89-9115-A36219464966} = {7AE32E70-AA14-4E75-84CE-D24F0A77747D}
+		{53953105-31BD-4110-AD58-B34CDBE9E036} = {5956F8E0-4405-4847-9A82-5F8726B7065C}
+		{98522076-63CF-489D-A69C-3B33F29FF554} = {53953105-31BD-4110-AD58-B34CDBE9E036}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {87446E11-E38A-424D-81BE-DF9788831891}
+	EndGlobalSection
+EndGlobal

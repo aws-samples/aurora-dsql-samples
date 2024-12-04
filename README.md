@@ -29,9 +29,6 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |    Java     |    [cluster_management](java/cluster_management)    |
 | Javascript  | [cluster_management](javascript/cluster_management) |
 |   Python    |   [cluster_management](python/cluster_management)   |
-|   Python    |   [cluster_management](python/cluster_management)   |
-|   Python    |   [cluster_management](python/cluster_management)   |
-|    Ruby     |    [cluster_management](ruby/cluster_management)    |
 |    Ruby     |    [cluster_management](ruby/cluster_management)    |
 |    Rust     |    [cluster_management](rust/cluster_management)    |
 
