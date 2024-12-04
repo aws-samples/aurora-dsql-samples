@@ -14,6 +14,9 @@ A c++ compiler that supports c++11 standard or newer.
 #### AWS SDK for C++
 The AWS SDK for C++ installed
 
+- The instructions how to get and install the sdk can be found in the [Official site](https://docs.aws.amazon.com/sdk-for-cpp/v1/developer-guide/welcome.html)
+- The path to the AWS SDK libraries and include files will need to be specified for compilation.
+- The path to the AWS SDK libraries will need to be specified for execution
 
 ### Build the example program
 
@@ -76,6 +79,9 @@ export DYLD_FALLBACK_LIBRARY_PATH=<your_path>/sdk/lib:$DYLD_FALLBACK_LIBRARY_PAT
 ```
 
 #### Run the example program
+
+**Note**
+> To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
 
 In a terminal run the following command from the cluster_management/src directory 
 
