@@ -1,4 +1,0 @@
-[build:es] yarn run build:es exited with code 0
-[build:types] yarn run build:types exited with code 0
-[build:cjs] detected undeclared auto-variant /codebuild/output/src2417092932/src/aws-sdk-js-v3/packages/dsql-signer/dist-cjs/runtimeConfig.js
-[build:cjs] yarn run build:cjs exited with code 0
