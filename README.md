@@ -14,7 +14,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 | C# (dotnet) |     [npgsql](dotnet/npgsql)     | [README](dotnet/npgsql/example/README.md) |
 |    Java     |      [pgjdbc](java/pgjdbc)      |      [README](java/pgjdbc/README.md)      |
 |     Go      |          [go](go/pgx/)          |        [README](go/pgx/README.md)         |
-|   NodeJS    |  [nodejs](javascript/nodejs/)   |   [README](javascript/nodejs/README.md)   |
+| Javascript  |  [nodejs](javascript/nodejs/)   |   [README](javascript/nodejs/README.md)   |
 |   Python    |   [psycopg](python/psycopg/)    |    [README](python/psycopg/README.md)     |
 |   Python    |  [psycopg2](python/psycopg2/)   |    [README](python/psycopg2/README.md)    |
 |   Python    | [sqlalchemy](python/sqlalchemy) |   [README](python/sqlalchemy/README.md)   |
