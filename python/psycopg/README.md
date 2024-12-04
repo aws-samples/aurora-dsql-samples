@@ -31,7 +31,7 @@ All examples are under test directory. The following table describes each test s
 
 | Test File | Description |
 | -------------------- | ----------- |
-| test_example.py | Show database table create, read, update and delete operation. |
+| test_example.py | Show database table create, read and delete operation. |
 
 ---
 
