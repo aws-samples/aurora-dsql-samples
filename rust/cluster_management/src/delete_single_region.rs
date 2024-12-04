@@ -34,6 +34,7 @@ pub async fn delete_cluster(region: &'static str, identifier: String) {
 }
 
 #[tokio::main(flavor = "current_thread")]
+#[allow(dead_code)]
 pub async fn main() -> anyhow::Result<()> {
     let region = "us-east-1";
     delete_cluster(region, "<cluster to be deleted>".to_owned()).await;

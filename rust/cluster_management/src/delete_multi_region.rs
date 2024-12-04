@@ -35,6 +35,7 @@ pub async fn delete_multi_region_cluster(region: &'static str, arns: Vec<String>
 }
 
 #[tokio::main(flavor = "current_thread")]
+#[allow(dead_code)]
 pub async fn main() -> anyhow::Result<()> {
     let region = "us-east-1";
     let arns = vec![

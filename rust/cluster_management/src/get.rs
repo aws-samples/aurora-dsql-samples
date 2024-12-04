@@ -52,6 +52,7 @@ pub async fn list_cluster_tags(
 }
 
 #[tokio::main(flavor = "current_thread")]
+#[allow(dead_code)]
 pub async fn main() -> anyhow::Result<()> {
     let region = "us-east-1";
 
