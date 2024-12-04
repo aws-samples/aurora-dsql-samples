@@ -1,0 +1,31 @@
+**/.gradle/
+**/gradle/
+**/bin/
+**/build/
+**/.idea/
+*.iml
+**/target/
+**/.classpath/
+**/.project/
+**/.settings/
+**/libs/software/
+**/gradlew
+**/gradlew.bat
+**/build.gradle.kts
+**/settings.gradle.kts
+
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+replay_pid*

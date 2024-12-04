@@ -1,0 +1,31 @@
+{
+  "name": "type-orm",
+  "version": "1.0.0",
+  "description": "How-to",
+  "main": "index.js",
+  "scripts": {
+    "migrations-create-table": "node dist/create-migrations-table.js",
+    "migrations-run": "npm run typeorm migration:run -- -d ./dist/data-source --transaction none",
+    "migrations-revert": "npm run typeorm migration:revert -- -d ./dist/data-source --transaction none",
+    "build": "tsc --build",
+    "clean": "rm -rf build && rm -rf dist",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "start": "node dist/index.js",
+    "dev": "npm run clean && npm run build && npm run start"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "reflect-metadata": "^0.2.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "@aws-sdk/dsql-signer": "file:dsql-signer",
+    "assert": "^2.1.0",
+    "pg": "^8.13.1",
+    "ts-node": "^10.9.2",
+    "typeorm": "^0.3.20",
+    "uuid": "^11.0.3"
+  }
+}

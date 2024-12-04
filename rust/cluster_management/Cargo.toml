@@ -1,0 +1,45 @@
+[package]
+name = "crud"
+version = "0.1.0"
+edition = "2021"
+include = ["/src"]
+
+[dependencies]
+tokio = { version = "1.28", features = ["full"] }
+anyhow = { version = "1", features = ["backtrace"] }
+aws-config = "1"
+aws-credential-types = "1"
+aws-sdk-dsql = "1"
+aws-sigv4 = "1"
+aws-sdk-iam = "1"
+rand = "0.8"
+url = "2.5"
+uuid = { version = "1.11", features = ["v4"] }
+
+[[bin]]
+name = "example"
+path = "src/example.rs"
+
+[[bin]]
+name = "create_multi_region"
+path = "src/create_multi_region.rs"
+
+[[bin]]
+name = "create_single_region"
+path = "src/create_single_region.rs"
+
+[[bin]]
+name = "get"
+path = "src/get.rs"
+
+[[bin]]
+name = "update"
+path = "src/update.rs"
+
+[[bin]]
+name = "delete_multi_region"
+path = "src/delete_multi_region.rs"
+
+[[bin]]
+name = "delete_single_region"
+path = "src/delete_single_region.rs"

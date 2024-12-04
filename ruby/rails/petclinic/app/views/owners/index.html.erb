@@ -1,0 +1,12 @@
+<h1>Owners</h1>
+
+<ul>
+  <% @owners.each do |o| %>
+    <li>
+      <%= link_to o.name, o %>
+    </li>
+  <% end %>
+</ul>
+
+<%= link_to "Pets", "/pets" %>
+<%= link_to "Vets", "/vets" %>
