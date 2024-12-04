@@ -20,7 +20,7 @@ source setup.sh
 
 ```sh
 # Use the account credentials dedicated for python
-python src/example.py
+pytest test/test_example.py
 ```
 
 ---
