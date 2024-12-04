@@ -27,7 +27,7 @@ DSQLClient createClient(const Aws::String& region) {
 }
 
 int singleRegion(DSQLClient& client) {
-    const int wait_for_cluster_seconds = 180; // Just an approximate arbitrarily chosen time
+    const int wait_for_cluster_seconds = 60; // Just an approximate arbitrarily chosen time
     const int wait_for_cluster_update_seconds = 20; // Just an approximate arbitrarily chosen time
     bool deletionProtectionEnabled = true;
     std::map<Aws::String, Aws::String> tags = {
@@ -62,7 +62,7 @@ int singleRegion(DSQLClient& client) {
 }
 
 int multiRegion(DSQLClient& client) {
-    const int wait_for_cluster_seconds = 180; // Just an approximate arbitrarily chosen time
+    const int wait_for_cluster_seconds = 60; // Just an approximate arbitrarily chosen time
     std::vector<Aws::String> linkedRegionList = { "us-east-1", "us-east-2" };
     Aws::String witnessRegion = "us-west-2";
 
