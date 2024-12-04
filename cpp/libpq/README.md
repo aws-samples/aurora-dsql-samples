@@ -32,7 +32,7 @@ cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ 
 - Obtaining Libpq library
     - It is installed with postgres installation. Therefore, if postgres is installed on the system the libpq is present in ../postgres_install_dir/lib, ../postgres_install_dir/include
     - It is installed when psql client program is installed, similarily as with postgres installation. 
-    - On some systems libpq can be installed through package manager (if the package is exists for the system) e.g.
+    - On some systems libpq can be installed through package manager (if the package exists for the system) e.g.
         ```
         sudo yum install libpq-devel
         ```
