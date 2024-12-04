@@ -13,7 +13,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |     C++     |       [libpq](cpp/libpq)        |    [cluster_management](cpp/cluster_management)     |     [README](cpp/libpq/README.md)     |
 | C# (dotnet) |     [npgsql](dotnet/npgsql)     |   [cluster_management](dotnet/cluster_management)   |   [README](dotnet/npgsql/README.md)   |
 |    Java     |      [pgjdbc](java/pgjdbc)      |    [cluster_management](java/cluster_management)    |    [README](java/pgjdbc/README.md)    |
-|     Go      |          [go](go/pgx/)          |              [cluster_management](TBD)              |      [README](go/pgx/README.md)       |
+|     Go      |          [go](go/pgx/)          |              To be done              |      [README](go/pgx/README.md)       |
 | Javascript  |  [nodejs](javascript/nodejs/)   | [cluster_management](javascript/cluster_management) | [README](javascript/nodejs/README.md) |
 |   Python    |   [psycopg](python/psycopg/)    |   [cluster_management](python/cluster_management)   |  [README](python/psycopg/README.md)   |
 |   Python    |  [psycopg2](python/psycopg2/)   |   [cluster_management](python/cluster_management)   |  [README](python/psycopg2/README.md)  |
@@ -30,4 +30,4 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 
 ## License
 
-This project is licensed under the Apache-2.0 License.
+This project is licensed under the MIT-0 License.
