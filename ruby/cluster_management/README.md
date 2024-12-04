@@ -1,4 +1,4 @@
-# AWS DSQL Ruby SDK code examples
+# Aurora DSQL Ruby SDK code examples
 
 ## Overview
 

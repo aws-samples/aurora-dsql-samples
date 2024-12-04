@@ -1,8 +1,8 @@
-# AWS DSQL JavaScript code examples
+# Aurora DSQL JavaScript code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the JavaScript work with AWS DSQL. 
+The code examples in this topic show you how to use the JavaScript work with Aurora DSQL. 
 
 ## Run the examples
 

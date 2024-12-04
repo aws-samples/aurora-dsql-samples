@@ -1,4 +1,4 @@
-# AWS DSQL Rust code examples
+# Aurora DSQL sqlx code examples
 
 ## Overview
 
@@ -8,15 +8,16 @@ The code examples in this topic show you how to use DSQL with Rust sqlx.
 
 ### Prerequisites
 
-* Rust version >=1.80 is needed
+- Rust version >=1.80 is needed
 
-### Setup test running environment 
+### Setup test running environment
 
 Ensure you are authenticated with AWS credentials. No other setup is needed besides having Rust installed.
 
 ### Run the example tests
 
 In a terminal run the following command from the sqlx:
+
 ```sh
 # Use the account credentials dedicated for rust
 export CLUSTER_ENDPOINT="<your cluster endpoint>"
@@ -31,6 +32,6 @@ cargo build
 
 ---
 
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. 
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 SPDX-License-Identifier: MIT-0

@@ -1,8 +1,8 @@
-# AWS DSQL SQLAlchemy code examples
+# Aurora DSQL SQLAlchemy code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the SQLAlchemy work with AWS DSQL. 
+The code examples in this topic show you how to use the SQLAlchemy work with Aurora DSQL. 
 
 ## Run the examples
 

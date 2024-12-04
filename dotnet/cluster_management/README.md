@@ -1,8 +1,8 @@
-# AWS DSQL .NET code examples
+# Aurora DSQL .NET code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the .NET work with AWS DSQL. 
+The code examples in this topic show you how to use the .NET work with Aurora DSQL. 
 
 ## Run the examples
 

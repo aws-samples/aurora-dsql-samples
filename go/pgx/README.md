@@ -1,4 +1,4 @@
-# AWS DSQL Go code examples
+# Aurora DSQL pgx code examples
 
 ## Overview
 
@@ -27,7 +27,7 @@ go test
 
 # you can also run the example directly
 go build
-./example 
+./example
 ```
 
 ---

@@ -1,4 +1,4 @@
-# AWS DSQL Python code examples
+# Aurora DSQL Python code examples
 
 ## Overview
 

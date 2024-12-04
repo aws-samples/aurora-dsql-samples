@@ -1,8 +1,8 @@
-# AWS DSQL Node-Postgres code examples
+# Aurora DSQL Java code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the Java PgJDBC to work with AWS DSQL. 
+The code examples in this topic show you how to use the Java PgJDBC to work with Aurora DSQL. 
 
 ## Run the examples
 

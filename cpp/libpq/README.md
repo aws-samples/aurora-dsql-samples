@@ -1,8 +1,8 @@
-# AWS DSQL Libpq code examples
+# Aurora DSQL Libpq code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the Libpq with AWS DSQL. 
+The code examples in this topic show you how to use the Libpq with Aurora DSQL. 
 
 ## Prerequisites
 
@@ -108,7 +108,7 @@ From the libpq/src directory run:
 
 #### SSL support in libpq
 
-AWS DSQL requires SSL when connecting to it. Therefore, the libpq library must have been built with SSL support.
+Aurora DSQL requires SSL when connecting to it. Therefore, the libpq library must have been built with SSL support.
 
 If this is not the case, you may see the following error messgage while executing the libpq_example program:
 

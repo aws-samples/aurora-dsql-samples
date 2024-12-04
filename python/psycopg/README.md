@@ -1,8 +1,8 @@
-# AWS DSQL psycopg code examples
+# Aurora DSQL psycopg code examples
 
 ## Overview
 
-The code examples in this topic show you how to use the psycopg work with AWS DSQL. 
+The code examples in this topic show you how to use the psycopg work with Aurora DSQL. 
 
 ## Run the examples
 
