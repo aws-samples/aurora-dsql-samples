@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+gem "aws-sdk-dsql", "~> 1"
+
+gem 'rspec', '3.13.0'
+gem 'aws-sdk-core', '3.211.0'

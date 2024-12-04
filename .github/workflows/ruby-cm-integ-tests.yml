@@ -1,0 +1,53 @@
+name: Ruby cluster management integration tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ruby/cluster_management/**'
+      - '.github/workflows/ruby-cm-integ-tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'ruby/cluster_management/**'
+      - '.github/workflows/ruby-cm-integ-tests.yml'
+  # Give us a button to allow running the workflow on demand for testing.
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Manual Workflow Run'
+        required: false
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      # Explicitly set permissions, following the principle of least privilege
+      actions: read
+      checks: write
+      pull-requests: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+   
+    - name: Set up Ruby 2.5
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.5'
+        bundler-cache: true
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.RUBY_IAM_ROLE }}
+        aws-region: us-east-1
+
+    - name: Configure and run integration for cluster management
+      working-directory: ./ruby/cluster_management
+      run: |
+        bundle install
+        rspec

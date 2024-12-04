@@ -1,0 +1,54 @@
+name: Rust SQLx Integration Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'rust/sqlx/**'
+      - '.github/workflows/rust-sqlx-integ-test.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'rust/sqlx/**'
+      - '.github/workflows/rust-sqlx-integ-test.yml'
+  # Give us a button to allow running the workflow on demand for testing.
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Manual Workflow Run'
+        required: false
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write
+      contents: read
+      # Explicitly set permissions, following the principle of least privilege
+      actions: read
+      checks: write
+      pull-requests: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Rust
+      run: rustup update
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.RUST_IAM_ROLE }}
+        aws-region: us-east-1
+
+    - name: Configure and run integration tests for SQLx
+      working-directory: ./rust/sqlx
+      env:
+        CLUSTER_ENDPOINT: ${{ secrets.RUST_SQLX_CLUSTER_ENDPOINT }}
+        REGION: ${{ secrets.RUST_SQLX_CLUSTER_REGION }}
+      run: |
+        cargo build
+        cargo test

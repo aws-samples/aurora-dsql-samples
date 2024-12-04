@@ -1,0 +1,19 @@
+{
+  "name": "cluster-management",
+  "version": "1.0.0",
+  "description": "\"Cluster Management CRUD\"",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-dsql": "^3.705.0",
+    "assert": "^2.1.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

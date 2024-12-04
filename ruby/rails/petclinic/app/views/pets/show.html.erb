@@ -1,0 +1,13 @@
+<h1><%= @pet.id %></h1>
+
+<p>Name: <%= @pet.name %></p>
+<p>Date of birth: <%= @pet.birth_date %></p>
+<p>Owner id: <%= @pet.owner_id %></p>
+<p>Created at: <%= @pet.created_at %></p>
+<p>Updated at: <%= @pet.updated_at %></p>
+
+<ul>
+  <li><%= link_to "Owners", "/owners" %></li>
+  <li><%= link_to "Pets", "/pets" %></li>
+  <li><%= link_to "Vets", "/vets" %></li>
+</ul>

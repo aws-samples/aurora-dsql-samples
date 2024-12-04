@@ -1,0 +1,77 @@
+name: C++ cluster management Integration tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'cpp/cluster_management/**'
+      - '.github/workflows/cpp-cm-integ-tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'cpp/cluster_management/**'
+      - '.github/workflows/cpp-cm-integ-tests.yml'
+  # Give us a button to allow running the workflow on demand for testing.
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Manual Workflow Run'
+        required: false
+        type: string
+ 
+jobs:
+  cpp-cm-integ-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      # Explicitly set permissions, following the principle of least privilege
+      actions: read
+      checks: write
+      pull-requests: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install build tools
+      run: |
+        sudo apt-get update 
+        sudo apt-get install build-essential
+    
+    - name: Install needed packages
+      run: sudo apt-get install libcurl4-openssl-dev libssl-dev uuid-dev zlib1g-dev
+
+    - name: Install git
+      run: sudo apt-get install git
+
+    - name: Install cmake
+      run: sudo apt-get install cmake
+
+    - name: Build aws-sdk-cpp
+      working-directory: ./cpp/cluster_management
+      run: |
+        git clone --recurse-submodules https://github.com/aws/aws-sdk-cpp
+        mkdir aws-sdk-build
+        mkdir aws-sdk-install
+        cd aws-sdk-build
+        cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/cpp/cluster_management/aws-sdk-install -DBUILD_ONLY="dsql"
+        cmake --build . --config=Release
+        cmake --install . --config=Release
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.CPP_IAM_ROLE }}
+        aws-region: us-east-1
+
+    - name: Build sample 
+      working-directory: ./cpp/cluster_management/src
+      run: make linux
+
+    - name: Configure and run integration for cpp cm
+      working-directory: ./cpp/cluster_management/src
+      env:
+        LD_LIBRARY_PATH: /home/runner/work/aurora-dsql-samples/aurora-dsql-samples/cpp/cluster_management/aws-sdk-install/lib
+      run: |
+        ./example
