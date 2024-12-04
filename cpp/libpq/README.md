@@ -119,3 +119,8 @@ Hopefully, the libpq library that is distributed with PostgreSQL installation as
 
 It may not be the case if you've built it yourself from sources. In this case make sure to include the SSL when building.
 
+---
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+SPDX-License-Identifier: MIT-0

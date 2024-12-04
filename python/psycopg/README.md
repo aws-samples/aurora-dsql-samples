@@ -37,4 +37,4 @@ All examples are under test directory. The following table describes each test s
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. 
 
-SPDX-License-Identifier: Apache-2.0
+SPDX-License-Identifier: MIT-0
