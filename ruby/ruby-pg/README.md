@@ -1,4 +1,4 @@
-# AWS DSQL Node-Postgres code examples
+# AWS DSQL Ruby-pg code examples
 
 ## Overview
 
