@@ -1,21 +1,36 @@
-## Pre-launch setup instructions for Maven
+# AWS DSQL Node-Postgres code examples
 
-As Aurora DSQL is not yet announced in order to verify the maven build a local installation of the `AwsJavaSDK-dsql-2.0.jar` is required.
+## Overview
 
-Steps:
+The code examples in this topic show you how to use the Java PgJDBC to work with AWS DSQL. 
 
-### Compile and Execute Example
+## Run the examples
 
-From root of this repository
+### Prerequisites
 
-The CRUD examples described below are all contained in `Example.java`
+* java version >= 17 is needed
 
-#### Maven
+### Run the example tests
 
-```
-# Use the account credentials dedicated for java
-mvn validate
-mvn initialize
-mvn clean compile assembly:single
+```sh
+# Use the account credentials dedicated for javascript
+export CLUSTER_ENDPOINT="<your cluster endpoint>"
+export REGION="<your cluster region>"
 mvn test
 ```
+
+#### Gradle
+
+```sh
+export CLUSTER_ENDPOINT="<your cluster endpoint>"
+export REGION="<your cluster region>"
+gradle wrapper
+
+./gradlew run
+```
+
+---
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. 
+
+SPDX-License-Identifier: Apache-2.0
