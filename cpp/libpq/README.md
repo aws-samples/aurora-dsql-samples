@@ -6,7 +6,55 @@ The code examples in this topic show you how to use the Libpq with AWS DSQL.
 
 ## Prerequisites
 
-Please see the prerequisites section in README.md document.
+#### C++ compiler 
+A c++ compiler that supports c++11 standard or newer.
+
+#### AWS SDK for C++
+The AWS SDK for C++ installed
+
+- The instructions how to get and install the sdk can be found in the [Official site](https://docs.aws.amazon.com/sdk-for-cpp/v1/developer-guide/welcome.html)
+- The path to the AWS SDK libraries and include files will need to be specified for compilation
+- The path to the AWS SDK libraries will need to be specified for execution
+
+**Note**
+If you're building the SDK from source and you only need it for dsql you may use the -DBUILD_ONLY="dsql" flag to avoid building the entire sdk.
+For example:
+
+```
+cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ -DCMAKE_INSTALL_PREFIX=/usr/local/ -DBUILD_ONLY="dsql"
+```
+
+
+#### Libpq library and Postgres include files
+
+- The path to the Libpq library and include files will need to be specified for compilation
+- The path to the Libpq library will need to be specified for execution
+- Obtaining Libpq library
+    - It is installed with postgres installation. Therefore, if postgres is installed on the system the libpq is present in ../postgres_install_dir/lib, ../postgres_install_dir/include
+    - It is installed when psql client program is installed, similarily as with postgres installation
+    - On some systems libpq can be installed through package manager (if the package exists for the system) e.g.
+        ```
+        sudo yum install libpq-devel
+        ```
+    - On Mac libpq can be installed using brew
+        ```
+        brew install libpq
+        ```
+    - The [official website](https://www.postgresql.org/download/) may have a package for libpq or psql which bundles libpq
+    - The last resort, build from source which also can be obtained from [official website](https://www.postgresql.org/ftp/source/) 
+
+
+#### SSL Libraries
+
+- SSL libraries need to be installed
+- For example on Amazon Linux run these commands:
+    ```
+      sudo yum install -y openssl-devel 
+      sudo yum install -y  openssl11-libs 
+    ```
+- On some systems the SSL libraries can be installed using package managers
+    - They can be downloaded from the [official website](https://openssl-library.org/source/index.html)
+
 
 ## Run the examples
 
