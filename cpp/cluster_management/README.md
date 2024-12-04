@@ -18,6 +18,14 @@ The AWS SDK for C++ installed
 - The path to the AWS SDK libraries and include files will need to be specified for compilation.
 - The path to the AWS SDK libraries will need to be specified for execution
 
+**Note**
+If you're building the SDK from source and you only need it for dsql you may use the -DBUILD_ONLY="dsql" flag to avoid building the entire sdk.
+For example:
+
+```
+cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ -DCMAKE_INSTALL_PREFIX=/usr/local/ -DBUILD_ONLY="dsql"
+```
+
 ### Build the example program
 
 
