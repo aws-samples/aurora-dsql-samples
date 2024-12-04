@@ -8,7 +8,7 @@ To get started with Aurora DSQL, create clusters and more information, please re
 
 The subdirectories contain code examples for connecting and using Aurora DSQL in each programming language and ORM framework. The examples demonstrate the most common uses, such as installing clients, handling authentication, performing CRUD operations, and more. They also cover Aurora DSQL's basic specifics. Please refer to the [documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/known-issues.html) for a full list of differences and limitations.
 
-|  Language   |          Client / ORM           |                   HowTO                   |
+|  Language   |          Client / ORM           |                   README                   |
 | :---------: | :-----------------------------: | :---------------------------------------: |
 |     C++     |       [libpq](cpp/libpq)        |       [README](cpp/libpq/README.md)       |
 | C# (dotnet) |     [npgsql](dotnet/npgsql)     | [README](dotnet/npgsql/README.md) |
