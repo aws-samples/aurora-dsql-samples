@@ -13,7 +13,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |     C++     |       [libpq](cpp/libpq)        |
 | C# (dotnet) |     [npgsql](dotnet/npgsql)     |
 |    Java     |      [pgjdbc](java/pgjdbc)      |
-|     Go      |          [go](go/pgx/)          |
+|     Go      |          [pgx](go/pgx/)          |
 | Javascript  |  [nodejs](javascript/nodejs/)   |
 |   Python    |   [psycopg](python/psycopg/)    |
 |   Python    |  [psycopg2](python/psycopg2/)   |

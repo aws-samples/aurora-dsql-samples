@@ -8,7 +8,8 @@ The code examples in this topic show you how to use DSQL with Go pgx.
 
 ### Prerequisites
 
-- Go version >= 1.21
+* Go version >= 1.21
+* AWS credentials file is configured
 
 ### Setup test running environment
 
