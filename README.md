@@ -11,7 +11,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |  Language   |          Client / ORM           |                   HowTO                   |
 | :---------: | :-----------------------------: | :---------------------------------------: |
 |     C++     |       [libpq](cpp/libpq)        |       [README](cpp/libpq/README.md)       |
-| C# (dotnet) |     [npgsql](dotnet/npgsql)     | [README](dotnet/npgsql/example/README.md) |
+| C# (dotnet) |     [npgsql](dotnet/npgsql)     | [README](dotnet/npgsql/README.md) |
 |    Java     |      [pgjdbc](java/pgjdbc)      |      [README](java/pgjdbc/README.md)      |
 |     Go      |          [go](go/pgx/)          |        [README](go/pgx/README.md)         |
 | Javascript  |  [nodejs](javascript/nodejs/)   |   [README](javascript/nodejs/README.md)   |
