@@ -80,6 +80,7 @@ async fn single_region() -> anyhow::Result<()> {
 }
 
 #[tokio::main(flavor = "current_thread")]
+#[allow(dead_code)]
 async fn main() -> anyhow::Result<()> {
     multi_region().await?;
     single_region().await?;
