@@ -19,8 +19,8 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |   Python    |  [psycopg2](python/psycopg2/)   | [cluster_management](python/cluster_management)                                        | [README](python/psycopg2/README.md)  |
 |   Python    | [sqlalchemy](python/sqlalchemy) | [cluster_management](python/cluster_management)                                        | [README](python/sqlalchemy/README.md) |
 |    Ruby     |       [rails](ruby/rails)       | [cluster_management](ruby/cluster_management)                                        | [README](ruby/rails/README.md)     |
-|    Ruby     |     [ruby-pg](ruby/ruby-pg)     | [cluster_management](ruby/cluster_management)                                        | [README](ruby/rails/README.m                                      | [README](ruby/ruby-pg/README.md)    |
-|    Rust     |        [sqlx](rust/sqlx)        | [cluster_management](rust/cluster_management)                                        | [README](ruby/rails/README.m                                      | [README](rust/sqlx/README.md)     |
+|    Ruby     |     [ruby-pg](ruby/ruby-pg)     | [cluster_management](ruby/cluster_management)                                        | [README](ruby/ruby-pg/README.md)    |
+|    Rust     |        [sqlx](rust/sqlx)        | [cluster_management](rust/cluster_management)                                        | [README](rust/sqlx/README.md)     |
 
 Each example includes language and client-specific instructions as well as instructions to invoke example code.
 
