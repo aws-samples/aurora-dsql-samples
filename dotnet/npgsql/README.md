@@ -13,6 +13,7 @@ The code examples in this topic show you how to use the .NET work with AWS DSQL.
 ### Run the example tests
 
 ```sh
+# Use the account credentials dedicated for dotnet
 export CLUSTER_ENDPOINT="<your cluster endpoint from us-east-1>"
 cd ExampleTest.Tests
 dotnet test
