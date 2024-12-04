@@ -8,7 +8,7 @@ The code examples in this topic show you how to use the AWS Python SDK with DSQL
 
 ### Prerequisites
 
-- python version >=3.8.0 is needed
+* python version >=3.8.0 is needed
 
 ### Setup test running environment
 
