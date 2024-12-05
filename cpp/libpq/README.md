@@ -62,9 +62,21 @@ cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ 
 
 #### Edit the Makefile file
 
+The Makefile is located in the libpq/src directory.
+
+##### Location of the awd-sdk-cpp 
+
+Update the following variables with the paths to the aws-sdk-cpp include and library files on your computer:
+
+```
+AWS_INC_DIR=-I ../aws-sdk-install/include
+AWS_LIB_DIR=-L ../aws-sdk-install/lib
+```
+
+
 ##### Linux 
 
-In the Makefile located in the libpq/src directory edit the variables specifying path to the postgres include files and path to the location of the libpq library.
+Edit the variables specifying path to the postgres include files and path to the location of the libpq library.
 
 Relace the /usr/local/pgsql/include and /usr/local/pgsql/lib with locations on your computer:
 
@@ -128,13 +140,13 @@ Replace the paths in the commands below with the path on your computer.
 
 ```
 export LD_LIBRARY_PATH="/usr/local/pgsql/lib:$LD_LIBRARY_PATH"
-export LD_LIBRARY_PATH="<your_path>/aurora-dsql-samples/cpp/example_code/libpq/sdk/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="<your_path>/aws-sdk-install/lib:$LD_LIBRARY_PATH"
 ```
 
 ##### Mac
 
 ```
-export DYLD_FALLBACK_LIBRARY_PATH=<your_path>/aurora-dsql-samples/cpp/example_code/libpq/sdk/mac_x64_lib
+export DYLD_FALLBACK_LIBRARY_PATH=<your_path>/aws-sdk-install/lib
 ```
 
 #### Set environment variables specifying cluster endpoint and region
