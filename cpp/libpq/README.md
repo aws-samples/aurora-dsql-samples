@@ -10,15 +10,23 @@
 1. Provision a Aurora DSQL cluster by following the [user guide](TODO) if not already done.
    Note down the endpoint, you will need to establish a connection.
 2. C++ compiler
-    - We've tested with g++ (GCC) 7.3.1 on linux. An equivalent or a newer version should work as well.
+    - We've tested with g++ (GCC) 7.3.1 on linux. An equivalent or a newer version should work as well
 3. AWS SDK for C++
     - It is required for database token generation
     - [Official site](https://docs.aws.amazon.com/sdk-for-cpp/v1/developer-guide/welcome.html)
     - The path to the AWS SDK libraries and include files will need to be specified for compilation.
     - The path to the AWS SDK libraries will need to be specified for execution
-    - **Note**: The sufficient subset of the AWS SDK is provided with this sample
+
+    **Note**
+    
+    If you're building the SDK from source and you only need it for dsql you may use the -DBUILD_ONLY="dsql" flag to avoid building the entire sdk.
+    For example:
+
+    ```
+    cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ -DCMAKE_INSTALL_PREFIX=/usr/local/ -DBUILD_ONLY="dsql"
+    ```
 4. Libpq library and Postgres include files need to be present
-    - The path to the Libpq library and include files will need to be specified for compilation.
+    - The path to the Libpq library and include files will need to be specified for compilation
     - The path to the Libpq library will need to be specified for execution
     - Obtaining Libpq library
       - It is installed with postgres installation. Therefore, if postgres is installed on the system the libpq is present in ../postgres_install_dir/lib, ../postgres_install_dir/include

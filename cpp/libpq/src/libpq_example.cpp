@@ -1,6 +1,7 @@
 #include <libpq-fe.h>
 #include <aws/core/Aws.h>
 #include <aws/dsql/DSQLClient.h>
+#include <cstdlib>
 #include <iostream>
 
 using namespace Aws;
@@ -55,13 +56,15 @@ PGconn* connectToCluster(std::string clusterEndpoint, std::string region) {
 
     std::cout << std::endl << "Connection Established: " << std::endl;
     std::cout << "Port: " << PQport(conn) << std::endl;
-    std::cout << "Host: " << PQhost(conn) << std::endl;
+    // std::cout << "Host: " << PQhost(conn) << std::endl;
     std::cout << "DBName: " << PQdb(conn) << std::endl;
 
     return conn;
 }
 
-void example(PGconn *conn) {
+int example(PGconn *conn) {
+
+    int retVal = 0;
 
     // Create a table
     std::string create = "CREATE TABLE IF NOT EXISTS owner (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name VARCHAR(30) NOT NULL, city VARCHAR(80) NOT NULL, telephone VARCHAR(20))";
@@ -71,7 +74,8 @@ void example(PGconn *conn) {
     PQclear(createResponse);
 
     if (createStatus != PGRES_COMMAND_OK) {
-        std::cerr << "Create Table failed - " << PQerrorMessage(conn) << std::endl;        
+        std::cerr << "Create Table failed - " << PQerrorMessage(conn) << std::endl;
+        retVal = -1;        
     }
     
     // Insert data into the table
@@ -82,7 +86,8 @@ void example(PGconn *conn) {
     PQclear(insertResponse);
     
     if (insertStatus != PGRES_COMMAND_OK) {
-        std::cerr << "Insert failed - " << PQerrorMessage(conn) << std::endl;        
+        std::cerr << "Insert failed - " << PQerrorMessage(conn) << std::endl;    
+        retVal = -1;    
     }
     
     // Read the data we inserted
@@ -91,47 +96,70 @@ void example(PGconn *conn) {
     PGresult *selectResponse = PQexec(conn, select.c_str());
     ExecStatusType selectStatus = PQresultStatus(selectResponse);
 
-    if (selectStatus != PGRES_TUPLES_OK) {
-        std::cerr << "Select failed - " << PQerrorMessage(conn) << std::endl;
-        PQclear(selectResponse);
-        return;
-    }
+    if (selectStatus == PGRES_TUPLES_OK) {
+        // Retrieve the number of rows and columns in the result
+        int rows = PQntuples(selectResponse);
+        int cols = PQnfields(selectResponse);
+        std::cout << "Number of rows: " << rows << std::endl;
+        std::cout << "Number of columns: " << cols << std::endl;
 
-    // Retrieve the number of rows and columns in the result
-    int rows = PQntuples(selectResponse);
-    int cols = PQnfields(selectResponse);
-    std::cout << "Number of rows: " << rows << std::endl;
-    std::cout << "Number of columns: " << cols << std::endl;
-
-    // Output the column names
-    for (int i = 0; i < cols; i++) {
-        std::cout << PQfname(selectResponse, i) << " \t\t\t ";
-    }
-    std::cout << std::endl;
-
-    // Output all the rows and column values
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            std::cout << PQgetvalue(selectResponse, i, j) << "\t";
+        // Output the column names
+        for (int i = 0; i < cols; i++) {
+            std::cout << PQfname(selectResponse, i) << " \t\t\t ";
         }
         std::cout << std::endl;
+
+        // Output all the rows and column values
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                std::cout << PQgetvalue(selectResponse, i, j) << "\t";
+            }
+            std::cout << std::endl;
+        }
+    }
+    else {
+        std::cerr << "Select failed - " << PQerrorMessage(conn) << std::endl;
+        retVal = -1;
     }
     PQclear(selectResponse);
+
+    return retVal;
 }
 
 int main(int argc, char *argv[]) {
-    std::string region = "us-east-1";
-    // Please replace with your own cluster endpoint
-    std::string clusterEndpoint = "4iabtthnplobb4p5pb23eahuiq.c0001.us-east-1.prod.sql.axdb.aws.dev";
+    std::string region = "";
+    std::string clusterEndpoint = "";
+
+    if (const char* env_var = std::getenv("CLUSTER_ENDPOINT")) {
+        clusterEndpoint = env_var;
+    } else {
+        std::cout << "Please set the CLUSTER_ENDPOINT environment variable" << std::endl;
+        return -1;
+    }
+    if (const char* env_var = std::getenv("REGION")) {
+        region = env_var;
+    } else {
+        std::cout << "Please set the REGION environment variable" << std::endl;
+        return -1;
+    }
+
+    int testStatus = 0;
 
     PGconn *conn = connectToCluster(clusterEndpoint, region);
 
     if (conn == NULL) {
-        std::cerr << "Failed to get connection. Exiting." << std::endl;
-        return -1;
+        std::cerr << "Failed to get connection." << std::endl;
+        testStatus = -1;
+    } else {
+        testStatus = example(conn);
     }
     
-    example(conn);
+    if (testStatus == 0) {
+        std::cout << "Libpq test passed" << std::endl;
+    } else {
+        std::cout << "Libpq test failed" << std::endl;
+    }
 
-    return 0;
+    return testStatus;
 }
+
