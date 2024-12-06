@@ -2,8 +2,8 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import { join } from "path";
+import { clusterEndpoint } from "./cluster-endpoint";
 
-const clusterEndpoint = "m4abtthl5ti4xehekve7aljv7i.c0001.us-east-1.prod.sql.axdb.aws.dev";
 const region = "us-east-1";
 
 const signer = new DsqlSigner({

@@ -4,24 +4,27 @@
   "description": "How-to",
   "main": "index.js",
   "scripts": {
-    "migrations-create-table": "node dist/create-migrations-table.js",
-    "migrations-run": "npm run typeorm migration:run -- -d ./dist/data-source --transaction none",
-    "migrations-revert": "npm run typeorm migration:revert -- -d ./dist/data-source --transaction none",
+    "migrations-create-table": "node dist/src/create-migrations-table.js",
+    "migrations-drop-table": "node dist/src/drop-migrations-table.js",
+    "migrations-run": "npm run typeorm migration:run -- -d ./dist/src/data-source --transaction none",
+    "migrations-revert": "npm run typeorm migration:revert -- -d ./dist/src/data-source --transaction none",
     "build": "tsc --build",
     "clean": "rm -rf build && rm -rf dist",
     "typeorm": "ts-node ./node_modules/typeorm/cli.js",
     "start": "node dist/index.js",
-    "dev": "npm run clean && npm run build && npm run start"
+    "dev": "npm run clean && npm run build && npm run start",
+    "test": "npm run clean && npm run build && jest dist/test"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/node": "^22.9.0",
+    "jest": "^29.7.0",
     "reflect-metadata": "^0.2.2",
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@aws-sdk/dsql-signer": "file:dsql-signer",
     "assert": "^2.1.0",
     "pg": "^8.13.1",
     "ts-node": "^10.9.2",

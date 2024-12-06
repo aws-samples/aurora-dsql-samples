@@ -6,9 +6,7 @@ import { Specialty } from "./entity/Specialty";
 import { Vet } from "./entity/Vet";
 import { DataSource } from "typeorm";
 
-const main = async () => {
-    const AppDataSource = await getDataSource;
-    await AppDataSource.initialize();
+const main = async (AppDataSource: DataSource) => {
     const ownerRepository = AppDataSource.getRepository(Owner);
     const petRepository = AppDataSource.getRepository(Pet);
     const specialtyRepository = AppDataSource.getRepository(Specialty);
@@ -107,9 +105,6 @@ const main = async () => {
     await specialtyRepository.remove([dogs, cats])
     await vetRepository.remove(carlosSalazar);
 
-    if (AppDataSource.isInitialized) {
-        await AppDataSource.destroy();
-    }
 }
 
 const executeSqlStatementWithRetry = async (dataSource: DataSource, sqlStatement: string, maxRetries = 5) => {
@@ -141,33 +136,34 @@ const executeSqlStatementWithRetry = async (dataSource: DataSource, sqlStatement
     }
 }
 
-const retryExample = async () => {
-    const AppDataSource = await getDataSource;
-    await AppDataSource.initialize();
-
+const retryExample = async (AppDataSource: DataSource) => {
     // Create and drop the table, will retry with default 5 retries
-    await executeSqlStatementWithRetry(AppDataSource, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);")
-    await executeSqlStatementWithRetry(AppDataSource, "DROP TABLE IF EXISTS abc;")
+    await executeSqlStatementWithRetry(AppDataSource, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);");
+    await executeSqlStatementWithRetry(AppDataSource, "DROP TABLE IF EXISTS abc;");
 
     // Run statement that will fail, it will not be retried as the error is not OC001 or OC000
     try {
-        await executeSqlStatementWithRetry(AppDataSource, "DROP TABLE abc;")
+        await executeSqlStatementWithRetry(AppDataSource, "DROP TABLE abc;");
     } catch (err: any) {
         // Expected failure
     }
 
     // Create and drop the table, with maximum retries of 3
-    await executeSqlStatementWithRetry(AppDataSource, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);", 3)
-    await executeSqlStatementWithRetry(AppDataSource, "DROP TABLE IF EXISTS abc;", 3)
+    await executeSqlStatementWithRetry(AppDataSource, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);", 3);
+    await executeSqlStatementWithRetry(AppDataSource, "DROP TABLE IF EXISTS abc;", 3);
+}
 
-    if (AppDataSource.isInitialized) {
-        await AppDataSource.destroy();
+export const runExamples = async () => {
+    const AppDataSource = await getDataSource;
+    await AppDataSource.initialize();
+    try {
+        await main(AppDataSource);
+        await retryExample(AppDataSource);
+    } catch (error) {
+        throw error;
+    } finally {
+        if (AppDataSource.isInitialized) {
+            await AppDataSource.destroy();
+        }
     }
 }
-
-const runExamples = async () => {
-    await main();
-    await retryExample();
-}
-
-runExamples();

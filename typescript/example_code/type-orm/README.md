@@ -97,6 +97,7 @@ Vet table has many-to-many relationship with Specialty table.
 
 ### Create models
 ```sh
+npm run migrations-drop-table
 npm run migrations-create-table
 npm run migrations-run
 ```
@@ -106,6 +107,10 @@ npm run migrations-run
 > [!Important]
 >
 > To execute the example code, you need to have valid AWS Credentials configured (e.g. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN)
+
+```sh
+npm run test
+```
 
 
 ### Example showing interactions with Aurora DSQL
