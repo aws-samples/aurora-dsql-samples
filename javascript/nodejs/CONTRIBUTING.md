@@ -19,7 +19,7 @@ npm install
 ### Run the example tests
 
 ```sh
-# Use the account credentials dedicated for jsavascript
+# Use the account credentials dedicated for javascript
 ada credentials update --role=Admin --account 147997155534 --once
 npm test
 ```
