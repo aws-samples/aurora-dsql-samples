@@ -2,9 +2,9 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import { join } from "path";
-import { clusterEndpoint } from "./cluster-endpoint";
 
-const region = "us-east-1";
+const clusterEndpoint = process.env.CLUSTER_ENDPOINT;
+const region = process.env.REGION;
 
 const signer = new DsqlSigner({
     hostname: clusterEndpoint,

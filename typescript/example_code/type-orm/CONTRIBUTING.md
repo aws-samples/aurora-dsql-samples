@@ -14,14 +14,14 @@ The code examples in this topic show you how to use Sequelize with AWS DSQL.
 
 ```sh
 npm install
-export CLUSTER_ENDPOINT='TODO'
+export CLUSTER_ENDPOINT=''
 ```
 
 ### Run the example
 
 ```sh
-# Use the account credentials dedicated for Sequelize
-ada credentials update --role=Admin --account <TODO> --once
+# Use the account credentials dedicated for typescript
+ada credentials update --role=Admin --account 147997155534 --once
 
 # If this is your first time running the example, the following two commands
 # are needed. They are not needed in consecutive runs
@@ -29,7 +29,7 @@ npm run migrations-create-table
 npm run migrations-run
 
 # Run the examples
-npm run dev
+npm test
 ```
 
 ---

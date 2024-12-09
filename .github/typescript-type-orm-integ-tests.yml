@@ -1,0 +1,59 @@
+name: type-orm integration tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'typescript/type-orm/**'
+      - '.github/workflows/typescript-type-orm-integ-tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'typescript/type-orm/**'
+      - '.github/workflows/typescript-type-orm-integ-tests.yml'
+  # Give us a button to allow running the workflow on demand for testing.
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Manual Workflow Run'
+        required: false
+        type: string
+
+jobs:
+  node-postgres-integ-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      # Explicitly set permissions, following the principle of least privilege
+      actions: read
+      checks: write
+      pull-requests: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
+        aws-region: us-east-1
+
+    - name: Configure and run integration for typeORM HowTo
+      working-directory: ./typescript/type-orm
+      env:
+        CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_TYPE_ORM_CLUSTER_ENDPOINT }}
+        REGION: ${{ secrets.TYPESCRIPT_TYPE_ORM_CLUSTER_REGION }}
+      run: |
+        npm install
+        npm run migrations-drop-table
+        npm run migrations-create-table
+        npm run migrations-run
+        npm test
+        

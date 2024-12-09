@@ -1,1 +1,0 @@
-export const clusterEndpoint = "4yabturp46ghnxbt2pyq7su3sq.dsql.us-east-1.on.aws"

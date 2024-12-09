@@ -1,10 +1,10 @@
 import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import { Client } from 'pg'
-import { clusterEndpoint } from "./cluster-endpoint";
 
 const createMigrationsTable = async () => {
 
-    const region = "us-east-1";
+    const clusterEndpoint = process.env.CLUSTER_ENDPOINT;
+    const region = process.env.REGION;
 
     const signer = new DsqlSigner({
         hostname: clusterEndpoint,
