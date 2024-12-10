@@ -50,8 +50,8 @@ jobs:
     - name: Configure and run integration for Sequelize
       working-directory: ./typescript/sequelize
       env:
-        CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_SEQ_CLUSTER_ENDPOINT }}
-        REGION: ${{ secrets.TYPESCRIPT_SEQ_CLUSTER_REGION }}
+        CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_SEQUELIZE_CLUSTER_ENDPOINT}}
+        REGION: ${{ secrets.TYPESCRIPT_SEQUELIZE_CLUSTER_REGION}}
       run: |
         npm install
         npm run test
