@@ -22,7 +22,7 @@ on:
         type: string
 
 jobs:
-  test:
+  sequelize-integ-test:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
