@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.Core" Version="4.0.0-preview.4" />
-    <PackageReference Include="AWSSDK.Dsql" Version="3.7.400" />
+    <PackageReference Include="AWSSDK.Dsql" Version="3.7.401" />
     <PackageReference Include="AWSSDK.Extensions.CrtIntegration" Version="4.0.0-preview.4" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.0-preview.4" />
     <PackageReference Include="Npgsql" Version="8.0.5" />

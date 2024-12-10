@@ -1,5 +1,7 @@
 ﻿using Npgsql;
 using Amazon;
+using Amazon.DSQL.Util;
+using Amazon.Runtime;
 
 class Example
 {
@@ -9,8 +11,11 @@ class Example
 
         // Connect to a PostgreSQL database.
         const string username = "admin";
+        
         // The token expiration time is optional, and the default value 900 seconds
-        string password = TokenGenerator.GenerateDbConnectAdminAuthToken(clusterEndpoint, region, "DbConnectAdmin");
+        AWSCredentials awsCredentials = FallbackCredentialsFactory.GetCredentials();
+        string password = DSQLAuthTokenGenerator.GenerateDbConnectAdminAuthToken(awsCredentials, region, clusterEndpoint);
+        
         const string database = "postgres";
         var connString = "Host=" + clusterEndpoint + ";Username=" + username + ";Password=" + password + ";Database=" + database + ";Port=" + 5432 + ";SSLMode=VerifyFull;";
 
