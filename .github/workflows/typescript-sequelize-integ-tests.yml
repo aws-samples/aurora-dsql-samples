@@ -53,4 +53,5 @@ jobs:
         CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_SEQ_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.TYPESCRIPT_SEQ_CLUSTER_REGION }}
       run: |
+        npm install
         npm run test
