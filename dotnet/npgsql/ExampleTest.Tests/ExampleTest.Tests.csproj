@@ -17,11 +17,8 @@
     <PackageReference Include="Npgsql" Version="8.0.5" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
-    <PackageReference Include="AWSSDK.Dsql" Version="3.7.400" />
-    <PackageReference Include="AWSSDK.Extensions.CrtIntegration" Version="4.0.0-preview.4" />
-    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.0-preview.4" />
+    <PackageReference Include="AWSSDK.Dsql" Version="3.7.401" />
     <Compile Include="../Example.cs" Link="Example.cs" />
-    <Compile Include="../TokenGenerator.cs" Link="TokenGenerator.cs" />
   </ItemGroup>
 
   <ItemGroup>
