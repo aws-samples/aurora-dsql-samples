@@ -1,0 +1,26 @@
+{
+    "name": "xanadu_postgres_howto",
+    "version": "1.0.0",
+    "description": "How To",
+    "main": "index.js",
+    "type": "commonjs",
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf build && rm -rf dist",
+        "start": "node dist/src/index.js",
+        "dev": "npm run clean && npm run build && npm run start",
+        "test": "npm run clean && npm run build && jest dist/test"
+    },
+    "dependencies": {
+        "@aws-sdk/dsql-signer": "^3.705.0",
+        "pg": "^8.13.1",
+        "pg-hstore": "^2.3.4",
+        "pg-native": "^3.2.0",
+        "sequelize": "^6.37.5"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.14",
+        "jest": "^29.7.0",
+        "typescript": "^5.0.0"
+    }
+}
