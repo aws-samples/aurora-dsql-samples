@@ -4,7 +4,7 @@ require 'aws-sdk-dsql'
 def example()
   cluster_endpoint = 'huabttnonxz4oajpjn53txpdue.dsql-gamma.us-east-1.on.aws'
   region = 'us-east-1'
-  credentials = Aws::SharedCredentials.new()
+  credentials = Aws::CredentialProviderChain.new.resolve
 
   begin
       token_generator = Aws::DSQL::AuthTokenGenerator.new({
