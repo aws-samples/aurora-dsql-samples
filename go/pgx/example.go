@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	_ "github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -25,21 +25,17 @@ type Owner struct {
 }
 
 func GenerateDbConnectAdminAuthToken(clusterEndpoint string, region string, action string) (string, error) {
-	// Fetch credentials
-	sess, err := session.NewSession()
+
+	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	creds, err := sess.Config.Credentials.Get()
+	creds, err := cfg.Credentials.Retrieve(ctx)
 	if err != nil {
 		return "", err
 	}
-	staticCredentials := credentials.NewStaticCredentials(
-		creds.AccessKeyID,
-		creds.SecretAccessKey,
-		creds.SessionToken,
-	)
 
 	// The scheme is arbitrary and is only needed because validation of the URL requires one.
 	endpoint := "https://" + clusterEndpoint
@@ -49,19 +45,26 @@ func GenerateDbConnectAdminAuthToken(clusterEndpoint string, region string, acti
 	}
 	values := req.URL.Query()
 	values.Set("Action", action)
+
+	// Set an expiry time for 15 minutes
+	values.Set("X-Amz-Expires", strconv.Itoa(15*60))
 	req.URL.RawQuery = values.Encode()
 
-	signer := v4.Signer{
-		Credentials: staticCredentials,
-	}
-	_, err = signer.Presign(req, nil, "dsql", region, 15*time.Minute, time.Now())
+	signer := v4.NewSigner()
+
+	// The payloadHash is the hex encoded SHA-256 hash of the request payload, and
+	// must be provided. Even if the request has no payload (aka body). If the
+	// request has no payload you should use the hex encoded SHA-256 of an empty
+	// string as the payloadHash value.
+	// e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+	uri, _, err := signer.PresignHTTP(ctx, creds, req, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "dsql", region, time.Now())
 	if err != nil {
-		return "", err
+		panic(err)
 	}
 
-	url := req.URL.String()[len("https://"):]
-
-	return url, nil
+	token := uri[len("https://"):]
+	return token, nil
 }
 
 func getConnection(ctx context.Context, clusterEndpoint string, region string) (*pgx.Conn, error) {
