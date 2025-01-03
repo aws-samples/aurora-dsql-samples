@@ -23,3 +23,6 @@ go.work.sum
 
 # env file
 .env
+
+# Mac Folder Metadata 
+**/.DS_Store
