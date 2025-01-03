@@ -22,8 +22,6 @@ In a terminal run the following commands:
 
 ```sh
 # Use the account credentials dedicated for golang
-export CLUSTER_ENDPOINT="<your cluster endpoint>"
-export REGION="<your cluster region>"
 go env -w GOPROXY=direct
 go test
 ```
