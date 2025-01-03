@@ -9,7 +9,6 @@ import (
 )
 
 type ClientUtil struct {
-	ctx     *context.Context
 	clients map[string]*dsql.Client
 }
 
@@ -28,12 +27,7 @@ func (clientUtil *ClientUtil) GetInstance(region string) (client *dsql.Client, e
 	_, isExists := clientUtil.clients[region]
 
 	if !isExists {
-		if clientUtil.ctx == nil {
-			ctx := context.Background()
-			clientUtil.ctx = &ctx
-		}
-
-		cfg, err := config.LoadDefaultConfig(*clientUtil.ctx)
+		cfg, err := config.LoadDefaultConfig(context.Background())
 		if err != nil {
 			return nil, err
 		}
