@@ -3,14 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
-	"strconv"
 	"strings"
-	"time"
 
 	_ "github.com/aws/aws-sdk-go-v2/aws"
-	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	"github.com/aws/aws-sdk-go-v2/feature/dsql/auth"
+
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -32,38 +30,11 @@ func GenerateDbConnectAdminAuthToken(clusterEndpoint string, region string, acti
 		return "", err
 	}
 
-	creds, err := cfg.Credentials.Retrieve(ctx)
+	token, err := auth.GenerateDBConnectAdminAuthToken(ctx, clusterEndpoint, region, cfg.Credentials)
 	if err != nil {
 		return "", err
 	}
 
-	// The scheme is arbitrary and is only needed because validation of the URL requires one.
-	endpoint := "https://" + clusterEndpoint
-	req, err := http.NewRequest("GET", endpoint, nil)
-	if err != nil {
-		return "", err
-	}
-	values := req.URL.Query()
-	values.Set("Action", action)
-
-	// Set an expiry time for 15 minutes
-	values.Set("X-Amz-Expires", strconv.Itoa(15*60))
-	req.URL.RawQuery = values.Encode()
-
-	signer := v4.NewSigner()
-
-	// The payloadHash is the hex encoded SHA-256 hash of the request payload, and
-	// must be provided. Even if the request has no payload (aka body). If the
-	// request has no payload you should use the hex encoded SHA-256 of an empty
-	// string as the payloadHash value.
-	// e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-
-	uri, _, err := signer.PresignHTTP(ctx, creds, req, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "dsql", region, time.Now())
-	if err != nil {
-		panic(err)
-	}
-
-	token := uri[len("https://"):]
 	return token, nil
 }
 
@@ -104,6 +75,8 @@ func example(clusterEndpoint string, region string) error {
 		return err
 	}
 
+	defer conn.Close(ctx)
+
 	// Create owner table
 	_, err = conn.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS owner (
@@ -142,8 +115,6 @@ func example(clusterEndpoint string, region string) error {
 	if err != nil {
 		return err
 	}
-
-	defer conn.Close(ctx)
 
 	return nil
 }
