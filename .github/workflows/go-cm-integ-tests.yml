@@ -46,7 +46,7 @@ jobs:
         aws-region: us-east-1
 
     - name: Build & Run
-      working-directory: ./go/pgx
+      working-directory: ./go/cluster_management
       run: |
         go env -w GOPROXY=direct
         go test
