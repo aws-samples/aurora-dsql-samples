@@ -1,0 +1,52 @@
+name: pgx(go) Integration tests 
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'go/cluster_management/**'
+      - '.github/workflows/go-cm-integ-tests.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'go/cluster_management/**'
+      - '.github/workflows/go-cm-integ-tests.yml'
+  # Give us a button to allow running the workflow on demand for testing.
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Manual Workflow Run'
+        required: false
+        type: string
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      # Explicitly set permissions, following the principle of least privilege
+      actions: read
+      checks: write
+      pull-requests: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23.2'
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.GO_IAM_ROLE }}
+        aws-region: us-east-1
+
+    - name: Build & Run
+      working-directory: ./go/cluster_management
+      run: |
+        go env -w GOPROXY=direct
+        go test
