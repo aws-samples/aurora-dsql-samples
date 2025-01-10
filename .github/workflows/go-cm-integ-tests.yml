@@ -1,4 +1,4 @@
-name: pgx(go) Integration tests 
+name: pgx(go) cluster-management tests 
 
 on:
   push:
