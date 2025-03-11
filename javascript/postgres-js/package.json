@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/dsql-signer": "file:dsql-signer",
+    "@aws-sdk/dsql-signer": "^3.758.0",
     "assert": "2.1.0",
     "postgres": "^3.4.5",
     "uuid": "^11.0.2"
