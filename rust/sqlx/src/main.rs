@@ -1,8 +1,11 @@
+use std::time::Duration;
+
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_dsql::auth_token::{AuthTokenGenerator, Config};
 use rand::Rng;
-use sqlx::Row;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+use sqlx::Row;
+use tokio::time;
 use uuid::Uuid;
 
 async fn example(cluster_endpoint: String, region: String) -> anyhow::Result<()> {
@@ -12,10 +15,14 @@ async fn example(cluster_endpoint: String, region: String) -> anyhow::Result<()>
         Config::builder()
             .hostname(&cluster_endpoint)
             .region(Region::new(region))
+            .expires_in(900)
             .build()
             .unwrap(),
     );
-    let password_token = signer.db_connect_admin_auth_token(&sdk_config).await.unwrap();
+    let password_token = signer
+        .db_connect_admin_auth_token(&sdk_config)
+        .await
+        .unwrap();
 
     // Setup connections
     let connection_options = PgConnectOptions::new()
@@ -30,6 +37,22 @@ async fn example(cluster_endpoint: String, region: String) -> anyhow::Result<()>
         .max_connections(10)
         .connect_with(connection_options.clone())
         .await?;
+
+    // XXX: Periodically refresh the password by regenerating the token. This
+    // runs every 10 minutes and provides a token valid for 15 minutes.
+    let _pool = pool.clone(); // Pool uses an Arc internally
+    tokio::spawn(async move {
+        loop {
+            time::sleep(Duration::from_secs(600)).await;
+            let password_token = signer
+                .db_connect_admin_auth_token(&sdk_config)
+                .await
+                .unwrap();
+            let connect_options_with_new_token =
+                connection_options.clone().password(password_token.as_str());
+            _pool.set_connect_options(connect_options_with_new_token);
+        }
+    });
 
     // Create owners table
     // To avoid Optimistic concurrency control (OCC) conflicts
