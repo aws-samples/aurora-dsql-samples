@@ -9,11 +9,12 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <mainClass>org.example.Example</mainClass>
-        <!-- local.repository.folder>${pom.basedir}/libs/</local.repository.folder -->
+        <aws.sdk.version>2.31.32</aws.sdk.version>
+        <slf4j.version>2.0.17</slf4j.version>
+        <trimStackTrace>false</trimStackTrace>
     </properties>
 
     <dependencies>
@@ -29,30 +30,40 @@
             <version>42.7.4</version>
         </dependency>
         <dependency>
-            <groupId>software.amazon.awssdk.services</groupId>
+            <groupId>software.amazon.awssdk</groupId>
             <artifactId>dsql</artifactId>
-            <version>1.0</version>
+            <version>${aws.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>regions</artifactId>
-            <version>2.25.60</version>
+            <version>${aws.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>aws-core</artifactId>
-            <version>2.25.60</version>
+            <version>${aws.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>aws-json-protocol</artifactId>
-            <version>2.25.60</version>
+            <version>${aws.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>url-connection-client</artifactId>
-            <version>2.25.60</version>
+            <version>${aws.sdk.version}</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
         </dependency>
     </dependencies>
 
@@ -76,66 +87,19 @@
                     </archive>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.0.0</version>
-                <configuration>
-                    <mainClass>${mainClass}</mainClass>
-                    <arguments>
-                        <argument>-Xms256m</argument>
-                        <argument>-Xmx512m</argument>
-                    </arguments>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.1.0</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                            <mainClass>org.example.Example</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>
             <!-- Add the assemble plugin with standard configuration -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.example.Example</mainClass>
+                            <mainClass>${mainClass}</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-install-plugin</artifactId>
-                <version>3.1.2</version>
-                <configuration>
-                    <groupId>software.amazon.awssdk.services</groupId>
-                    <artifactId>dsql</artifactId>
-                    <version>1.0</version>
-                    <packaging>jar</packaging>
-                    <file>libs/AwsJavaSdk-Dsql-2.0.jar</file>
-                    <generatePom>true</generatePom>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>install-jar-lib</id>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <phase>validate</phase>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
