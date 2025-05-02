@@ -31,15 +31,13 @@ development:
   # To create additional roles in PostgreSQL see `$ createuser --help`.
   # When left blank, PostgreSQL will use the default role. This is
   # the same name as the operating system user running Rails.
-  username: admin
+  username: <%= ENV.fetch("CLUSTER_USER") { "admin" } %>
 
   # Connect on a TCP socket. Omitted by default since the client uses a
   # domain socket that doesn't need configuration. Windows does not have
   # domain sockets, so uncomment these lines.
-  # host: localhost
   # Set to Aurora DSQL instance hostname
-  # host: <Aurora DSQL hostname>.c0001.us-east-1.gamma.sql.axdb.aws.dev
-  host: huabttnonxz4oajpjn53txpdue.dsql-gamma.us-east-1.on.aws
+  host: <%= ENV.fetch("CLUSTER_ENDPOINT") %>
 
   sslmode: verify-full
   # Provide the path to the root certificate. 
