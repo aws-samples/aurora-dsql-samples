@@ -1,89 +1,122 @@
 # Psycopg with Aurora DSQL
 
-## Table of Contents
+## Overview
 
-1. Prerequisites
-2. Setup test running environment
-3. Example using psycopg3 with Aurora DSQL
+This code example demonstrates how to use Psycopg (version 3) with Amazon Aurora SQL (DSQL). The example shows you how
+to connect to an Aurora DSQL cluster and perform basic database operations.
 
-## Prerequisites
+Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
+your PostgreSQL-compatible applications. Psycopg is a popular PostgreSQL adapter for Python that allows
+you to interact with PostgreSQL databases using Python code.
 
-* You must have an AWS account, and have your default credentials and AWS Region configured as described in the 
-[AWS Tools and SDKs Shared Configuration and Credentials Reference Guide](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html).
-* [Python 3.8.0 or later](https://www.python.org/) - You can verify your Python installation with `python3 -V`
-* Aurora DSQL python SDK is required to run psycopg with Aurora DSQL. Following [Aurora DSQL user guide](https://alpha.www.docs.aws.a2z.com/distributed-sql/latest/userguide/accessing-install-sdk.html) for python SDK installation. [TODO: update the link here with office link when the user guide is released]
+## About the code example
 
-## Setup test running environment 
-1. On local environment, activate python virtual environment by running:
+The example demonstrates a flexible connection approach that works for both admin and non-admin users:
+
+* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication
+  token.
+* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard
+  authentication token.
+
+The code automatically detects the user type and adjusts its behavior accordingly.
+
+## ⚠️ Important
+
+* Running this code might result in charges to your AWS account.
+* We recommend that you grant your code least privilege. At most, grant only the
+  minimum permissions required to perform the task. For more information, see
+  [Grant least privilege](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege).
+* This code is not tested in every AWS Region. For more information, see
+  [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
+
+## Run the example
+
+### Prerequisites
+
+* You must have an AWS account, and have your default credentials and AWS Region
+  configured as described in the
+  [Globally configuring AWS SDKs and tools](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html)
+  guide.
+* [Python 3.8.0](https://www.python.org/) or later.
+* You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the
+  [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html)
+  guide.
+* If connecting as a non-admin user, ensure the user is linked to an IAM role and is granted access to the `myschema`
+  schema. See the
+  [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
+  guide.
+
+### Download the Amazon root certificate from the official trust store
+
+Download the Amazon root certificate from the official trust store. This example shows one of the available certs that
+can be used by the client. Other certs such as AmazonRootCA2.pem, AmazonRootCA3.pem, etc. can also be used.
+
 ```
-python3 -m venv psycopg_venv
-source psycopg_venv/bin/activate
+wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
 ```
 
-2. Install the needed packages using the following command:
+### Set up environment for examples
 
-```sh
+1. Create and activate a Python virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate  # Linux, macOS
+# or
+.venv\Scripts\activate     # Windows
+```
+
+2. Install the required packages for running the examples:
+
+```bash
+pip install "boto3>=1.35.74"
 pip install "psycopg[binary]>=3"
 ```
 
-## Example using psycopg3 with Aurora DSQL
+### Run the code
 
-```py
-import psycopg
-import boto3
+The example demonstrates the following operations:
 
-def main():
-    # Please replace with your own cluster endpoint
-    cluster_endpoint = 'foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws'
-    region = 'us-east-1'
+- Opening a connection to an Aurora DSQL cluster
+- Creating a table
+- Inserting and querying data
 
-    # Generate a password token
-    client = boto3.client("dsql", region_name=region)
-    # The token expiration time is optional, and the default value 900 seconds
-    # if you are not using admin role, use generate_db_connect_auth_token instead
-    password_token = client.generate_db_connect_admin_auth_token(cluster_endpoint, region)
+The example is designed to work with both admin and non-admin users:
 
-    # connection parameters
-    dbname = "dbname=postgres"
-    user = "user=admin"
-    host = f'host={cluster_endpoint}'
-    sslmode = "sslmode=require"
-    sslrootcert = "sslrootcert=system"
-    password = f'password={password_token}'
+- When run as an admin user, it uses the `public` schema
+- When run as a non-admin user, it uses the `myschema` schema
 
-    # Make a connection to the cluster
-    conn = psycopg.connect('%s %s %s %s %s %s' % (dbname, user, host, sslmode, sslrootcert, password))
+**Note:** running the example will use actual resources in your AWS account and may incur charges.
 
-    conn.set_autocommit(True)
+Set environment variables for your cluster details:
 
-    cur = conn.cursor()
+```bash
+# e.g. "admin"
+export CLUSTER_USER="<your user>"
 
-    cur.execute(b"""
-        CREATE TABLE IF NOT EXISTS owner(
-            id uuid NOT NULL DEFAULT gen_random_uuid(),
-            name varchar(30) NOT NULL,
-            city varchar(80) NOT NULL,
-            telephone varchar(20) DEFAULT NULL,
-            PRIMARY KEY (id))"""
-        )
+# e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
+export CLUSTER_ENDPOINT="<your endpoint>"
 
-    # Insert some rows
-    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-0150')")
-
-    cur.execute("SELECT * FROM owner WHERE name='John Doe'")
-    row = cur.fetchone()
-    
-    # Verify that the result we got is what we inserted before
-    assert row[0] != None
-    assert row[1] == "John Doe"
-    assert row[2] == "Anytown"
-    assert row[3] == "555-555-0150"
-
-if __name__ == "__main__":
-    main()
+# e.g. "us-east-1"
+export REGION="<your region>"
 ```
+
+Run the example:
+
+```bash
+python src/example.py
+```
+
+The example contains comments explaining the code and the operations being performed.
+
+## Additional resources
+
+* [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+* [Psycopg Documentation](https://www.psycopg.org/psycopg3/docs/)
+* [AWS SDK for Python (Boto3) Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
+
 ---
 
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. 
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 SPDX-License-Identifier: Apache-2.0
