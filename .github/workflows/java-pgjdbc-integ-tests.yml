@@ -48,10 +48,11 @@ jobs:
         role-to-assume: ${{ secrets.JAVA_IAM_ROLE }}
         aws-region: us-east-1
 
-    - name: Configure and run integration for pgjdbc
+    - name: Configure and run integration for pgjdbc - admin
       working-directory: ./java/pgjdbc
       env:
         CLUSTER_ENDPOINT: ${{ secrets.JAVA_PGJDBC_CLUSTER_ENDPOINT }}
+        CLUSTER_USER: admin
         REGION: ${{ secrets.JAVA_PGJDBC_CLUSTER_REGION }}
       run: |
         mvn validate

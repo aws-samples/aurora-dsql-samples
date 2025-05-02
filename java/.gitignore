@@ -11,8 +11,6 @@
 **/libs/software/
 **/gradlew
 **/gradlew.bat
-**/build.gradle.kts
-**/settings.gradle.kts
 
 # Compiled class file
 *.class

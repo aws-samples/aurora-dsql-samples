@@ -1,26 +1,114 @@
-# Aurora DSQL pgJDBC code examples
+# pgJDBC with Aurora DSQL
 
 ## Overview
 
-The code examples in this topic show you how to use the Java to work with Aurora DSQL.
+This code example demonstrates how to use `pgJDBC` with Amazon Aurora DSQL.
+The example shows you how to connect to an Aurora DSQL cluster and perform basic database operations.
 
-## Run the examples
+Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
+your PostgreSQL-compatible applications. `pgJDBC` is a popular PostgreSQL adapter for Java that allows
+you to interact with PostgreSQL databases using Java code.
+
+## About the code example
+
+The example demonstrates a flexible connection approach that works for both admin and non-admin users:
+
+* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication
+  token.
+* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard
+  authentication token.
+
+The code automatically detects the user type and adjusts its behavior accordingly.
+
+## ⚠️ Important
+
+* Running this code might result in charges to your AWS account.
+* We recommend that you grant your code least privilege. At most, grant only the
+  minimum permissions required to perform the task. For more information, see
+  [Grant least privilege](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege).
+* This code is not tested in every AWS Region. For more information, see
+  [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
+
+## Run the example
 
 ### Prerequisites
 
-- java version >= 17 is needed
+* You must have an AWS account, and have your default credentials and AWS Region
+  configured as described in the
+  [Globally configuring AWS SDKs and tools](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html)
+  guide.
+* Java Development Kit (JDK): Ensure you have JDK 17+ installed.
 
-### Run the example tests
+   _To verify the java is installed, you can run_
+   ```bash
+   java -version
 
-```sh
-# Use the account credentials dedicated for javascript
-export CLUSTER_ENDPOINT="<your cluster endpoint>"
-export REGION="<your cluster region>"
-mvn test
+* Build Tool (Maven or Gradle)
+   - _Maven_: Ensure Maven is installed if that is your preferred option. You can download it from the [official website](https://maven.apache.org/download.cgi).
+   - _Gradle_: Ensure Gradle is installed if that is your preferred option. You can download it from the [official website](https://gradle.org/install/).
+* AWS SDK: Ensure that you setup the latest version of the AWS Java SDK [official website](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/setup.html)
+* You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the
+  [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html)
+  guide.
+* If connecting as a non-admin user, ensure the user is linked to an IAM role and is granted access to the `myschema`
+  schema. See the
+  [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
+  guide.
+
+### Run the code
+
+The example demonstrates the following operations:
+
+- Opening a connection to an Aurora DSQL cluster
+- Creating a table
+- Inserting and querying data
+
+The example is designed to work with both admin and non-admin users:
+
+- When run as an admin user, it uses the `public` schema
+- When run as a non-admin user, it uses the `myschema` schema
+
+**Note:** running the example will use actual resources in your AWS account and may incur charges.
+
+Set environment variables for your cluster details:
+
+```bash
+# e.g. "admin"
+export CLUSTER_USER="<your user>"
+  
+# e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
+export CLUSTER_ENDPOINT="<your endpoint>"
+
+# e.g. "us-east-1"
+export REGION="<your region>"
 ```
+
+Run the example:
+
+  - _Maven_:
+
+      ```bash
+      mvn compile assembly:single
+      java -ea -jar target/AuroraDSQLExample-1.0-SNAPSHOT-jar-with-dependencies.jar
+      ```
+
+  - _Gradle_:
+
+      ```bash
+      gradle run
+      ```
+
+
+The example contains comments explaining the code and the operations being performed.
+
+## Additional resources
+
+* [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+* [pgJDBC Documentation](https://jdbc.postgresql.org/documentation/)
+* [AWS SDK for Java Documentation](https://docs.aws.amazon.com/sdk-for-java/)
 
 ---
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
-SPDX-License-Identifier: MIT-0
+SPDX-License-Identifier: Apache-2.0
