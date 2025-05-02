@@ -1,60 +1,99 @@
-import psycopg
 import boto3
-import os, sys
+import psycopg
+import os
+import sys
 
-def main(cluster_endpoint, region):
-    # Generate a password token
+
+def create_connection(cluster_user, cluster_endpoint, region):
+    # Generate a fresh password token for each connection, to ensure the token is not expired
+    # when the connection is established
     client = boto3.client("dsql", region_name=region)
-    # The token expiration time is optional, and the default value 900 seconds
-    password_token = client.generate_db_connect_admin_auth_token(cluster_endpoint, region)
 
-    # connection parameters
-    dbname = "dbname=postgres"
-    user = "user=admin"
-    host = f'host={cluster_endpoint}'
-    sslmode = "sslmode=require"
-    password = f'password={password_token}'
+    if cluster_user == "admin":
+        password_token = client.generate_db_connect_admin_auth_token(cluster_endpoint, region)
+    else:
+        password_token = client.generate_db_connect_auth_token(cluster_endpoint, region)
+
+    conn_params = {
+        "dbname": "postgres",
+        "user": cluster_user,
+        "host": cluster_endpoint,
+        "port": "5432",
+        "sslmode": "verify-full",
+        "sslrootcert": "./root.pem",
+        "password": password_token
+    }
 
     # Make a connection to the cluster
-    conn = psycopg.connect('%s %s %s %s %s' % (dbname, user, host, sslmode, password))
+    conn = psycopg.connect(**conn_params)
 
+    if cluster_user == "admin":
+        schema = "public"
+    else:
+        schema = "myschema"
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SET search_path = {schema};")
+            conn.commit()
+    except Exception as e:
+        conn.close()
+        raise e
+
+    return conn
+
+
+def exercise_connection(conn):
     conn.set_autocommit(True)
 
     cur = conn.cursor()
-    
-    cur.execute("DROP TABLE IF EXISTS owner")
-        
-    cur.execute(b"""
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS owner(
             id uuid NOT NULL DEFAULT gen_random_uuid(),
             name varchar(30) NOT NULL,
             city varchar(80) NOT NULL,
             telephone varchar(20) DEFAULT NULL,
-            PRIMARY KEY (id))"""
-        )
+            PRIMARY KEY (id))
+            """)
 
     # Insert some rows
-    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-0150')")
+    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')")
 
     cur.execute("SELECT * FROM owner WHERE name='John Doe'")
     row = cur.fetchone()
-    
-    # Verify that the result we got is what we inserted before
+
+    # Verify the result we got is what we inserted before
     assert row[0] != None
     assert row[1] == "John Doe"
     assert row[2] == "Anytown"
-    assert row[3] == "555-555-0150"
-    
-    # Insert some rows
-    # Placing this cleanup the table after the example. If we run the example
-    # again we do not have to worry about data inserted by previous runs
+    assert row[3] == "555-555-1999"
+
+    # Clean up the table after the example. If we run the example again
+    # we do not have to worry about data inserted by previous runs
     cur.execute("DELETE FROM owner where name = 'John Doe'")
 
+
+def main():
+    conn = None
+    try:
+        cluster_user = os.environ.get("CLUSTER_USER", None)
+        assert cluster_user is not None, "CLUSTER_USER environment variable is not set"
+
+        cluster_endpoint = os.environ.get("CLUSTER_ENDPOINT", None)
+        assert cluster_endpoint is not None, "CLUSTER_ENDPOINT environment variable is not set"
+
+        region = os.environ.get("REGION", None)
+        assert region is not None, "REGION environment variable is not set"
+
+        conn = create_connection(cluster_user, cluster_endpoint, region)
+        exercise_connection(conn)
+    finally:
+        if conn is not None:
+            conn.close()
+
+    print("Connection exercised successfully")
+
+
 if __name__ == "__main__":
-    cluster_endpoint = os.environ.get("CLUSTER_ENDPOINT", None)
-    region = os.environ.get("REGION", None)
-    if cluster_endpoint is None:
-        sys.exit("CLUSTER_ENDPOINT environment variable is not set")
-    if region is None:
-        sys.exit("REGION environment variable is not set")
-    main(cluster_endpoint, region)
+    main()
