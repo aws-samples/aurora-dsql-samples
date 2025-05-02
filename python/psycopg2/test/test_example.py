@@ -10,12 +10,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from example import main
+
 import pytest
+
 
 # Smoke tests that our example works fine
 def test_example():
     try:
         main()
     except Exception as e:
-        pytest.fail("Unexpected exception: " + str(e))
+        pytest.fail(f"Unexpected exception: {e}")
