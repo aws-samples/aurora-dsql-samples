@@ -111,4 +111,4 @@ The example contains comments explaining the code and the operations being perfo
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
-SPDX-License-Identifier: Apache-2.0
+SPDX-License-Identifier: MIT-0
