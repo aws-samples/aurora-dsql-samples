@@ -69,7 +69,6 @@ public class Example {
             }
             // Create a new table named owner
             Statement create = conn.createStatement();
-            create.executeUpdate("DROP TABLE IF EXISTS owner");
             create.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS owner(
                     id uuid NOT NULL DEFAULT gen_random_uuid(),
