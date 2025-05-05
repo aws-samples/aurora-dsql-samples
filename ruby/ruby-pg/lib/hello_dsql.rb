@@ -1,32 +1,39 @@
 require 'pg'
 require 'aws-sdk-dsql'
 
-def example(cluster_endpoint, region)
-  credentials = Aws::SharedCredentials.new()
-
-  begin
-      token_generator = Aws::DSQL::AuthTokenGenerator.new({
+def create_connection(cluster_user, cluster_endpoint, region)
+  # Generate a fresh password token for each connection, to ensure the token is not expired
+  # when the connection is established
+  credentials = Aws::CredentialProviderChain.new.resolve
+  token_generator = Aws::DSQL::AuthTokenGenerator.new({
           :credentials => credentials
       })
-      
-      # The token expiration time is optional, and the default value 900 seconds
-      # if you are not using admin role, use generate_db_connect_auth_token instead
-      token = token_generator.generate_db_connect_admin_auth_token({
+  
+  if cluster_user == "admin"
+    password_token = token_generator.generate_db_connect_admin_auth_token({
           :endpoint => cluster_endpoint,
           :region => region
       })
+  else
+    password_token = token_generator.generate_db_connect_auth_token({
+      :endpoint => cluster_endpoint,
+      :region => region
+    })
+  end 
 
-      conn = PG.connect(
-        host: cluster_endpoint,
-        user: 'admin',
-        password: token,
-        dbname: 'postgres',
-        port: 5432,
-        sslmode: 'require'
-      )
-  rescue => _error
-      raise
-  end
+  PG.connect(
+      host: cluster_endpoint,
+      user: cluster_user,
+      password: password_token,
+      dbname: 'postgres',
+      port: 5432,
+      sslmode: 'verify-full',
+      sslrootcert: "./root.pem"
+  )
+
+end
+
+def example(conn)
 
   # Create the owner table
   conn.exec('CREATE TABLE IF NOT EXISTS owner (
@@ -50,13 +57,35 @@ def example(cluster_endpoint, region)
   # Delete data we just inserted
   conn.exec("DELETE FROM owner where name='John Doe'")
 
-rescue => error
-  puts error.full_message
-ensure
-  unless conn.nil?
-    conn.finish()
-  end
 end
 
-# Run the example
-example(ENV["CLUSTER_ENDPOINT"], ENV["REGION"])
+def main() 
+  # Use environment variables.
+  cluster_endpoint = ENV["CLUSTER_ENDPOINT"]
+  region = ENV["REGION"]
+  cluster_user = ENV["CLUSTER_USER"] 
+
+  # Raise errors if any of the variables are not set.
+  raise "CLUSTER_ENDPOINT environment variable is not set" unless cluster_endpoint
+  raise "REGION environment variable is not set" unless region
+  raise "CLUSTER_USER environment variable is not set" unless cluster_user
+  
+  begin
+    conn = create_connection(cluster_user, cluster_endpoint, region)
+    if cluster_user != 'admin'
+      conn.exec("SET search_path = myschema")
+    end
+    example(conn)
+    puts "Ruby test passed"
+  rescue => error
+    puts error.full_message
+    puts "Ruby test failed"
+    raise
+  ensure
+    conn.close if conn
+  end
+end 
+
+if __FILE__ == $0
+  main() 
+end

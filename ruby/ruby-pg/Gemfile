@@ -4,7 +4,5 @@ source "https://rubygems.org"
 
 gem 'pg', '1.5.9'
 gem 'rspec', '3.13.0'
-gem 'aws-sdk-core', '3.211.0'
-gem 'aws-sigv4', '1.10.1'
-
-gem "aws-sdk-dsql", "~> 1" 
+gem 'aws-sdk-core', '3.216.0'
+gem 'aws-sdk-dsql', '~> 1.6'
