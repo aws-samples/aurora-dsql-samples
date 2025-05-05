@@ -68,5 +68,6 @@ jobs:
         pip install pytest pytest-cov
         pip list
         echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
+        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
         pytest -v test/
         
