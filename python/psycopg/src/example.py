@@ -17,7 +17,16 @@ import os
 import sys
 
 import logging
-logging.getLogger("psycopg").setLevel(logging.DEBUG)
+
+logger = logging.getLogger("psycopg")
+logger.setLevel(logging.DEBUG)
+
+# Add a handler to output to console
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def create_connection(cluster_user, cluster_endpoint, region):
     # Generate a fresh password token for each connection, to ensure the token is not expired
