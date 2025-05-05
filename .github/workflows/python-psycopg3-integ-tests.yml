@@ -53,19 +53,20 @@ jobs:
         role-to-assume: ${{ secrets.PYTHON_IAM_ROLE }}
         aws-region: us-east-1
 
-    - name: Configure and run integration for psycopg3
+    - name: Configure and run integration for psycopg3 - admin
       working-directory: ./python/psycopg
       env:
+        CLUSTER_USER: "admin"
         CLUSTER_ENDPOINT: ${{ secrets.PYTHON_PSYCOPG3_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.PYTHON_PSYCOPG3_CLUSTER_REGION }}
       run: |
-        python3 -m venv psycopg3-integ
-        source psycopg3-integ/bin/activate
+        python3 -m venv .venv
+        source .venv/bin/activate
         pip install --upgrade pip
         pip install --force-reinstall -r requirements.txt
         python3 -c "import boto3; print(boto3.__version__)"
-        pip install pytest pytest-cov
         pip list
         echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
-        pytest -v test/
+        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
+        python src/example.py
         
