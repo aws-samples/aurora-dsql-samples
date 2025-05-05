@@ -44,7 +44,7 @@ def create_connection(cluster_user, cluster_endpoint, region):
         "host": cluster_endpoint,
         "port": "5432",
         "sslmode": "verify-full",
-        "sslrootcert": "./root.pem",
+        "sslrootcert": "system",
         "password": password_token
     }
 
