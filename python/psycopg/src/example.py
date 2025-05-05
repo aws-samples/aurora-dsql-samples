@@ -14,13 +14,17 @@ def create_connection(cluster_user, cluster_endpoint, region):
     else:
         password_token = client.generate_db_connect_auth_token(cluster_endpoint, region)
 
+    ssl_cert_path = "./root.pem"
+    if not os.path.isfile(ssl_cert_path):
+        raise FileNotFoundError(f"SSL certificate file not found: {ssl_cert_path}")
+
     conn_params = {
         "dbname": "postgres",
         "user": cluster_user,
         "host": cluster_endpoint,
         "port": "5432",
         "sslmode": "verify-full",
-        "sslrootcert": "./root.pem",
+        "sslrootcert": ssl_cert_path,
         "password": password_token
     }
 
