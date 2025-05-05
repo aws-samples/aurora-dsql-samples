@@ -16,6 +16,8 @@ import psycopg
 import os
 import sys
 
+import logging
+logging.getLogger("psycopg").setLevel(logging.DEBUG)
 
 def create_connection(cluster_user, cluster_endpoint, region):
     # Generate a fresh password token for each connection, to ensure the token is not expired
