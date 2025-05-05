@@ -51,6 +51,7 @@ jobs:
       env:
         CLUSTER_ENDPOINT: ${{ secrets.RUBY_RUBYPG_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.RUBY_RUBYPG_CLUSTER_REGION }}
+        CLUSTER_USER: admin
       run: |
         bundle install
         rspec
