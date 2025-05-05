@@ -54,4 +54,5 @@ jobs:
         CLUSTER_USER: admin
       run: |
         bundle install
+        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
         rspec
