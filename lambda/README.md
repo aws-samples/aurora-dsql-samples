@@ -16,7 +16,7 @@ This document describes how to use Lambda with Aurora DSQL.
 - This code is not tested in every AWS Region. For more information, see
   [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
 
-# Create a new function in AWS Lambda.
+# Create a new function in AWS Lambda
 
 1. Sign in to the AWS Management Console and open the AWS Lambda console at [https://console.aws.amazon.com/lambda/](https://console.aws.amazon.com/lambda/)
 2. Choose **Create function**.
