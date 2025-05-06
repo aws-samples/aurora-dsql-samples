@@ -8,17 +8,18 @@ def create_connection(cluster_user, cluster_endpoint, region)
   token_generator = Aws::DSQL::AuthTokenGenerator.new({
           :credentials => credentials
       })
+
+  auth_token_params = {
+        endpoint: cluster_endpoint,
+        region: region,
+        expires_in: 15 * 60 # 15 minutes, optional
+  }
   
-  if cluster_user == "admin"
-    password_token = token_generator.generate_db_connect_admin_auth_token({
-          :endpoint => cluster_endpoint,
-          :region => region
-      })
+  case cluster_user
+  when "admin" 
+    password_token = token_generator.generate_db_connect_admin_auth_token(auth_token_params)
   else
-    password_token = token_generator.generate_db_connect_auth_token({
-      :endpoint => cluster_endpoint,
-      :region => region
-    })
+    password_token = token_generator.generate_db_connect_auth_token(auth_token_params)
   end 
 
   PG.connect(

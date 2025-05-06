@@ -50,15 +50,13 @@ The example contains comments explaining the code and the operations being perfo
 ### Driver Dependencies
 
 Before using the Ruby-pg driver, ensure you have the following prerequisites installed:
-Ruby: Ensure you have ruby v3.2+ installed from the [official website](https://www.ruby-lang.org/en/documentation/installation/).
+Ruby: Ensure you have ruby v2.5+ installed from the [official website](https://www.ruby-lang.org/en/documentation/installation/).
 
 Verify install
 
 ```bash
 ruby --version
 ```
-
-For example: `v3.2.6"`.
 
 ### Libpq library
 
@@ -111,7 +109,7 @@ Place the root.pem file in the same directory as the hello_dsql.rb example file 
 ### Set the environmet variables specifying cluster endpoint, region and cluster user 
 
 ```
-# e.g. 'admin' or 'non_admin_user' 
+# e.g. 'admin' or a custom user 
 export CLUSTER_USER=<your cluster user> 
 
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
@@ -128,3 +126,9 @@ Execute the following command:
 ```
 ruby hello_dsql.rb
 ```
+
+---
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. 
+
+SPDX-License-Identifier: MIT-0
