@@ -2,25 +2,30 @@ PG::AWS_RDS_IAM.auth_token_generators.add :dsql do
   DsqlAuthTokenGenerator.new
 end
 
-require 'aws-sigv4'
-require 'aws-sdk-dsql'
+require "aws-sdk-dsql"
 
 class DsqlAuthTokenGenerator
   def call(host:, port:, user:)
-    region = "us-east-1"
-    credentials = Aws::SharedCredentials.new()
+    # e.g. host == "<clusterID>.dsql.us-east-1.on.aws"
+    region = host.split(".")[2]
+    raise "Unable to extract AWS region from host '#{host}'" unless region =~ /[\w\d-]+/
 
-    token_generator = Aws::DSQL::AuthTokenGenerator.new({
-        :credentials => credentials
-    })
+    token_generator = Aws::DSQL::AuthTokenGenerator.new(
+      credentials: Aws::CredentialProviderChain.new.resolve,
+    )
 
-    # The token expiration time is optional, and the default value 900 seconds
-    # if you are not using admin role, use generate_db_connect_auth_token instead
-    token = token_generator.generate_db_connect_admin_auth_token({
-        :endpoint => host,
-        :region => region
-    })
+    auth_token_params = {
+      endpoint: host,
+      region: region,
+      expires_in: 15 * 60 # 15 minutes, optional
+    }
 
+    case user
+    when "admin"
+      token_generator.generate_db_connect_admin_auth_token(auth_token_params)
+    else
+      token_generator.generate_db_connect_auth_token(auth_token_params)
+    end
   end
 end
 
@@ -36,7 +41,6 @@ end
 require "active_record/connection_adapters/postgresql_adapter"
 
 class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
-
   def set_standard_conforming_strings; end
 
   # Avoid error running multiple DDL or DDL + DML statements in the same transaction
