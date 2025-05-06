@@ -58,9 +58,11 @@ jobs:
       env:
         CLUSTER_ENDPOINT: ${{ secrets.PYTHON_SQLALCHEMY_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.PYTHON_SQLALCHEMY_CLUSTER_REGION }}
+        CLUSTER_USER: admin
       run: |
         python3 -m venv sqlalchemy-integ
         source sqlalchemy-integ/bin/activate
+        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
         pip install --upgrade pip
         pip install --force-reinstall -r requirements.txt
         python3 -c "import boto3; print(boto3.__version__)"
