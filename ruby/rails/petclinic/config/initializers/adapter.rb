@@ -11,7 +11,7 @@ class DsqlAuthTokenGenerator
     raise "Unable to extract AWS region from host '#{host}'" unless region =~ /[\w\d-]+/
 
     token_generator = Aws::DSQL::AuthTokenGenerator.new(
-      credentials: Aws::SharedCredentials.new,
+      credentials: Aws::CredentialProviderChain.new.resolve,
     )
 
     auth_token_params = {

@@ -38,6 +38,12 @@ development:
   # domain sockets, so uncomment these lines.
   host: <%= ENV['CLUSTER_ENDPOINT'] %>
 
+  <% unless ENV['CLUSTER_USER'] == "admin" %>
+  # 'admin' user defaults to the 'public' schema.
+  # Configure this for your particular user <-> schema associations and search precedence
+  schema_search_path: myschema
+  <% end %>
+
   sslmode: verify-full
   # Provide the path to the root certificate. 
   # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/

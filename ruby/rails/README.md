@@ -29,8 +29,7 @@ class DsqlAuthTokenGenerator
     raise "Unable to extract AWS region from host '#{host}'" unless region =~ /[\w\d-]+/
 
     token_generator = Aws::DSQL::AuthTokenGenerator.new(
-      # Update to an appropriate Aws::CredentialsProvider for your environment
-      credentials: Aws::SharedCredentials.new,
+      credentials: Aws::CredentialProviderChain.new.resolve,
     )
 
     auth_token_params = {
@@ -50,9 +49,8 @@ end
 ```
 
 `call` will be invoked when a new database connection is requested. First it retrieves credentials
-for the running environment. You can resolve credentials with any  [`Aws::CredentialsProvider`][rdocs-creds-provider]
-and for long-lived applications should use one that will refresh automatically: `Aws::AssumeRoleCredentials` or
-`Aws::InstanceProfileCredentials` to name a few. The retrieved credentials will need permission to `dsql:DbConnectAdmin`
+for the running environment. The `Aws::CredentialProviderChain` discovers credentials in the order
+described in [these docs][docs-cred-provider]. The retrieved credentials will need permission to `dsql:DbConnectAdmin`
 if using the `admin` role or `dsql:DbConnect` if using a custom role. See Aurora DSQL documentation for
 [IAM role connect][docs-dsql-iam] and [authentication token generation][docs-generate-token] for more details.
 
@@ -66,7 +64,7 @@ end
 ```
 
 [file-adapter]: ./petclinic/config/initializers/adapter.rb
-[rdoc-creds-provider]: https://docs.aws.amazon.com/sdk-for-ruby/v3/api/Aws/CredentialProvider.html
+[docs-cred-provider]: https://docs.aws.amazon.com/sdk-for-ruby/v3/developer-guide/credential-providers.html
 [docs-dsql-iam]: https://docs.aws.amazon.com/aurora-dsql/latest/userguide/authentication-authorization.html#authentication-authorization-iam-role-connect
 [docs-generate-token]: https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_authentication-token.html
 
@@ -105,6 +103,10 @@ development:
 
   # eg: admin or other postgres users
   username: <postgres username>
+
+  # Set this value based on the access of the configured user,
+  # or omit if running as 'admin' and using the 'public' schema.
+  schema_search_path: myschema
 
   # Set to Aurora DSQL instance endpoint
   # Use environment variables, etc for production values!
