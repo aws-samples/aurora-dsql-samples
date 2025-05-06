@@ -1,6 +1,6 @@
 # Using AWS Lambda with Amazon Aurora DSQL
 
-This document describes how to use Lambda with Aurora DSQL
+This document describes how to use Lambda with Aurora DSQL.
 
 - Authorization to create Lambda functions. For more information, see [Getting started with Lambda](https://docs.aws.amazon.com/lambda/latest/dg/getting-started.html).
 - Authorization to create or modify IAM policy created by Lambda. You need to permissions `iam:CreatePolicy` and `iam:AttachRolePolicy`. For more information, see [Actions, resources, and condition keys for IAM ](https://docs.aws.amazon.com/service-authorization/latest/reference/list_awsidentityandaccessmanagementiam.html).
