@@ -126,9 +126,9 @@ Owner.find("<owner id>").destroy
 
 ## Relational Mapping Examples
 
-The pet clinic example code base also contains some of the typical ralationships that are often
-used in an ORM type application.  This includes representations of one-to-one, one-to-many and
-also many-to-many definitions.  The following examples show how these are supported within
+The pet clinic example code base contains some of the typical ralationships that are often
+used in an ORM type application. This includes representations of one-to-one, one-to-many and
+also many-to-many definitions.The following examples show how to support these scenarios within
 Aurora DSQL, and enable building relational structured models in this environment.  The various
 model definitions capturing the relationships can be found in the `app/models` directory.
 

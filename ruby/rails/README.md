@@ -48,13 +48,15 @@ class DsqlAuthTokenGenerator
 end
 ```
 
-`call` will be invoked when a new database connection is requested. First it retrieves credentials
-for the running environment. The `Aws::CredentialProviderChain` discovers credentials in the order
-described in [these docs][docs-cred-provider]. The retrieved credentials will need permission to `dsql:DbConnectAdmin`
-if using the `admin` role or `dsql:DbConnect` if using a custom role. See Aurora DSQL documentation for
-[IAM role connect][docs-dsql-iam] and [authentication token generation][docs-generate-token] for more details.
+`call` will be invoked when a new database connection is requested. It will:
+1. Retrieve credentials for the running environment. The `Aws::CredentialProviderChain` discovers credentials
+   in the order described in [these docs][docs-cred-provider].
+1. Determine which token type to generate based on the database user.
 
-The adapter uses these credentials to generate an appropriately scoped token for the application user.
+The retrieved credentials will need permission to `dsql:DbConnectAdmin` for the `admin` user or
+`dsql:DbConnect` for a custom user. See Aurora DSQL documentation for [IAM role connect][docs-dsql-iam]
+and [authentication token generation][docs-generate-token] for more details.
+
 
 Finally, register the adapter with the `pg-aws_rds_iam` plugin.
 ```ruby
