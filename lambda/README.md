@@ -153,8 +153,8 @@ zip -r pkg.zip .
 
 ## Upload the code package and test your Lambda function
 
-1. In your Lambda function’s **Code** tab, choose **Upload from > .zip file**
-2. Upload the pkg.zip you created. For more information, see [Deploy Node.js Lambda functions with .zip file archives](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-package.html)
+1. In your Lambda function’s **Code** tab, choose **Upload from > .zip file**.
+2. Upload the pkg.zip you created. For more information, see [Deploy Node.js Lambda functions with .zip file archives](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-package.html).
 3. In your Lambda function’s **Test** tab, paste in the following JSON payload, and modify it to use your cluster ID.
 4. In your Lambda function’s **Test** tab, use the following Event JSON modified to specify your cluster’s endpoint.
 
