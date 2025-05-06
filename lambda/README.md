@@ -36,7 +36,7 @@ This document describes how to use Lambda with Aurora DSQL.
 ```
 
 [!NOTE]
-We're using an admin role to minimize prerequisite steps to get started. You shouldn't use a admin database role for your production applications. See [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html) to learn how to create custom database roles with authorization that has the fewest permissions to your database.
+We're using an admin role to minimize prerequisite steps to get started. You shouldn't use an admin database role for your production applications. See [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html) to learn how to create custom database roles with authorization that has the fewest permissions to your database.
 
 5. In **Resource**, add your cluster’s Amazon Resource Name (ARN). You can also use a wildcard.
 
