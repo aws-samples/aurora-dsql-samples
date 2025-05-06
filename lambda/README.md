@@ -54,7 +54,8 @@ We're using an admin role to minimize prerequisite steps to get started. You sho
 2. In the folder, create a new file named `package.json` with the following content.
 
 ```json
-  "dependencies": {
+{
+    "dependencies": {
     "@aws-sdk/dsql-signer": "^3.705.0",
     "assert": "2.1.0",
     "pg": "^8.13.1"
