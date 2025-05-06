@@ -10,4 +10,5 @@ if [ ! -z "$VIRTUAL_ENV" ]; then
 fi
 python3 -m venv box
 source box/bin/activate
+pip install --upgrade pip
 pip install --force-reinstall -r requirements.txt --no-cache-dir

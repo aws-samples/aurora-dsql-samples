@@ -1,5 +1,6 @@
 ## Dependencies for engine creation
-from sqlalchemy import create_engine, select, update, delete
+import os
+from sqlalchemy import create_engine, select, event
 from sqlalchemy.engine import URL
 
 ## Dependencies for token generation
@@ -17,23 +18,65 @@ from sqlalchemy.sql import text
 from sqlalchemy.orm import Session
 
 ## Dependencies for retry statement
-from sqlalchemy.sql import text
 from sqlalchemy.exc import SQLAlchemyError
-import os, sys
 
-def create_dsql_engine(hostname, region):
+ADMIN = "admin"
+NON_ADMIN_SCHEMA = "myschema"
+
+def create_dsql_engine():
+    cluster_user = os.environ.get("CLUSTER_USER", None)
+    assert cluster_user is not None, "CLUSTER_USER environment variable is not set"
+
+    cluster_endpoint = os.environ.get("CLUSTER_ENDPOINT", None)
+    assert cluster_endpoint is not None, "CLUSTER_ENDPOINT environment variable is not set"
+
+    region = os.environ.get("REGION", None)
+    assert region is not None, "REGION environment variable is not set"
+
     client = boto3.client("dsql", region_name=region)
+
+    # Create the URL, note that the password token is added when connections are created.
+    url = URL.create(
+        "postgresql", 
+        username=cluster_user, 
+        host=cluster_endpoint, 
+        database="postgres"
+    )
     
-    # The token expiration time is optional, and the default value 900 seconds
-    password_token = client.generate_db_connect_admin_auth_token(hostname, region)
+    # Create the engine
+    engine = create_engine(
+        url, 
+        connect_args={"sslmode": "verify-full", "sslrootcert": "./root.pem"},
+    )
+    
+    # Adds a listener that creates a new token every time a new connection is created in the SQLAlchemy engine
+    @event.listens_for(engine, "do_connect")
+    def add_token_to_params(dialect, conn_rec, cargs, cparams):
+        # Generate a fresh token for this connection
+        fresh_token = generate_token(client, cluster_user, cluster_endpoint, region)        
+        # Update the password in connection parameters
+        cparams["password"] = fresh_token
 
-    # Example on how to create engine for SQLAlchemy
-    url = URL.create("postgresql", username="admin", password=password_token, 
-        host=hostname, database="postgres")
-
-    engine = create_engine(url, connect_args={"sslmode": "require"})
+    # If we are using the non-admin user, we need to set the search path to use 'myschema' instead of public whenever a connection is created.
+    @event.listens_for(engine, "connect", insert=True)
+    def set_search_path(dbapi_connection, connection_record):
+        print("Successfully opened connection")
+        if cluster_user == ADMIN: return
+        existing_autocommit = dbapi_connection.autocommit
+        dbapi_connection.autocommit = True
+        cursor = dbapi_connection.cursor()
+        cursor.execute("SET SESSION search_path='%s'" % NON_ADMIN_SCHEMA)
+        cursor.close()
+        dbapi_connection.autocommit = existing_autocommit
 
     return engine
+
+def generate_token(client, cluster_user, cluster_endpoint, region):
+    if (cluster_user == ADMIN):
+        return client.generate_db_connect_admin_auth_token(cluster_endpoint, region)
+    else:
+        return client.generate_db_connect_auth_token(cluster_endpoint, region)
+
 
 class Base(DeclarativeBase):
     pass
@@ -99,14 +142,14 @@ class Vet(Base):
         primaryjoin="foreign(VetSpecialties.vet_id)==Vet.id",
         secondaryjoin="foreign(VetSpecialties.specialty_id)==Specialty.id")
 
-def main(cluster_endpoint, region):
+def example():
     # Create the engine
-    engine = create_dsql_engine(cluster_endpoint, region)
+    engine = create_dsql_engine()
     
-    # Create all tables    
+    # Clean up any existing tables
     for table in Base.metadata.tables.values():
         table.drop(engine, checkfirst=True)
-    
+
     # Create all tables    
     for table in Base.metadata.tables.values():
         table.create(engine, checkfirst=True)
@@ -166,7 +209,7 @@ def main(cluster_endpoint, region):
     assert carlos_salazar.specialties[1].id == "Dogs"
 
 # Execute SQL Statement with retry
-def exeucte_sql_statement_retry(engine, sql_statement, max_retries=None):
+def execute_sql_statement_retry(engine, sql_statement, max_retries=None):
     with engine.connect() as connection:
         while max_retries == None or max_retries > 0:
             try:
@@ -174,20 +217,31 @@ def exeucte_sql_statement_retry(engine, sql_statement, max_retries=None):
                 connection.commit()
                 break
             except SQLAlchemyError as e:
-                print(f"Error: {e}")
                 error = str(e.orig)
                 if not("OC001" in error or "OC000" in error):
-                    print("Error occurred is not OC001 or OC000 error. Stop retries.")
-                    break
+                    raise e
                 print(f"Error occurred when executing statement {sql_statement}, executing retry")
                 if max_retries != None:
                     max_retries -= 1
 
+def run_retry():
+    # Create the engine
+    engine = create_dsql_engine()
+
+    # Create and drop the table, will retry until success is reached
+    execute_sql_statement_retry(engine, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);")
+    execute_sql_statement_retry(engine, "DROP TABLE IF EXISTS abc;")
+
+    # Run statement that will fail, it will not be retried as the error is not OC001 or OC000
+    try:
+        execute_sql_statement_retry(engine, "DROP TABLE abc;")
+    except Exception as e:
+        assert "table \"abc\" does not exist" in str(e).lower()
+
+    # Create and drop the table, with maximum retries of 3
+    execute_sql_statement_retry(engine, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);", 3)
+    execute_sql_statement_retry(engine, "DROP TABLE IF EXISTS abc;", 3)
+
 if __name__ == "__main__":
-    cluster_endpoint = os.environ.get("CLUSTER_ENDPOINT", None)
-    region = os.environ.get("REGION", None)
-    if cluster_endpoint is None:
-        sys.exit("CLUSTER_ENDPOINT environment variable is not set")
-    if region is None:
-        sys.exit("REGION environment variable is not set")
-    example(cluster_endpoint, region)
+    example()
+    run_retry()
