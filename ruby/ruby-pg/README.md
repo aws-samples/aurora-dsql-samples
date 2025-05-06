@@ -50,7 +50,7 @@ The example contains comments explaining the code and the operations being perfo
 ### Driver Dependencies
 
 Before using the Ruby-pg driver, ensure you have the following prerequisites installed:
-Ruby: Ensure you have ruby v2.5+ installed from the [official website](https://www.ruby-lang.org/en/documentation/installation/).
+Ruby: Ensure you have ruby v3+ installed from the [official website](https://www.ruby-lang.org/en/documentation/installation/).
 
 Verify install
 
