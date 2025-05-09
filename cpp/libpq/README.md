@@ -1,10 +1,52 @@
-# Aurora DSQL Libpq code examples
+# Libpq with Aurora DSQL
 
 ## Overview
 
-The code examples in this topic show you how to use the Libpq with Aurora DSQL. 
+This code example demonstrates how to use the Libpq library to interact with Amazon Aurora DSQL (DSQL). The example shows you how
+to connect to an Aurora DSQL cluster and perform basic database operations.
 
-## Prerequisites
+Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
+your PostgreSQL-compatible applications. Libpq is a popular PostgreSQL library that allows
+you to interact with PostgreSQL databases using c/cpp code.
+
+## About the code example
+
+The example demonstrates a flexible connection approach that works for both admin and non-admin users:
+
+* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication
+  token.
+* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard
+  authentication token. The `myschema` schema needs to be created prior to running the example and the **non-admin user** needs to be granted access to the schema.
+
+The code automatically detects the user type and adjusts its behavior accordingly.
+The example contains comments explaining the code and the operations being performed.
+
+## ⚠️ Important
+
+* Running this code might result in charges to your AWS account.
+* We recommend that you grant your code least privilege. At most, grant only the
+  minimum permissions required to perform the task. For more information, see
+  [Grant least privilege](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege).
+* This code is not tested in every AWS Region. For more information, see
+  [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
+
+
+## Run the example
+
+### Prerequisites
+
+* You must have an AWS account, and have your default credentials and AWS Region
+  configured as described in the
+  [Globally configuring AWS SDKs and tools](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html)
+  guide.
+* You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the
+  [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html)
+  guide.
+* If connecting as a non-admin user, ensure the user is linked to an IAM role and is granted access to the `myschema`
+  schema. See the
+  [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
+  guide.
+
 
 #### C++ compiler 
 A c++ compiler that supports c++11 standard or newer.
@@ -21,9 +63,11 @@ If you're building the SDK from source and you only need it for dsql you may use
 For example:
 
 ```
-cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ -DCMAKE_INSTALL_PREFIX=/usr/local/ -DBUILD_ONLY="dsql"
-```
+cmake <your_path>/aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<your_path_to_aws-sdk-install> -DBUILD_ONLY="dsql"
 
+# Note: Follow build and installation instructions on the official website. 
+# This example is meant to point to the -DBUILD_ONLY="dsql" flag.
+```
 
 #### Libpq library and Postgres include files
 
@@ -31,7 +75,7 @@ cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ 
 - The path to the Libpq library will need to be specified for execution
 - Obtaining Libpq library
     - It is installed with postgres installation. Therefore, if postgres is installed on the system the libpq is present in ../postgres_install_dir/lib, ../postgres_install_dir/include
-    - It is installed when psql client program is installed, similarily as with postgres installation
+    - It is installed when psql client program is installed, similarly as with postgres installation
     - On some systems libpq can be installed through package manager (if the package exists for the system) e.g.
         ```
         sudo yum install libpq-devel
@@ -55,9 +99,6 @@ cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ 
 - On some systems the SSL libraries can be installed using package managers
     - They can be downloaded from the [official website](https://openssl-library.org/source/index.html)
 
-
-## Run the examples
-
 ### Build the example program
 
 #### Edit the Makefile file
@@ -69,10 +110,9 @@ The Makefile is located in the libpq/src directory.
 Update the following variables with the paths to the aws-sdk-cpp include and library files on your computer:
 
 ```
-AWS_INC_DIR=-I ../aws-sdk-install/include
-AWS_LIB_DIR=-L ../aws-sdk-install/lib
+AWS_INC_DIR=-I <your_path_to_aws-sdk-install>/include
+AWS_LIB_DIR=-L <your_path_to_aws-sdk-install>/lib
 ```
-
 
 ##### Linux 
 
@@ -96,16 +136,26 @@ pg_config --libdir
 
 ##### Mac 
 
-The Mac related variables are in the 'Mac' section of the make file.
-If necessary, adjust the directory locations. 
-For example:
+The Mac related variables are in the 'Mac' section of the Makefile.
+Edit the variables specifying path to the postgres include files and path to the location of the libpq library as well as the compiler include directory.
+
+**Note:** These are examples only. Replace them with your path.
 
 ```
-COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX14.5.sdk/usr/include/c++/v1
+(x86)
+PG_INC_DIR_MAC=-I /usr/local/opt/libpq/include
+LIBPQ_DIR_MAC=-L /usr/local/opt/libpq/lib
+OR
+(brew)
+PG_INC_DIR_MAC=-I /opt/homebrew/opt/postgresql@16/include
+LIBPQ_DIR_MAC=-L /opt/homebrew/opt/postgresql@16/lib
 
-# could be 
+COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX14.x.sdk/usr/include/c++/v1
 
-COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk/usr/include/c++/v1
+# or could be 
+
+COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX15.x.sdk/usr/include/c++/v1
+
 ```
 
 #### Build the program
@@ -124,7 +174,7 @@ make libpq_example
 make libpq_example_mac
 ```
 
-This should result in the libpq_example executable program
+This should result in the **libpq_example** executable program
 
 ### Run the example program
 
@@ -140,19 +190,25 @@ Replace the paths in the commands below with the path on your computer.
 
 ```
 export LD_LIBRARY_PATH="/usr/local/pgsql/lib:$LD_LIBRARY_PATH"
-export LD_LIBRARY_PATH="<your_path>/aws-sdk-install/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="<your_path_to_aws-sdk-install>/lib:$LD_LIBRARY_PATH"
 ```
 
 ##### Mac
 
 ```
-export DYLD_FALLBACK_LIBRARY_PATH=<your_path>/aws-sdk-install/lib
+export DYLD_FALLBACK_LIBRARY_PATH=<your_path_to_aws-sdk-install>/lib
 ```
 
 #### Set environment variables specifying cluster endpoint and region
 
 ```
+# e.g. 'admin' or a custom user 
+export CLUSTER_USER=<your cluster user> 
+
+# e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your cluster endpoint>"
+
+# e.g. "us-east-1"
 export REGION="<your cluster region>"
 ```
 
@@ -170,7 +226,7 @@ From the libpq/src directory run:
 
 Aurora DSQL requires SSL when connecting to it. Therefore, the libpq library must have been built with SSL support.
 
-If this is not the case, you may see the following error messgage while executing the libpq_example program:
+If this is not the case, you may see the following error message while executing the libpq_example program:
 
 >
 >Error while connecting to the database server: sslmode value "require" invalid when SSL support is not compiled in.

@@ -8,7 +8,7 @@ using namespace Aws;
 using namespace Aws::DSQL;
 using namespace Aws::DSQL::Model;
 
-std::string generateDBAuthToken(const std::string endpoint, const std::string region) {
+std::string generateDBAuthToken(const std::string clusterUser, const std::string clusterEndpoint, const std::string region) {
     Aws::SDKOptions options;
     Aws::InitAPI(options);
     DSQLClientConfiguration clientConfig;
@@ -17,8 +17,9 @@ std::string generateDBAuthToken(const std::string endpoint, const std::string re
     std::string token = "";
     
     // The token expiration time is optional, and the default value 900 seconds
-    // If you aren not using admin role to connect, use GenerateDBConnectAuthToken instead
-    const auto presignedString = client.GenerateDBConnectAdminAuthToken(endpoint, region);
+    const auto presignedString = clusterUser == "admin" ? client.GenerateDBConnectAdminAuthToken(clusterEndpoint, region) : 
+                                                          client.GenerateDBConnectAuthToken(clusterEndpoint, region);
+    
     if (presignedString.IsSuccess()) {
         token = presignedString.GetResult();
     } else {
@@ -29,35 +30,41 @@ std::string generateDBAuthToken(const std::string endpoint, const std::string re
     return token;
 }
 
-PGconn* connectToCluster(std::string clusterEndpoint, std::string region) {
-    std::string password = generateDBAuthToken(clusterEndpoint, region);
-    
+PGconn* connectToCluster(std::string clusterUser, std::string clusterEndpoint, std::string region) {
     std::string dbname = "postgres";
-    std::string user = "admin";
     std::string sslmode = "require";
     int port = 5432;
 
-    if (password.empty()) {
+    // Generate a fresh password token for each connection, to ensure the token is not expired
+    // when the connection is established
+    std::string password_token = generateDBAuthToken(clusterUser, clusterEndpoint, region);
+
+    if (password_token.empty()) {
         std::cerr << "Failed to generate token." << std::endl;
         return NULL;
     } 
 
     char conninfo[4096];
     sprintf(conninfo, "dbname=%s user=%s host=%s port=%i sslmode=%s password=%s", 
-            dbname.c_str(), user.c_str(), clusterEndpoint.c_str(), port, sslmode.c_str(), password.c_str());
+            dbname.c_str(), clusterUser.c_str(), clusterEndpoint.c_str(), port, sslmode.c_str(), password_token.c_str());
 
     PGconn *conn = PQconnectdb(conninfo);
 
     if (PQstatus(conn) != CONNECTION_OK) {
         std::cerr << "Error while connecting to the database server: " << PQerrorMessage(conn) << std::endl;
         PQfinish(conn);
-       return NULL;
+        return NULL;
     }
 
     std::cout << std::endl << "Connection Established: " << std::endl;
     std::cout << "Port: " << PQport(conn) << std::endl;
-    // std::cout << "Host: " << PQhost(conn) << std::endl;
     std::cout << "DBName: " << PQdb(conn) << std::endl;
+
+    if (clusterUser != "admin")
+    {
+        PGresult *result = PQexec(conn, "SET search_path = myschema");
+        PQclear(result);
+    }
 
     return conn;
 }
@@ -91,7 +98,7 @@ int example(PGconn *conn) {
     }
     
     // Read the data we inserted
-    std::string select = "SELECT * FROM owner";
+    std::string select = "SELECT * FROM owner where name='John Doe'";
 
     PGresult *selectResponse = PQexec(conn, select.c_str());
     ExecStatusType selectStatus = PQresultStatus(selectResponse);
@@ -116,6 +123,10 @@ int example(PGconn *conn) {
             }
             std::cout << std::endl;
         }
+        if (rows == 0) {
+            std::cerr << "No rows returned" << std::endl;
+            retVal = -1;
+        }
     }
     else {
         std::cerr << "Select failed - " << PQerrorMessage(conn) << std::endl;
@@ -123,12 +134,17 @@ int example(PGconn *conn) {
     }
     PQclear(selectResponse);
 
+    PGresult *clearResponse = PQexec(conn, "DELETE FROM owner where name='John Doe'");
+    PQclear(clearResponse);
+
+
     return retVal;
 }
 
 int main(int argc, char *argv[]) {
     std::string region = "";
     std::string clusterEndpoint = "";
+    std::string clusterUser = "";
 
     if (const char* env_var = std::getenv("CLUSTER_ENDPOINT")) {
         clusterEndpoint = env_var;
@@ -142,10 +158,16 @@ int main(int argc, char *argv[]) {
         std::cout << "Please set the REGION environment variable" << std::endl;
         return -1;
     }
+    if (const char* env_var = std::getenv("CLUSTER_USER")) {
+        clusterUser = env_var;
+    } else {
+        std::cout << "Please set the CLUSTER_USER environment variable" << std::endl;
+        return -1;
+    }
 
     int testStatus = 0;
 
-    PGconn *conn = connectToCluster(clusterEndpoint, region);
+    PGconn *conn = connectToCluster(clusterUser, clusterEndpoint, region);
 
     if (conn == NULL) {
         std::cerr << "Failed to get connection." << std::endl;
