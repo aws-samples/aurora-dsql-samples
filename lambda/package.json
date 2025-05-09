@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@aws-sdk/dsql-signer": "^3.705.0",
+    "assert": "2.1.0",
+    "pg": "^8.13.1"
+  }
+}
