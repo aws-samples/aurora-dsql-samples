@@ -52,6 +52,8 @@ jobs:
 
     - name: Configure and run integration for cluster management
       working-directory: ./java/cluster_management
+      env:
+        IS_CI: "true"
       run: |
         mvn validate
         mvn initialize

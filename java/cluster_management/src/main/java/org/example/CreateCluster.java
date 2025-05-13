@@ -1,53 +1,54 @@
 package org.example;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.retries.StandardRetryStrategy;
+import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.dsql.DsqlClient;
-import software.amazon.awssdk.services.dsql.model.ClusterStatus;
 import software.amazon.awssdk.services.dsql.model.CreateClusterRequest;
 import software.amazon.awssdk.services.dsql.model.CreateClusterResponse;
+import software.amazon.awssdk.services.dsql.model.GetClusterResponse;
 
-import java.util.HashMap;
+import java.time.Duration;
 import java.util.Map;
 
 public class CreateCluster {
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         Region region = Region.US_EAST_1;
 
-        ClientOverrideConfiguration clientOverrideConfiguration = ClientOverrideConfiguration.builder()
-                .retryStrategy(StandardRetryStrategy.builder().build())
-                .build();
-
-        DsqlClient client = DsqlClient.builder()
-                .httpClient(UrlConnectionHttpClient.create())
-                .overrideConfiguration(clientOverrideConfiguration)
-                .region(region)
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .build();
-
-        boolean deletionProtectionEnabled = true;
-        Map<String, String> tags = new HashMap<>();
-        tags.put("Name", "FooBar");
-
-        String identifier = createCluster(client, deletionProtectionEnabled, tags);
-        System.out.println("Cluster Id: " + identifier);
+        try (
+                DsqlClient client = DsqlClient.builder()
+                        .region(region)
+                        .credentialsProvider(DefaultCredentialsProvider.create())
+                        .build()
+        ) {
+            GetClusterResponse cluster = example(client);
+            System.out.println("Created " + cluster);
+        }
     }
 
-    public static String createCluster(DsqlClient client, boolean deletionProtectionEnabled, Map<String, String> tags) throws Exception {
-        CreateClusterRequest createClusterRequest = CreateClusterRequest
-                .builder()
-                .deletionProtectionEnabled(deletionProtectionEnabled)
-                .tags(tags)
+    public static GetClusterResponse example(DsqlClient client) {
+        CreateClusterRequest request = CreateClusterRequest.builder()
+                .deletionProtectionEnabled(true)
+                .tags(Map.of(
+                        "Name", "java single region cluster",
+                        "Repo", "aws-samples/aurora-dsql-samples"
+                ))
                 .build();
-        CreateClusterResponse res = client.createCluster(createClusterRequest);
-        if (res.status() == ClusterStatus.CREATING) {
-            return res.identifier();
-        } else {
-            throw new Exception("Failed to create cluster");
-        }
+        CreateClusterResponse cluster = client.createCluster(request);
+        System.out.println("Created " + cluster.arn());
+
+        // The DSQL SDK offers a built-in waiter to poll for a cluster's
+        // transition to ACTIVE.
+        System.out.println("Waiting for cluster to become ACTIVE");
+        GetClusterResponse activeCluster = client.waiter().waitUntilClusterActive(
+                getCluster -> getCluster.identifier(cluster.identifier()),
+                config -> config.backoffStrategyV2(
+                        BackoffStrategy.fixedDelayWithoutJitter(Duration.ofSeconds(10))
+                ).waitTimeout(Duration.ofMinutes(5))
+        ).matched().response().orElseThrow();
+        System.out.println("Cluster is ACTIVE: " + activeCluster);
+
+        return activeCluster;
     }
 }

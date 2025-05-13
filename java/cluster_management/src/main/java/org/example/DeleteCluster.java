@@ -5,45 +5,42 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.retries.StandardRetryStrategy;
+import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.dsql.DsqlClient;
 import software.amazon.awssdk.services.dsql.model.DeleteClusterRequest;
 import software.amazon.awssdk.services.dsql.model.DeleteClusterResponse;
 import software.amazon.awssdk.services.dsql.model.ResourceNotFoundException;
 
+import java.time.Duration;
+
 public class DeleteCluster {
 
     public static void main(String[] args) {
         Region region = Region.US_EAST_1;
+        String clusterId = "<your cluster id>";
 
-        ClientOverrideConfiguration clientOverrideConfiguration = ClientOverrideConfiguration.builder()
-                .retryStrategy(StandardRetryStrategy.builder().build())
-                .build();
-
-        DsqlClient client = DsqlClient.builder()
-                .httpClient(UrlConnectionHttpClient.create())
-                .overrideConfiguration(clientOverrideConfiguration)
-                .region(region)
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .build();
-
-        String cluster_id = "foo0bar1baz2quux3quuux4";
-
-        DeleteClusterResponse response = deleteCluster(cluster_id, client);
-        System.out.println("Deleting Cluster with ID: " + cluster_id + ", Status: " + response.status());
+        try (
+                DsqlClient client = DsqlClient.builder()
+                        .region(region)
+                        .credentialsProvider(DefaultCredentialsProvider.create())
+                        .build()
+        ) {
+            example(client, clusterId);
+        }
     }
 
-    public static DeleteClusterResponse deleteCluster(String cluster_id, DsqlClient client) {
-        DeleteClusterRequest deleteClusterRequest = DeleteClusterRequest.builder()
-                .identifier(cluster_id)
-                .build();
-        try {
-            return client.deleteCluster(deleteClusterRequest);
-        } catch (ResourceNotFoundException rnfe) {
-            System.out.println("Cluster id is not found / deleted");
-            throw rnfe;
-        } catch (Exception e) {
-            System.out.println("Unable to poll cluster status: " + e.getMessage());
-            throw e;
-        }
+    public static void example(DsqlClient client, String clusterId) {
+        DeleteClusterResponse cluster = client.deleteCluster(r -> r.identifier(clusterId));
+        System.out.println("Initiated delete of " + cluster.arn());
+
+        // The DSQL SDK offers a built-in waiter to poll for deletion.
+        System.out.println("Waiting for cluster to finish deletion");
+        client.waiter().waitUntilClusterNotExists(
+                getCluster -> getCluster.identifier(clusterId),
+                config -> config.backoffStrategyV2(
+                        BackoffStrategy.fixedDelayWithoutJitter(Duration.ofSeconds(10))
+                ).waitTimeout(Duration.ofMinutes(5))
+        );
+        System.out.println("Deleted " + cluster.arn());
     }
 }
