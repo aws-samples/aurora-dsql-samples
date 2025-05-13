@@ -61,11 +61,6 @@ public class DsqlClusterManagementTest {
     }
 
     @Test
-    public void goodTest() {
-        logger.info("I am a very good test");
-    }
-
-//    @Test
     public void singleRegionClusterLifecycle() {
         logger.info("Starting single region cluster lifecycle run");
         GetClusterResponse cluster = CreateCluster.example(client1);
