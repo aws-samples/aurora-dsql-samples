@@ -1,0 +1,21 @@
+{
+  "name": "dsql_nodejs_howto",
+  "version": "1.0.0",
+  "description": "How To",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --testPathPattern='test/smoke.test.js' --runInBand --detectOpenHandles --forceExit"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/dsql-signer": "^3.705.0",
+    "assert": "2.1.0",
+    "pg": "^8.13.1",
+    "uuid": "^11.0.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
