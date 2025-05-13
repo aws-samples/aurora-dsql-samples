@@ -1,21 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
 
-  <ItemGroup>
-    <PackageReference Include="AWSSDK.Core" Version="4.0.0-preview.4" />
-    <PackageReference Include="AWSSDK.Dsql" Version="3.7.401" />
-    <PackageReference Include="AWSSDK.Extensions.CrtIntegration" Version="4.0.0-preview.4" />
-    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.0-preview.4" />
-    <PackageReference Include="Npgsql" Version="8.0.5" />
-    <PackageReference Include="xunit" Version="2.9.2" />
-  </ItemGroup>
+        <!-- We target both for compatibility -->
+        <TargetFrameworks>netstandard2.0;net9.0</TargetFrameworks>
+        <LangVersion>10</LangVersion>
+
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="AWSSDK.Core" Version="4.0.0.3"/>
+        <PackageReference Include="AWSSDK.DSQL" Version="4.0.1"/>
+        <PackageReference Include="Npgsql" Version="8.0.5"/>
+    </ItemGroup>
 
 </Project>
