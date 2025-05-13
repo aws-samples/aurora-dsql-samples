@@ -1,12 +1,12 @@
-# node-postgres with Aurora DSQL
+# Postgres.js with Aurora DSQL
 
 ## Overview
 
-This code example demonstrates how to use `node-postgres` with Amazon Aurora DSQL.
+This code example demonstrates how to use `Postgres.js` with Amazon Aurora DSQL.
 The example shows you how to connect to an Aurora DSQL cluster and perform basic database operations.
 
 Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
-your PostgreSQL-compatible applications. `node-postgres` is a popular PostgreSQL adapter for Node.js that allows
+your PostgreSQL-compatible applications. `Postgres.js` is a lightweight PostgreSQL client for Node.js that allows
 you to interact with PostgreSQL databases using JavaScript code.
 
 ## About the code example
@@ -90,10 +90,19 @@ npm test
 
 The example contains comments explaining the code and the operations being performed.
 
+### Connection pooling
+
+Postgres.js uses connection pooling by default. The maximum pool size, and maximum lifespan of connections is configurable 
+when the client is created using the options `max` and `max_lifetime` respectively. Note that connections are created lazily only
+when a database call occurs, not when the client is created. See [Postgres.js documentation here](https://github.com/porsager/postgres?tab=readme-ov-file#the-connection-pool)
+for more information. There are no guarantees as to which connection will be used when executing a command, except within a single transaction.
+This means users cannot rely on commands like `SET SESSION search_path=schema` to be applied correctly across multiple database
+interactions.
+
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-* [node-postgres Documentation](https://node-postgres.com/)
+* [Postgres.js Documentation](https://github.com/porsager/postgres)
 * [AWS SDK for JavaScript Documentation](https://docs.aws.amazon.com/sdk-for-javascript/)
 
 ---

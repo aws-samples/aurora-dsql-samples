@@ -1,49 +1,46 @@
 import { DsqlSigner } from "@aws-sdk/dsql-signer";
-import pg from "pg";
+import postgres from "postgres"
+
 import assert from "node:assert";
-const { Client } = pg;
 
 const ADMIN = "admin";
+const PUBLIC = "public";
 const NON_ADMIN_SCHEMA = "myschema";
 
 async function getConnection(clusterEndpoint, user, region) {
-      const signer = new DsqlSigner({
-        hostname: clusterEndpoint,
-        region,
-      });
-      let token;
-      // Generate a fresh password token for each connection, to ensure the token is
-      // not expired when the connection is established
-      if (user === ADMIN) {
-        token = await signer.getDbConnectAdminAuthToken();
-      }
-      else {
-        signer.user = user;
-        token = await signer.getDbConnectAuthToken()
-      }
-      // <https://node-postgres.com/apis/client>
-      // By default `rejectUnauthorized` is true in TLS options
-      // <https://nodejs.org/api/tls.html#tls_tls_connect_options_callback>
-      // The config does not offer any specific parameter to set sslmode to verify-full
-      // Settings are controlled either via connection string or by setting
-      // rejectUnauthorized to false in ssl options
-      let client = new Client({
-        host: clusterEndpoint,
-        user: user,
-        password: token,
-        database: "postgres",
-        port: 5432,
-        // <https://node-postgres.com/announcements> for version 8.0
-        ssl: true
-      });
   
-      // Connect
-      await client.connect();
-      console.log("Successfully opened connection");
-      return client;
+  let client = postgres({
+    host: clusterEndpoint,
+    user: user,
+    // We can pass a function to password instead of a value, which will be triggered whenever
+    // connections are opened.
+    password: async () => await getPasswordToken(clusterEndpoint, user, region),
+    database: "postgres",
+    port: 5432,
+    idle_timeout: 2,
+    ssl: true,
+    // max: 1, // Optionally set maximum connection pool size
+  })
+
+  return client;
+}
+
+async function getPasswordToken(clusterEndpoint, user, region) {
+  const signer = new DsqlSigner({
+    hostname: clusterEndpoint,
+    region,
+  });
+  if (user === ADMIN) {
+    return await signer.getDbConnectAdminAuthToken();
+  }
+  else {
+    signer.user = user;
+    return await signer.getDbConnectAuthToken()
+  }
 }
 
 async function example() {
+  let client;
 
   const clusterEndpoint = process.env.CLUSTER_ENDPOINT;
   assert(clusterEndpoint);
@@ -51,42 +48,38 @@ async function example() {
   assert(user);
   const region = process.env.REGION;
   assert(region);
-
-  let client;
+  
   try {
-    client = await getConnection(clusterEndpoint, user, region);
+    
+    client = await getConnection(clusterEndpoint, user, region)
+    let schema = user === ADMIN ? PUBLIC : NON_ADMIN_SCHEMA;
 
-    if (user !== ADMIN) {
-      await client.query("SET search_path=" + NON_ADMIN_SCHEMA)
-    }
-
-    // Create a new table
-    await client.query(`CREATE TABLE IF NOT EXISTS owner (
+    // Note that due to connection pooling, we cannot execute 'set search_path=myschema'
+    // because we cannot assume the same connection will be used.
+    await client`CREATE TABLE IF NOT EXISTS ${client(schema)}.owner (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name VARCHAR(30) NOT NULL,
       city VARCHAR(80) NOT NULL,
       telephone VARCHAR(20)
-    )`);
+    )`;
 
     // Insert some data
-    await client.query("INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)", 
-      ["John Doe", "Anytown", "555-555-1900"]
-    );
+    await client`INSERT INTO ${client(schema)}.owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-0150')`
 
     // Check that data is inserted by reading it back
-    const result = await client.query("SELECT id, city FROM owner where name='John Doe'");
-    assert.deepEqual(result.rows[0].city, "Anytown")
-    assert.notEqual(result.rows[0].id, null)
+    const result = await client`SELECT id, city FROM ${client(schema)}.owner where name='John Doe'`;
+    assert.deepEqual(result[0].city, "Anytown")
+    assert.notEqual(result[0].id, null)
 
-    await client.query("DELETE FROM owner where name='John Doe'");
+    // Delete data we just inserted
+    await client`DELETE FROM ${client(schema)}.owner where name='John Doe'`
 
   } catch (error) {
     console.error(error);
-    raise
-  } finally {
-    client?.end()
+    throw error;
+  } finally {  
+    await client?.end();
   }
-  Promise.resolve()
 }
 
 export { example }
