@@ -4,13 +4,13 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'javascript/nodejs/**'
+      - 'javascript/node-postgres/**'
       - '.github/workflows/javascript-node-postgres-integ-tests.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'javascript/nodejs/**'
-      - '.github/workflows/jjavascript-node-postgres-integ-tests.yml'
+      - 'javascript/node-postgres/**'
+      - '.github/workflows/javascript-node-postgres-integ-tests.yml'
   # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
     inputs:
@@ -46,7 +46,7 @@ jobs:
         aws-region: us-east-1
 
     - name: Configure and run integration for nodejs HowTo
-      working-directory: ./javascript/nodejs
+      working-directory: ./javascript/node-postgres
       env:
         CLUSTER_ENDPOINT: ${{ secrets.JAVASCRIPT_NODEJS_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.JAVASCRIPT_NODEJS_CLUSTER_REGION }}
