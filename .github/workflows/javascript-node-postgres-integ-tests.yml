@@ -50,6 +50,7 @@ jobs:
       env:
         CLUSTER_ENDPOINT: ${{ secrets.JAVASCRIPT_NODEJS_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.JAVASCRIPT_NODEJS_CLUSTER_REGION }}
+        CLUSTER_USER: 'admin'
       run: |
         npm install
         npm test
