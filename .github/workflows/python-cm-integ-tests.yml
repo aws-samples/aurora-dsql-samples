@@ -55,6 +55,8 @@ jobs:
 
     - name: Configure and run integration for cluster management
       working-directory: ./python/cluster_management
+      env:
+        IS_CI: "TRUE"
       run: |
         python3 -m venv cm-integ
         source cm-integ/bin/activate

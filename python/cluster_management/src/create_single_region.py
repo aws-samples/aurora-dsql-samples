@@ -1,20 +1,33 @@
 import boto3
+import os
 
-def create_cluster(client, tags, deletion_protection):
+
+def create_cluster(region):
     try:
-        response = client.create_cluster(tags=tags, deletionProtectionEnabled=deletion_protection)
-        return response
+        client = boto3.client("dsql", region_name=region)
+        tags = {"Name": "Python-CM-Example-Single-Region", "Repo": "aws-samples/aurora-dsql-samples"}
+        cluster = client.create_cluster(tags=tags, deletionProtectionEnabled=True)
+        print(f"Initiated creation of cluster: {cluster["identifier"]}")
+
+        print(f"Waiting for {cluster["arn"]} to become ACTIVE")
+        client.get_waiter("cluster_active").wait(
+            identifier=cluster["identifier"],
+            WaiterConfig={
+                'Delay': 10,
+                'MaxAttempts': 50
+            }
+        )
+
+        return cluster
     except:
         print("Unable to create cluster")
         raise
 
+
 def main():
-    region = "us-east-1"
-    client = boto3.client("dsql", region_name=region)
-    tag = {"Name": "FooBar"}
-    deletion_protection = True
-    response = create_cluster(client, tags=tag, deletion_protection=deletion_protection)
-    print("Cluster id: " + response['identifier'])
+    region = os.environ.get("REGION_1", "us-east-1")
+    response = create_cluster(region)
+    print(f"Created cluster: {response["arn"]}")
 
 
 if __name__ == "__main__":
