@@ -8,15 +8,11 @@ include = ["/src"]
 tokio = { version = "1.28", features = ["full"] }
 sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls" , "postgres", "uuid"] }
 anyhow = { version = "1", features = ["backtrace"] }
-aws-config = "1"
-aws-sdk-dsql = "1"
-aws-credential-types = "1"
-aws-sigv4 = "1"
+aws-config = "1.1"
+aws-sdk-dsql = "1.1"
 rand = "0.8"
-url = "2.5"
 uuid = { version = "1.11", features = ["v4"] }
-rsa = "0.9.7"
-rustls = "0.23.19"
+log = "0.4.27"
 
 
 [[bin]]
