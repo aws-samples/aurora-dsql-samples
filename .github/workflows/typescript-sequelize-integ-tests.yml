@@ -52,6 +52,7 @@ jobs:
       env:
         CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_SEQUELIZE_CLUSTER_ENDPOINT}}
         REGION: ${{ secrets.TYPESCRIPT_SEQUELIZE_CLUSTER_REGION}}
+        CLUSTER_USER: 'admin'
       run: |
         npm install
         npm run test

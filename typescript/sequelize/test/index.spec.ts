@@ -1,4 +1,4 @@
-import { runExamples } from "../src/sequelizeExample.js"
+import { runExamples } from "../src/index.js"
 
 const SECONDS = 1000;
 
