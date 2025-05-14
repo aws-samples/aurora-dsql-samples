@@ -41,7 +41,6 @@ func setup() {
 	}
 
 	// Set up any environment variables needed for tests
-	os.Setenv("REGION", "us-east-1")
 	os.Setenv("CLUSTER_ID", *output.Identifier)
 
 	// Add any other initialization code here
@@ -55,8 +54,8 @@ func teardown() {
 	// Clean up any resources, close connections, etc.
 }
 
-// Test for GetCluster function
-func TestGetCluster(t *testing.T) {
+// Test for DeleteSingleRegion function
+func TestDeleteSingleRegion(t *testing.T) {
 	// Test cases
 	tests := []struct {
 		name       string
@@ -65,8 +64,8 @@ func TestGetCluster(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:       "Valid cluster retrieval",
-			region:     os.Getenv("REGION"),
+			name:       "Delete single-region cluster",
+			region:     "us-east-1",
 			identifier: os.Getenv("CLUSTER_ID"),
 			wantErr:    false,
 		},
@@ -75,12 +74,10 @@ func TestGetCluster(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := GetCluster(testCtx, tt.region, tt.identifier)
+			err := DeleteSingleRegion(testCtx, tt.identifier, tt.region)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetCluster() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("UpdateCluster() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
-
-// Add more test functions for other commands in the cmd folder
