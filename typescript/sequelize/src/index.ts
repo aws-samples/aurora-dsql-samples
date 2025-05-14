@@ -308,9 +308,11 @@ async function retryExample() {
   await sequelize.close();
 }
 
-async function runExamples() {
+export async function runExamples() {
   await sequelizeExample();
   await retryExample();
 }
 
-runExamples()
+if (require.main === module) {
+  runExamples().catch(console.error);
+}
