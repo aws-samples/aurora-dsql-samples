@@ -1,3 +1,4 @@
+# Build all cluster management examples
 # Go parameters
 GOCMD=go
 GOBUILD=$(GOCMD) build
