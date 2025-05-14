@@ -46,6 +46,21 @@ mvn test
 
 Test execution will take around five minutes as it waits for clusters to complete activation and deletion.
 
+### Executing single operations
+Files in [src/../example/](src/main/java/org/example) each have a `main()` method that let you exercise single operations.
+
+The build process will produce a single `.jar` that can be invoked as:
+```shell
+# Build the project if this has not been done yet with 'mvn test'
+mvn clean compile assembly:single
+
+# Check each operation for its expected environment variables
+REGION_1="us-east-1" CLUSTER_ID="<your cluster id>" \
+  java \
+  -cp target/AuroraDSQLClusterCrudExample-1.0-SNAPSHOT-jar-with-dependencies.jar \
+  org.example.GetCluster
+```
+
 ---
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.

@@ -14,7 +14,7 @@ import java.util.Map;
 public class CreateCluster {
 
     public static void main(String[] args) {
-        Region region = Region.US_EAST_1;
+        Region region = Region.of(System.getenv().getOrDefault("REGION_1", "us-east-1"));
 
         try (
                 DsqlClient client = DsqlClient.builder()
