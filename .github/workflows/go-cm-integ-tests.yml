@@ -55,3 +55,23 @@ jobs:
       run: |
         go env -w GOPROXY=direct
         go test
+    - name: Build & Run Get Cluster
+      working-directory: ./go/cluster_management/cmd/get_cluster
+      run: |
+        go env -w GOPROXY=direct
+        go test
+    - name: Build & Run Update Cluster
+      working-directory: ./go/cluster_management/cmd/update_cluster
+      run: |
+        go env -w GOPROXY=direct
+        go test
+    - name: Build & Run Delete Single region
+      working-directory: ./go/cluster_management/cmd/delte_single_region
+      run: |
+        go env -w GOPROXY=direct
+        go test
+    - name: Build & Run Delete Multi region
+      working-directory: ./go/cluster_management/cmd/delete_multi_region
+      run: |
+        go env -w GOPROXY=direct
+        go test
