@@ -46,7 +46,11 @@ jobs:
         aws-region: us-east-1
 
     - name: Build & Run
-      working-directory: ./go/cluster_management
+      working-directory: ./go/cluster_management/cmd/create_multi_region
+      run: |
+        go env -w GOPROXY=direct
+        go test
+      working-directory: ./go/cluster_management/cmd/create_single_region
       run: |
         go env -w GOPROXY=direct
         go test
