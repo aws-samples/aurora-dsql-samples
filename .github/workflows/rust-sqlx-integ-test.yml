@@ -47,8 +47,8 @@ jobs:
     - name: Configure and run integration tests for SQLx
       working-directory: ./rust/sqlx
       env:
+        CLUSTER_USER: "admin"
         CLUSTER_ENDPOINT: ${{ secrets.RUST_SQLX_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.RUST_SQLX_CLUSTER_REGION }}
       run: |
-        cargo build
-        cargo test
+        cargo run
