@@ -96,9 +96,7 @@ bundle install
 
 ### Download the Amazon root certificate from the official trust store
 
-Download the Amazon root certificate from the official trust store.
-This example shows one of the available certs that can be used by the client.
-Other certs such as AmazonRootCA2.pem, AmazonRootCA3.pem, etc. can also be used.
+Download the Amazon root certificate from the official trust store:
 
 ```
 wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
