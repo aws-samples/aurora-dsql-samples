@@ -67,7 +67,7 @@ func TestGetCluster(t *testing.T) {
 		{
 			name:       "Valid cluster retrieval",
 			region:     os.Getenv("REGION"),
-			identifier: "saabucfkaxwz5vcba4yzjpqdly",
+			identifier: os.Getenv("CLUSTER_ID"),
 			wantErr:    false,
 		},
 		// Add more test cases as needed
