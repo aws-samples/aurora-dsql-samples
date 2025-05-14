@@ -2,6 +2,8 @@ import { DsqlSigner } from "@aws-sdk/dsql-signer";
 import { Client } from "pg";
 import { getEnvironmentVariables } from "./utils";
 import { escapeIdentifier } from "pg/lib/utils";
+import fs from "fs";
+import path from "path";
 
 const createMigrationsTable = async () => {
   const { user, clusterEndpoint, region } = getEnvironmentVariables();
@@ -30,7 +32,10 @@ const createMigrationsTable = async () => {
       host: clusterEndpoint,
       port: 5432,
       database: "postgres",
-      ssl: true,
+      ssl: {
+        ca: fs.readFileSync(path.join(__dirname, "root.pem")),
+        rejectUnauthorized: true,
+      },
     });
 
     await client.connect();

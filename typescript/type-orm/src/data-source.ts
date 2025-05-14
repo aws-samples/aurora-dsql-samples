@@ -1,7 +1,9 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { DsqlSigner } from "@aws-sdk/dsql-signer";
-import { join } from "path";
+import path from "path";
+import fs from "fs";
+
 import { getEnvironmentVariables } from "./utils";
 
 const getDataSource = async () => {
@@ -30,12 +32,15 @@ const getDataSource = async () => {
       username: user,
       password: token,
       database: "postgres",
-      ssl: true,
+      ssl: {
+        ca: fs.readFileSync(path.join(__dirname, "root.pem")),
+        rejectUnauthorized: true,
+      },
       synchronize: false,
       logging: false,
-      entities: [join(__dirname, "/entity/**/*{.ts,.js}")],
+      entities: [path.join(__dirname, "/entity/**/*{.ts,.js}")],
       schema: schema,
-      migrations: [join(__dirname, "/migrations/**/*{.ts,.js}")],
+      migrations: [path.join(__dirname, "/migrations/**/*{.ts,.js}")],
       migrationsRun: false,
     });
 

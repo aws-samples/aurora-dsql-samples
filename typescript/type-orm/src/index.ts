@@ -16,11 +16,11 @@ const main = async (AppDataSource: DataSource) => {
 
   const pet1 = new Pet();
   pet1.name = "Pet-1";
-  pet1.birthDate = new Date("2006-10-25");
+  pet1.birthDate = new Date(Date.UTC(2006, 9, 25)); // UTC Month is between 0-11. October is 9 instead of 10
 
   const pet2 = new Pet();
   pet2.name = "Pet-2";
-  pet2.birthDate = new Date("2021-07-23");
+  pet2.birthDate = new Date(Date.UTC(2021, 6, 23)); // UTC Month is between 0-11. July is 6 instead of 7
 
   const johnDoe = new Owner();
   johnDoe.name = "John Doe";

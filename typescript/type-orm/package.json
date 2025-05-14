@@ -8,7 +8,7 @@
     "migrations-drop-table": "node dist/src/drop-migrations-table.js",
     "migrations-run": "npm run typeorm migration:run -- -d ./dist/src/data-source --transaction none",
     "migrations-revert": "npm run typeorm migration:revert -- -d ./dist/src/data-source --transaction none",
-    "build": "tsc --build",
+    "build": "tsc --build && cp ./src/root.pem dist/src",
     "clean": "rm -rf build && rm -rf dist",
     "typeorm": "ts-node ./node_modules/typeorm/cli.js",
     "start": "node dist/index.js",
