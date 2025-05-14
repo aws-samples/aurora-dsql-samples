@@ -12,9 +12,9 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 | :---------: | :-----------------------------: |
 |     C++     |       [libpq](cpp/libpq)        |
 | C# (dotnet) |     [npgsql](dotnet/npgsql)     |
-|    Java     |      [pgjdbc](java/pgjdbc)      |
 |     Go      |          [pgx](go/pgx/)         |
-| Javascript  |  [nodejs](javascript/nodejs/)   |
+|    Java     |      [pgjdbc](java/pgjdbc)      |
+| JavaScript  |[node-postgres](javascript/node-postgres/) |
 |   Python    |   [psycopg](python/psycopg/)    |
 |   Python    |  [psycopg2](python/psycopg2/)   |
 |   Python    | [sqlalchemy](python/sqlalchemy) |
@@ -28,8 +28,9 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 | :---------: | :-------------------------------------------------: |
 |     C++     |    [cluster_management](cpp/cluster_management)     |
 | C# (dotnet) |   [cluster_management](dotnet/cluster_management)   |
+|    Go       |     [cluster_management](go/cluster_management)     |
 |    Java     |    [cluster_management](java/cluster_management)    |
-| Javascript  | [cluster_management](javascript/cluster_management) |
+| JavaScript  | [cluster_management](javascript/cluster_management) |
 |   Python    |   [cluster_management](python/cluster_management)   |
 |    Ruby     |    [cluster_management](ruby/cluster_management)    |
 |    Rust     |    [cluster_management](rust/cluster_management)    |
