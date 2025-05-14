@@ -1,45 +1,41 @@
 [package]
-name = "crud"
+name = "dsql-examples"
 version = "0.1.0"
-edition = "2021"
-include = ["/src"]
+edition = "2024"
 
 [dependencies]
-tokio = { version = "1.28", features = ["full"] }
-anyhow = { version = "1", features = ["backtrace"] }
-aws-config = "1"
-aws-credential-types = "1"
-aws-sdk-dsql = "1"
-aws-sigv4 = "1"
-aws-sdk-iam = "1"
-rand = "0.8"
-url = "2.5"
-uuid = { version = "1.11", features = ["v4"] }
+anyhow = "1.0.98"
+aws-config = "1.6.2"
+aws-sdk-dsql = "1.19.0"
+tokio = { version = "1", features = ["full"] }
+
+# Define each example as a separate binary. This ensures customers can easily execute individual examples without
+# modifying code or running the test suite.
+[[bin]]
+name = "create_single_region_cluster"
+path = "src/bin/create_single_region_cluster.rs"
 
 [[bin]]
-name = "example"
-path = "src/example.rs"
+name = "create_multi_region_clusters"
+path = "src/bin/create_multi_region_clusters.rs"
 
 [[bin]]
-name = "create_multi_region"
-path = "src/create_multi_region.rs"
+name = "get_cluster"
+path = "src/bin/get_cluster.rs"
 
 [[bin]]
-name = "create_single_region"
-path = "src/create_single_region.rs"
+name = "update_cluster"
+path = "src/bin/update_cluster.rs"
 
 [[bin]]
-name = "get"
-path = "src/get.rs"
+name = "delete_single_region_cluster"
+path = "src/bin/delete_single_region_cluster.rs"
 
 [[bin]]
-name = "update"
-path = "src/update.rs"
+name = "delete_multi_region_clusters"
+path = "src/bin/delete_multi_region_clusters.rs"
 
-[[bin]]
-name = "delete_multi_region"
-path = "src/delete_multi_region.rs"
-
-[[bin]]
-name = "delete_single_region"
-path = "src/delete_single_region.rs"
+# Make example files available as libraries for testing
+[lib]
+name = "dsql_examples"
+path = "src/lib.rs"

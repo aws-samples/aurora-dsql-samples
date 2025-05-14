@@ -20,9 +20,26 @@ on:
         type: string
 
 jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        run: rustup update
+
+      - name: Check formatting
+        working-directory: ./rust/cluster_management
+        run: |
+          rustup component add rustfmt
+          cargo fmt -- --check
+
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       id-token: write
       contents: read
@@ -32,19 +49,19 @@ jobs:
       pull-requests: write
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Rust
-      run: rustup update
+      - name: Set up Rust
+        run: rustup update
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.RUST_IAM_ROLE }}
-        aws-region: us-east-1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.RUST_IAM_ROLE }}
+          aws-region: us-east-1
 
-    - name: Configure and run integration for cluster management
-      working-directory: ./rust/cluster_management
-      run: |
-        cargo test
+      - name: Configure and run integration for cluster management
+        working-directory: ./rust/cluster_management
+        run: |
+          cargo test -- --nocapture
