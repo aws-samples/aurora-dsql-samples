@@ -45,11 +45,12 @@ jobs:
         role-to-assume: ${{ secrets.GO_IAM_ROLE }}
         aws-region: us-east-1
 
-    - name: Build & Run
+    - name: Build & Run Create Multi region
       working-directory: ./go/cluster_management/cmd/create_multi_region
       run: |
         go env -w GOPROXY=direct
         go test
+    - name: Build & Run Create Single region
       working-directory: ./go/cluster_management/cmd/create_single_region
       run: |
         go env -w GOPROXY=direct
