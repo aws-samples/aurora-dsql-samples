@@ -36,7 +36,7 @@ func FindClusterByTag(ctx context.Context, region, tagName, tagValue string) (*d
 			log.Fatalf("Failed to get cluster: %v", err)
 		}
 
-		if clusterOutput.Tags[tagName] == tagValue {
+		if clusterOutput.Tags[tagName] == tagValue && (clusterOutput.Status == "ACTIVE" || clusterOutput.Status == "PENDING_SETUP") {
 			return clusterOutput, nil
 		}
 	}
