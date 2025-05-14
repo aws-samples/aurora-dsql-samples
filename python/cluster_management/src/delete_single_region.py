@@ -6,7 +6,7 @@ def delete_cluster(region, identifier):
     try:
         client = boto3.client("dsql", region_name=region)
         cluster = client.delete_cluster(identifier=identifier)
-        print(f"Initiated delete of {cluster["arn"]}")
+        print(f"Initiated delete of {cluster['arn']}")
 
         print("Waiting for cluster to finish deletion")
         client.get_waiter("cluster_not_exists").wait(

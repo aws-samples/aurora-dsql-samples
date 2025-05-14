@@ -13,7 +13,7 @@ def create_multi_region_clusters(region_1, region_2, witness_region):
             multiRegionProperties={"witnessRegion": witness_region},
             tags={"Name": "Python-CM-Example-Multi-Region", "Repo": "aws-samples/aurora-dsql-samples"}
         )
-        print(f"Created {cluster_1["arn"]}")
+        print(f"Created {cluster_1['arn']}")
 
         # For the second cluster we can set witness region and designate cluster_1 as a peer
         cluster_2 = client_2.create_cluster(
@@ -22,17 +22,17 @@ def create_multi_region_clusters(region_1, region_2, witness_region):
             tags={"Name": "Python-CM-Example-Multi-Region", "Repo": "aws-samples/aurora-dsql-samples"}
         )
 
-        print(f"Created {cluster_2["arn"]}")
+        print(f"Created {cluster_2['arn']}")
         # Now that we know the cluster_2 arn we can set it as a peer of cluster_1
         client_1.update_cluster(
             identifier=cluster_1["identifier"],
             multiRegionProperties={"witnessRegion": witness_region, "clusters": [cluster_2["arn"]]}
         )
-        print(f"Added {cluster_2["arn"]} as a peer of {cluster_1["arn"]}")
+        print(f"Added {cluster_2['arn']} as a peer of {cluster_1['arn']}")
 
         # Now that multiRegionProperties is fully defined for both clusters
         # they'll begin the transition to ACTIVE
-        print(f"Waiting for {cluster_1["arn"]} to become ACTIVE")
+        print(f"Waiting for {cluster_1['arn']} to become ACTIVE")
         client_1.get_waiter("cluster_active").wait(
             identifier=cluster_1["identifier"],
             WaiterConfig={
@@ -41,7 +41,7 @@ def create_multi_region_clusters(region_1, region_2, witness_region):
             }
         )
 
-        print(f"Waiting for {cluster_2["arn"]} to become ACTIVE")
+        print(f"Waiting for {cluster_2['arn']} to become ACTIVE")
         client_2.get_waiter("cluster_active").wait(
             identifier=cluster_2["identifier"],
             WaiterConfig={

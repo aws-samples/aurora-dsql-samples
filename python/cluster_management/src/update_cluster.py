@@ -17,7 +17,7 @@ def main():
     assert cluster_id is not None, "Must provide CLUSTER_ID_1"
     deletion_protection_enabled = False
     response = update_cluster(region, cluster_id, deletion_protection_enabled)
-    print(f"Updated {response["arn"]} with deletion_protection_enabled: {deletion_protection_enabled}")
+    print(f"Updated {response['arn']} with deletion_protection_enabled: {deletion_protection_enabled}")
 
 
 if __name__ == "__main__":
