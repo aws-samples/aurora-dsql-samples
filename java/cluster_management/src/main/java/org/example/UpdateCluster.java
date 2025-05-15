@@ -1,47 +1,34 @@
 package org.example;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.retries.StandardRetryStrategy;
 import software.amazon.awssdk.services.dsql.DsqlClient;
-import software.amazon.awssdk.services.dsql.model.UpdateClusterRequest;
 import software.amazon.awssdk.services.dsql.model.UpdateClusterResponse;
+
+import java.util.Optional;
 
 public class UpdateCluster {
 
     public static void main(String[] args) {
-        Region region = Region.US_EAST_1;
+        Region region = Region.of(System.getenv().getOrDefault("REGION_1", "us-east-1"));
+        String clusterId = Optional.ofNullable(System.getenv("CLUSTER_ID"))
+                .orElseThrow(() -> new IllegalStateException("Expected CLUSTER_ID in environment"));
 
-        ClientOverrideConfiguration clientOverrideConfiguration = ClientOverrideConfiguration.builder()
-                .retryStrategy(StandardRetryStrategy.builder().build())
-                .build();
-
-        DsqlClient client = DsqlClient.builder()
-                .httpClient(UrlConnectionHttpClient.create())
-                .overrideConfiguration(clientOverrideConfiguration)
-                .region(region)
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .build();
-
-        String cluster_id = "foo0bar1baz2quux3quuux4";
-        Boolean deletionProtectionEnabled = false;
-
-        UpdateClusterResponse response = updateCluster(cluster_id, deletionProtectionEnabled, client);
-        System.out.println("Deletion Protection updating to: " + deletionProtectionEnabled.toString() + ", Status: " + response.status());
+        try (
+                DsqlClient client = DsqlClient.builder()
+                        .region(region)
+                        .credentialsProvider(DefaultCredentialsProvider.create())
+                        .build()
+        ) {
+            UpdateClusterResponse cluster = example(client, clusterId, false);
+            System.out.println("Updated " + cluster.arn());
+        }
     }
 
-    public static UpdateClusterResponse updateCluster(String cluster_id, boolean deletionProtectionEnabled, DsqlClient client){
-        UpdateClusterRequest updateClusterRequest = UpdateClusterRequest.builder()
-                .identifier(cluster_id)
-                .deletionProtectionEnabled(deletionProtectionEnabled)
-                .build();
-        try {
-            return client.updateCluster(updateClusterRequest);
-        } catch (Exception e) {
-            System.out.println(("Unable to update deletion protection: " + e.getMessage()));
-            throw e;
-        }
+    public static UpdateClusterResponse example(
+            DsqlClient client,
+            String clusterId,
+            boolean setDeletionProtection) {
+        return client.updateCluster(r -> r.identifier(clusterId).deletionProtectionEnabled(setDeletionProtection));
     }
 }
