@@ -58,7 +58,7 @@ wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
 npm install
 ```
 
-### Run the code
+## Run the code
 
 The example demonstrates the following operations:
 
