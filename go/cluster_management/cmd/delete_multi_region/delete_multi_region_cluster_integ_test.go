@@ -61,8 +61,6 @@ func setup() {
 func teardown() {
 	// Cancel the context
 	cancel()
-
-	// Clean up any resources, close connections, etc.
 }
 
 // Test for DeleteMultiRegionClustersRegion function

@@ -56,9 +56,6 @@ func DeleteSingleRegion(ctx context.Context, identifier, region string) error {
 	return nil
 }
 
-func DeleteCluster(ctx context.Context) {
-}
-
 // Example usage in main function
 func main() {
 	// Your existing setup code for client configuration...
