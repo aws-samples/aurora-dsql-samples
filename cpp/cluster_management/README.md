@@ -2,9 +2,22 @@
 
 ## Overview
 
-The code examples in this topic show you how to use the AWS CPP SDK with DSQL to create, read, update, and delete clusters.
+The code examples in this topic show you how to use the AWS CPP SDK with DSQL 
+to create, read, update, and delete single- and multi-Region clusters.
+
+Each *.cpp file in the src directory demonstrates a minimum working example for each operation. Each of the files can be independently compiled to produce an independent program that can be executed.
+The Example.cpp invokes each individual operation to crate full examples of single- and multi-Region cluster lifecycles.
 
 ## Run the examples
+
+### ⚠️ Important
+
+* Running this code might result in charges to your AWS account.
+* We recommend that you grant your code least privilege. At most, grant only the
+  minimum permissions required to perform the task. For more information, see
+  [Grant least privilege](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege).
+* This code is not tested in every AWS Region. For more information, see
+  [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
 
 ### Prerequisites
 
@@ -23,7 +36,10 @@ If you're building the SDK from source and you only need it for dsql you may use
 For example:
 
 ```
-cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ -DCMAKE_INSTALL_PREFIX=/usr/local/ -DBUILD_ONLY="dsql"
+cmake <your_path>/aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<your_path_to_aws-sdk-install> -DBUILD_ONLY="dsql"
+
+# Note: Follow build and installation instructions on the official website. 
+# This example is meant to point to the -DBUILD_ONLY="dsql" flag.
 ```
 
 ### Build the example program

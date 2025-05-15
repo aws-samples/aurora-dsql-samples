@@ -39,8 +39,8 @@ linux_get: GetCluster.cpp
 
 linux_all: linux_create_multi linux_delete_multi linux_create_single linux_delete_single linux_update linux_get
 
-linux_test: Test.cpp
-	g++ ./*.cpp -o test $(INC_DIR) $(LIB_DIR) $(LIBS)  
+linux_example: Example.cpp
+	g++ ./*.cpp -o example $(INC_DIR) $(LIB_DIR) $(LIBS)  
 
 # Mac 
 mac_create_multi: CreateMultiRegion.cpp
@@ -63,8 +63,8 @@ mac_get: GetCluster.cpp
 
 mac_all: mac_create_multi mac_delete_multi mac_create_single mac_delete_single mac_update mac_get 
 
-mac_test: Test.cpp
-	g++  -std=c++11 ./*.cpp -o test $(INC_DIR_MAC) $(LIB_DIR_MAC) $(LIBS)  
+mac_example: Example.cpp
+	g++  -std=c++11 ./*.cpp -o example $(INC_DIR_MAC) $(LIB_DIR_MAC) $(LIBS)  
 
 # clean up
 clean:
@@ -74,5 +74,5 @@ clean:
 	rm -f delete_single_region_cluster
 	rm -f update_cluster
 	rm -f get_cluster
-	rm -f test
+	rm -f example
 	
