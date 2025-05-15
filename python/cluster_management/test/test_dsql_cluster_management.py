@@ -70,7 +70,7 @@ def delete_tests_clusters(region):
     Delete all clusters that are:
         1. Not already deleting; and,
         2. Tagged with 'Repo=aws-samples/aurora-dsql-samples'; and,
-        3. Tagged with 'Name=Python*'
+        3. Tagged with 'Name=Python-CM-Example-*'
     """
     print(f"Deleting clusters associated with Python cluster management tests in {region}.")
     client = boto3.client("dsql", region_name=region)
@@ -91,12 +91,11 @@ def delete_tests_clusters(region):
 
             # Check tags to identify test clusters
             try:
-                tags_resp = client.list_tags_for_resource(resourceArn=cluster['arn'])
-                tags = tags_resp.get('tags', {})
+                tags = cluster["tags"]
 
                 is_test_cluster = (
                         tags.get('Repo', '') == 'aws-samples/aurora-dsql-samples' and
-                        tags.get('Name', '').startswith('Python')
+                        tags.get('Name', '').startswith('Python-CM-Example-')
                 )
 
                 if is_test_cluster:

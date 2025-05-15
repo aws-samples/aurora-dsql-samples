@@ -22,7 +22,7 @@ in [`test_dsql_cluster_management.py`](test/test_dsql_cluster_management.py).
 
 ### Prerequisites
 
-- Python version >= 3.8.0 is installed.
+- Python version >= 3.10 is installed.
 - Valid AWS credentials can be discovered by the [default provider chain](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html).
 
 ### Execute tests to create and delete clusters
