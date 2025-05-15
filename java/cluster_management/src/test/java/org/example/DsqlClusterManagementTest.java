@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 
 public class DsqlClusterManagementTest {
 
@@ -77,6 +76,24 @@ public class DsqlClusterManagementTest {
         logger.info("Finished single region cluster lifecycle run");
     }
 
+    @Test
+    public void multiRegionClusterLifecycle() {
+        logger.info("Starting multi region cluster lifecycle run");
+        List<GetClusterResponse> clusters = CreateMultiRegionClusters.example(client1, client2, witnessRegion);
+        logger.info("Created: " + clusters.stream().map(GetClusterResponse::arn).toList());
+
+        GetClusterResponse cluster1 = clusters.get(0);
+        GetClusterResponse cluster2 = clusters.get(1);
+
+        logger.info("Disabling deletion protection");
+        UpdateCluster.example(client1, cluster1.identifier(), false);
+        UpdateCluster.example(client2, cluster2.identifier(), false);
+
+        logger.info("Deleting clusters");
+        DeleteMultiRegionClusters.example(client1, cluster1.identifier(), client2, cluster2.identifier());
+        logger.info("Finished multi region cluster lifecycle run");
+    }
+
     /**
      * Delete all clusters that are:
      * <ol>
@@ -92,15 +109,12 @@ public class DsqlClusterManagementTest {
                 .stream()
                 .map(summary -> client.getCluster(r -> r.identifier(summary.identifier())))
                 .filter(c -> !Set.of(ClusterStatus.DELETED, ClusterStatus.DELETING).contains(c.status()))
-                .flatMap(c -> {
-                    var tagsResp = client.listTagsForResource(r -> r.resourceArn(c.arn()));
-                    if (!tagsResp.hasTags()) return Stream.empty();
-
-                    var tags = tagsResp.tags();
+                .filter(GetClusterResponse::hasTags)
+                .filter(c -> {
+                    var tags = c.tags();
                     boolean isTestCluster = tags.getOrDefault("Repo", "").equals("aws-samples/aurora-dsql-samples") &&
                             tags.getOrDefault("Name", "").startsWith("java ");
-
-                    return isTestCluster ? Stream.of(c) : Stream.empty();
+                    return isTestCluster;
                 })
                 .toList();
 
