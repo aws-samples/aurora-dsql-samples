@@ -67,11 +67,11 @@ jobs:
 
     - name: Build sample 
       working-directory: ./cpp/cluster_management/src
-      run: make linux
+      run: make linux_test
 
     - name: Configure and run integration for cpp cm
       working-directory: ./cpp/cluster_management/src
       env:
         LD_LIBRARY_PATH: /home/runner/work/aurora-dsql-samples/aurora-dsql-samples/cpp/cluster_management/aws-sdk-install/lib
       run: |
-        ./example
+        ./test

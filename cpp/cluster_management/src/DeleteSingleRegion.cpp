@@ -1,24 +1,61 @@
+#include <aws/core/Aws.h>
+#include <aws/core/utils/Outcome.h>
+#include <aws/dsql/DSQLClient.h>
+#include <aws/dsql/model/DeleteClusterRequest.h>
+#include <aws/dsql/model/GetClusterRequest.h>
 #include <iostream>
-#include "DeleteSingleRegion.h"
+#include <thread>
+#include <chrono>
 
 using namespace Aws;
 using namespace Aws::DSQL;
 using namespace Aws::DSQL::Model;
 
-Aws::DSQL::Model::ClusterStatus deleteCluster(const Aws::String& clusterId, Aws::DSQL::DSQLClient& client) {
-    DeleteClusterRequest request;
-    request.SetIdentifier(clusterId);
-
-    DeleteClusterOutcome outcome = client.DeleteCluster(request);
-    ClusterStatus status = ClusterStatus::NOT_SET;
-
-    if (outcome.IsSuccess()) {
-        const auto& cluster = outcome.GetResult();
-        status = cluster.GetStatus();
-    } else {
-        std::cerr << "Delete operation failed: " << outcome.GetError().GetMessage() << std::endl;
+/**
+ * Deletes a single-region cluster in Amazon Aurora DSQL
+ */
+void DeleteCluster(const Aws::String& region, const Aws::String& identifier) {
+    // Create client for the specified region
+    DSQL::DSQLClientConfiguration clientConfig;
+    clientConfig.region = region;
+    DSQL::DSQLClient client(clientConfig);
+    
+    // Delete the cluster
+    DeleteClusterRequest deleteRequest;
+    deleteRequest.SetIdentifier(identifier);
+    deleteRequest.SetClientToken(Aws::Utils::UUID::RandomUUID()); 
+    
+    auto deleteOutcome = client.DeleteCluster(deleteRequest);
+    if (!deleteOutcome.IsSuccess()) {
+        std::cerr << "Failed to delete cluster " << identifier << " in " << region << ": " 
+                  << deleteOutcome.GetError().GetMessage() << std::endl;
+        throw std::runtime_error("Unable to delete cluster " + identifier + " in " + region);
     }
-    std::cout << "Cluster Status: " << ClusterStatusMapper::GetNameForClusterStatus(status) << std::endl;
-    return status;
+    
+    auto cluster = deleteOutcome.GetResult();
+    std::cout << "Initiated delete of " << cluster.GetArn() << std::endl;
 }
 
+//#define STANDALONE_MODE
+#ifdef STANDALONE_MODE
+int main() {
+    Aws::SDKOptions options;
+    Aws::InitAPI(options);
+    {
+        try {
+            // Define region and cluster ID
+            Aws::String region = "us-east-1";
+            Aws::String clusterId = "<your cluster id>";
+            
+            DeleteCluster(region, clusterId);
+            
+            std::cout << "Deleted " << clusterId << std::endl;
+        }
+        catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    }
+    Aws::ShutdownAPI(options);
+    return 0;
+}
+#endif // STANDALONE_MODE
