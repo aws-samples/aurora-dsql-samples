@@ -40,7 +40,7 @@ linux_get: GetCluster.cpp
 linux_all: linux_create_multi linux_delete_multi linux_create_single linux_delete_single linux_update linux_get
 
 linux_test: Test.cpp
-	g++ ./*.cpp -o example $(INC_DIR) $(LIB_DIR) $(LIBS)  
+	g++ ./*.cpp -o test $(INC_DIR) $(LIB_DIR) $(LIBS)  
 
 # Mac 
 mac_create_multi: CreateMultiRegion.cpp
