@@ -46,7 +46,6 @@ std::pair<CreateClusterResult, CreateClusterResult> CreateMultiRegionClusters(
     tags["Name"] = "cpp multi region cluster 1";
     tags["Repo"] = "aws-samples/aurora-dsql-samples";
     createClusterRequest1.SetTags(tags);
-    createClusterRequest1.SetClientToken(Aws::Utils::UUID::RandomUUID());
     
     auto createOutcome1 = client1.CreateCluster(createClusterRequest1);
     if (!createOutcome1.IsSuccess()) {
@@ -76,7 +75,6 @@ std::pair<CreateClusterResult, CreateClusterResult> CreateMultiRegionClusters(
     tags["Repo"] = "aws-samples/aurora-dsql-samples";
     createClusterRequest2.SetMultiRegionProperties(multiRegionProps2);
     createClusterRequest2.SetTags(tags);
-    createClusterRequest2.SetClientToken(Aws::Utils::UUID::RandomUUID());
     
     auto createOutcome2 = client2.CreateCluster(createClusterRequest2);
     if (!createOutcome2.IsSuccess()) {
@@ -100,7 +98,6 @@ std::pair<CreateClusterResult, CreateClusterResult> CreateMultiRegionClusters(
     updatedProps.SetClusters(updatedClusters);
     
     updateClusterRequest.SetMultiRegionProperties(updatedProps);
-    updateClusterRequest.SetClientToken(Aws::Utils::UUID::RandomUUID());
     
     auto updateOutcome = client1.UpdateCluster(updateClusterRequest);
     if (!updateOutcome.IsSuccess()) {

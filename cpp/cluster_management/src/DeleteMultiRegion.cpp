@@ -34,7 +34,6 @@ void DeleteMultiRegionClusters(
     
     DeleteClusterRequest deleteRequest1;
     deleteRequest1.SetIdentifier(clusterId1);
-    deleteRequest1.SetClientToken(Aws::Utils::UUID::RandomUUID()); 
     
     auto deleteOutcome1 = client1.DeleteCluster(deleteRequest1);
     if (!deleteOutcome1.IsSuccess()) {
@@ -48,7 +47,6 @@ void DeleteMultiRegionClusters(
     
     DeleteClusterRequest deleteRequest2;
     deleteRequest2.SetIdentifier(clusterId2);
-    deleteRequest2.SetClientToken(Aws::Utils::UUID::RandomUUID()); 
     
     auto deleteOutcome2 = client2.DeleteCluster(deleteRequest2);
     if (!deleteOutcome2.IsSuccess()) {

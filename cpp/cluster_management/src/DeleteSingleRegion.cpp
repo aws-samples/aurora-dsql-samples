@@ -23,7 +23,6 @@ void DeleteCluster(const Aws::String& region, const Aws::String& identifier) {
     // Delete the cluster
     DeleteClusterRequest deleteRequest;
     deleteRequest.SetIdentifier(identifier);
-    deleteRequest.SetClientToken(Aws::Utils::UUID::RandomUUID()); 
     
     auto deleteOutcome = client.DeleteCluster(deleteRequest);
     if (!deleteOutcome.IsSuccess()) {

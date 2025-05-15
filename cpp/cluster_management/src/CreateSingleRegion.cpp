@@ -23,7 +23,6 @@ CreateClusterResult CreateCluster(const Aws::String& region) {
     // Create the cluster
     CreateClusterRequest createClusterRequest;
     createClusterRequest.SetDeletionProtectionEnabled(true);
-    createClusterRequest.SetClientToken(Aws::Utils::UUID::RandomUUID()); 
     
     // Add tags
     Aws::Map<Aws::String, Aws::String> tags;

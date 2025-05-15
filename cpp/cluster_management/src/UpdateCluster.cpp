@@ -19,7 +19,6 @@ UpdateClusterResult UpdateCluster(const Aws::String& region, const Aws::Map<Aws:
     
     // Create update request
     UpdateClusterRequest updateRequest;
-    updateRequest.SetClientToken(Aws::Utils::UUID::RandomUUID()); 
     
     // Set identifier (required)
     if (updateParams.find("identifier") != updateParams.end()) {
