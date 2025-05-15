@@ -21,6 +21,10 @@ int testSingleRegion() {
     const int wait_for_cluster_update_seconds = 5; // Just an approximate arbitrarily chosen time
     
     Aws::String region = "us-east-1";
+    if (const char* env_var = std::getenv("CLUSTER_1_REGION")) {
+        region = env_var;
+        std::cout << "Region from environment: " <<  region << std::endl;
+    } 
 
     auto cluster = CreateCluster(region);
     std::cout << "Created single region cluster: " <<  cluster.GetArn() << std::endl;
@@ -58,6 +62,19 @@ int testMultiRegion() {
     Aws::String region1 = "us-east-1";
     Aws::String region2 = "us-east-2";
     Aws::String witnessRegion = "us-west-2";
+
+    if (const char* env_var = std::getenv("CLUSTER_1_REGION")) {
+        region1 = env_var;
+        std::cout << "Region 1 from environment: " << region1 << std::endl;
+    } 
+    if (const char* env_var = std::getenv("CLUSTER_2_REGION")) {
+        region2 = env_var;
+        std::cout << "Region 2 from environment: " << region2 << std::endl;
+    } 
+    if (const char* env_var = std::getenv("WITNESS_REGION")) {
+        witnessRegion = env_var;
+        std::cout << "Witness Region from environment: " << witnessRegion << std::endl;
+    }
 
     auto [cluster1, cluster2] = CreateMultiRegionClusters(region1, region2, witnessRegion);
             

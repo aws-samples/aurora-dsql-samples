@@ -39,49 +39,107 @@ For example:
 cmake <your_path>/aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<your_path_to_aws-sdk-install> -DBUILD_ONLY="dsql"
 
 # Note: Follow build and installation instructions on the official website. 
-# This example is meant to point to the -DBUILD_ONLY="dsql" flag.
+# This example is only meant to point to the -DBUILD_ONLY="dsql" flag.
 ```
 
 ### Build the example program
-
 
 #### Update paths in the Makefile
 
 Open the Makefile in the cluster_management/src directory and modify the path to aws sdk include files 
 
 ```
-AWS_INC_DIR=-I ../aws-sdk-install/include
+AWS_INC_DIR=-I <your_path_to_aws-sdk-install>/include
 ```
 
 and the path to aws sdk library files to match the path on your computer.
 
 ```
-AWS_LIB_DIR=-L ../aws-sdk-install/lib
+AWS_LIB_DIR=-L <your_path_to_aws-sdk-install>/lib
 ```
 
-For Mac, depending on the location of the compiler files on your computer, you  may or may not need to modify this variable as well:
+For Mac, depending on the location of the compiler files on your computer, you may or may not need to modify this variable as well:
 
 ```
 COMPILER_INC_DIR_MAC
+
+e.g. 
+COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX14.x.sdk/usr/include/c++/v1
+
+# or 
+
+COMPILER_INC_DIR_MAC=-I /Library/Developer/CommandLineTools/SDKs/MacOSX15.x.sdk/usr/include/c++/v1
 ```
 
 #### Build the example program
 
-From the cluster_management/src directory run make command:
+From the cluster_management/src directory run the following make command:
 
 ##### Linux
 
 ```
-make linux
+make linux_example
 ```
 
 ##### Mac 
 
 ```
-make mac 
+make mac_example
 ```
 
 This should result in the **example** executable program in the same directory.
+
+
+#### Build the programs demonstrating individual operations
+
+Each .cpp file, in addition to the full Example.cpp, in the src directory demonstrates a minimum working example for each operation. Each of the files can be independently compiled to produce an independent program that can be executed.
+
+**Note**
+Each of the *.cpp files illustrating a single operation contains the main() function. 
+However, the main() functions are wrapped around a conditional compilation variables like this:
+
+```
+//#define STANDALONE_MODE
+#ifdef STANDALONE_MODE
+int main() {}
+#endif // STANDALONE_MODE
+```
+
+In order to build the individual examples, open the corresponding .cpp file, and uncomment this line:
+
+```
+//#define STANDALONE_MODE
+```
+
+Then build the programs as follows
+
+##### Linux
+
+```
+# to build all the small programs
+make linux_all
+
+# to build a specific one run make corresponding to that operation, e.g. 
+# to build CreateMultiRegion.cpp
+make linux_create_multi
+
+# to build UpdateCluster.cpp
+make linux_update
+```
+
+##### Mac 
+
+```
+# to build all the small programs
+make mac_all
+
+# to build a specific one run make corresponding to that operation, e.g. 
+# to build CreateMultiRegion.cpp
+make mac_create_multi
+
+# to build UpdateCluster.cpp
+make mac_update
+```
 
 
 ### Setup test running environment 
@@ -93,13 +151,26 @@ Ensure you are authenticated with AWS credentials.
 ##### Linux
 
 ```
-export LD_LIBRARY_PATH="<your_path>/sdk/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="<your_path_to_aws-sdk-install>/lib:$LD_LIBRARY_PATH"
 ```
 
 ##### Mac
 
 ```
-export DYLD_FALLBACK_LIBRARY_PATH=<your_path>/sdk/lib:$DYLD_FALLBACK_LIBRARY_PATH
+export DYLD_FALLBACK_LIBRARY_PATH=<your_path_to_aws-sdk-install>/lib:$DYLD_FALLBACK_LIBRARY_PATH
+```
+
+#### (Optional) Set Region environment variables
+
+```
+# Used in single and multi-region scenario. Defaults to 'us-east-1'
+export CLUSTER_1_REGION="<your region 1>"
+
+# Used multi-region scenario. Defaults to 'us-east-2'
+export CLUSTER_2_REGION="<your region 2>"
+
+# Used in multi-region scenario. Defaults to 'us-west-2'
+export WITNESS_REGION="<your witness region>"
 ```
 
 #### Run the example program

@@ -73,5 +73,8 @@ jobs:
       working-directory: ./cpp/cluster_management/src
       env:
         LD_LIBRARY_PATH: /home/runner/work/aurora-dsql-samples/aurora-dsql-samples/cpp/cluster_management/aws-sdk-install/lib
+        CLUSTER_1_REGION: us-east-1
+        CLUSTER_2_REGION: us-east-2
+        WITNESS_REGION: us-west-2
       run: |
         ./example
