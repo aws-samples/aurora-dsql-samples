@@ -56,11 +56,6 @@ wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
 
 ```
 npm install
-
-# first time running the application.
-npm run build
-npm run migrations-create-table
-npm run migrations-run
 ```
 
 ### Run the code
@@ -94,6 +89,11 @@ export REGION="<your region>"
 Run the example:
 
 ```
+# first time running the application
+npm run build
+npm run migrations-create-table
+npm run migrations-run
+
 npm test
 ```
 
