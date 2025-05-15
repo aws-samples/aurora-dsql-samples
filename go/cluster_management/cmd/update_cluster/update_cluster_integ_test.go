@@ -17,16 +17,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	// Setup before running tests
 	setup()
-
-	// Run all tests
 	code := m.Run()
-
-	// Cleanup after tests complete
 	teardown()
-
-	// Exit with the test status code
 	os.Exit(code)
 }
 
@@ -34,22 +27,25 @@ func setup() {
 	// Initialize context with timeout for all tests
 	testCtx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
 
-	output, err := util.FindClusterByTag(testCtx, "us-east-1", "Name", "go single region cluster")
+	output, err := util.FindClusterWithTagAndRepository(testCtx, util.GetEnvWithDefault("REGION", "us-east-1"),
+		"Name", util.GetUniqueRunTagName("go single region cluster"))
 
-	if err != nil {
+	if err != nil || output == nil || output.Identifier == nil {
 		fmt.Errorf("Error finding cluster by tag")
+		return
 	}
-
-	// Set up any environment variables needed for tests
-	os.Setenv("REGION", "us-east-1")
-	os.Setenv("CLUSTER_ID", *output.Identifier)
-
-	// Add any other initialization code here
-	// For example: database connections, mock services, etc.
+	// Set up any environment variables needed for test
+	if err := os.Setenv("REGION", util.GetEnvWithDefault("REGION", "us-east-1")); err != nil {
+		fmt.Errorf("Error setting REGION environment variable")
+		return
+	}
+	if err := os.Setenv("CLUSTER_ID", *output.Identifier); err != nil {
+		fmt.Errorf("Error setting CLUSTER_ID environment variable")
+		return
+	}
 }
 
 func teardown() {
-	// Cancel the context
 	cancel()
 }
 
@@ -57,13 +53,10 @@ func teardown() {
 func TestUpdateCluster(t *testing.T) {
 	// Test cases
 	tests := []struct {
-		name               string
-		region             string
-		identifier         string
-		region2            string
-		multi_cluster_id_1 string
-		multi_cluster_id_2 string
-		wantErr            bool
+		name       string
+		region     string
+		identifier string
+		wantErr    bool
 	}{
 		{
 			name:       "Update cluster to disable delete protection",
@@ -71,12 +64,11 @@ func TestUpdateCluster(t *testing.T) {
 			identifier: os.Getenv("CLUSTER_ID"),
 			wantErr:    false,
 		},
-		// Add more test cases as needed
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := UpdateCluster(testCtx, tt.region, tt.identifier, false)
+			_, err := UpdateCluster(testCtx, tt.identifier, tt.region, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateCluster() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -84,5 +76,3 @@ func TestUpdateCluster(t *testing.T) {
 		})
 	}
 }
-
-// Add more test functions for other commands in the cmd folder

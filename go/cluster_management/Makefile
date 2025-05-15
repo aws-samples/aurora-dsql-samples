@@ -4,14 +4,27 @@ GOCMD=go
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 BINARY_DIR=bin
+TEST_FLAGS=-v -count=1
 
 # Find all cmd directories
-CMD_DIRS := $(wildcard cmd/*)
-BINARIES := $(patsubst cmd/%,$(BINARY_DIR)/%,$(CMD_DIRS))
+CMD_DIRS := $(notdir $(wildcard cmd/*))
+BINARIES := $(addprefix $(BINARY_DIR)/,$(CMD_DIRS))
 
 # Default target
 .PHONY: all
 all: clean build
+
+.PHONY: test
+test: test-all
+
+# Test all commands
+.PHONY: test-all
+test-all: $(addprefix test-,$(CMD_DIRS))
+
+# Rule to test each command individually
+.PHONY: test-%
+test-%:
+	$(GOCMD) test $(TEST_FLAGS) ./cmd/$*
 
 # Create bin directory
 $(BINARY_DIR):
@@ -31,6 +44,8 @@ clean:
 	$(GOCLEAN)
 	rm -rf $(BINARY_DIR)
 
-# Build specific commands
-.PHONY: $(CMD_DIRS)
-$(CMD_DIRS): cmd/%: $(BINARY_DIR)/%
+# List all commands
+.PHONY: list
+list:
+	@echo "Available commands:"
+	@echo $(CMD_DIRS) | tr ' ' '\n'

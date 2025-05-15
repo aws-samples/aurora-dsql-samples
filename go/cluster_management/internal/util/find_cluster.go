@@ -6,10 +6,24 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dsql"
 	"log"
+	"os"
 )
 
-// FindClusterByTag finds an Aurora cluster by a specific tag name and value
-func FindClusterByTag(ctx context.Context, region, tagName, tagValue string) (*dsql.GetClusterOutput, error) {
+func GetEnvWithDefault(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+func GetUniqueRunTagName(tagPrefix string) string {
+	uniqueId := GetEnvWithDefault("GITHUB_RUN_ID", "1")
+	return tagPrefix + " - " + uniqueId
+}
+
+// FindClusterWithTagAndRepository finds an Aurora cluster by a specific tag name and value.
+func FindClusterWithTagAndRepository(ctx context.Context, region, tagName, tagValue string) (*dsql.GetClusterOutput, error) {
 	if tagName == "" || tagValue == "" {
 		return nil, fmt.Errorf("tagName and tagValue cannot be empty")
 	}
@@ -29,14 +43,14 @@ func FindClusterByTag(ctx context.Context, region, tagName, tagValue string) (*d
 	}
 
 	for _, val := range clustersOutput.Clusters {
-		fmt.Println("found cluster:" + *val.Identifier + " with tag:" + tagName + "=" + tagValue)
-
 		clusterOutput, err := client.GetCluster(ctx, &dsql.GetClusterInput{Identifier: val.Identifier})
 		if err != nil {
 			log.Fatalf("Failed to get cluster: %v", err)
 		}
 
-		if clusterOutput.Tags[tagName] == tagValue && (clusterOutput.Status == "ACTIVE" || clusterOutput.Status == "PENDING_SETUP") {
+		if clusterOutput.Tags[tagName] == tagValue && clusterOutput.Tags["Repo"] == os.Getenv("GITHUB_REPOSITORY") &&
+			(clusterOutput.Status == "ACTIVE" || clusterOutput.Status == "PENDING_SETUP") {
+			fmt.Println("found cluster:" + *val.Identifier + " with tag:" + tagName + "=" + tagValue)
 			return clusterOutput, nil
 		}
 	}

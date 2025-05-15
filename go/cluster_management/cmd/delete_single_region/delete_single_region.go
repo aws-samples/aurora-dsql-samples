@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"example/internal/util"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -63,10 +65,12 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
-	// Example cluster identifier
-	// Need to make sure that cluster does not have delete protection enabled
-	identifier := "<CLUSTER_ID>"
-	region := "us-east-1"
+	identifier := os.Getenv("CLUSTER_ID")
+	if identifier == "" {
+		log.Fatal("CLUSTER_ID environment variable is not set")
+	}
+
+	region := util.GetEnvWithDefault("REGION_1", "us-east-1")
 
 	err := DeleteSingleRegion(ctx, identifier, region)
 	if err != nil {

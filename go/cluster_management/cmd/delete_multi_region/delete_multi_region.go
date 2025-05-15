@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"example/internal/util"
 	"fmt"
 	"log"
 	"time"
@@ -87,12 +88,17 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
+	region1 := util.GetEnvWithDefault("REGION_1", "us-east-1")
+	region2 := util.GetEnvWithDefault("REGION_2", "us-east-2")
+	clusterId1 := util.GetEnvWithDefault("CLUSTER_ID_1", "CLUSTER_ID_1")
+	clusterId2 := util.GetEnvWithDefault("CLUSTER_ID_2", "CLUSTER_ID_2")
+
 	err := DeleteMultiRegionClusters(
 		ctx,
-		"us-east-1",                  // region1
-		"<CLUSTER_ID_1>", // clusterId1
-		"us-east-2",                  // region2
-		"<CLUSTER_ID_2>", // clusterId2
+		region1,
+		clusterId1,
+		region2,
+		clusterId2,
 	)
 	if err != nil {
 		log.Fatalf("Failed to delete multi-region clusters: %v", err)

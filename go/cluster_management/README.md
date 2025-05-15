@@ -22,8 +22,18 @@ In a terminal run the following commands:
 
 ```sh
 # Use the account credentials dedicated for golang
-go env -w GOPROXY=direct
-go test
+make test
+```
+
+OR
+
+```shell
+go test -v -count=1 ./cmd/create_multi_region
+go test -v -count=1 ./cmd/create_single_region
+go test -v -count=1 ./cmd/get_cluster
+go test -v -count=1 ./cmd/update_cluster
+go test -v -count=1 ./cmd/delete_multi_region
+go test -v -count=1 ./cmd/delete_single_region
 ```
 
 ---

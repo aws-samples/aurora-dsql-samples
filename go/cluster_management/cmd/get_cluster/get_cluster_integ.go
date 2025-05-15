@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"example/internal/util"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"log"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dsql"
@@ -38,9 +40,12 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
-	// Example cluster identifier
-	identifier := "<CLUSTER_ID>"
-	region := "us-east-1"
+	identifier := os.Getenv("CLUSTER_ID")
+	if identifier == "" {
+		log.Fatal("CLUSTER_ID environment variable is not set")
+	}
+
+	region := util.GetEnvWithDefault("REGION_1", "us-east-1")
 
 	_, err := GetCluster(ctx, region, identifier)
 	if err != nil {

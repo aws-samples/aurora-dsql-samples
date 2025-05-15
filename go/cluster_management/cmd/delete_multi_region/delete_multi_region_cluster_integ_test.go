@@ -10,38 +10,29 @@ import (
 	"time"
 )
 
-// Global variables for shared resources
 var (
 	testCtx context.Context
 	cancel  context.CancelFunc
 )
 
 func TestMain(m *testing.M) {
-	// Setup before running tests
 	setup()
-
-	// Run all tests
 	code := m.Run()
-
-	// Cleanup after tests complete
 	teardown()
-
-	// Exit with the test status code
 	os.Exit(code)
 }
 
 func setup() {
-	// Initialize context with timeout for all tests
 	testCtx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
 
-	output, err := util.FindClusterByTag(testCtx, "us-east-1", "Name", "go multi-region cluster")
+	output, err := util.FindClusterWithTagAndRepository(testCtx, "us-east-1", "Name", util.GetUniqueRunTagName("go multi-region cluster"))
 
 	if err != nil || output == nil {
 		fmt.Errorf("Error finding cluster by tag")
 		return
 	}
 
-	output1, err := util.FindClusterByTag(testCtx, "us-east-2", "Name", "go multi-region cluster")
+	output1, err := util.FindClusterWithTagAndRepository(testCtx, "us-east-2", "Name", util.GetUniqueRunTagName("go multi-region cluster"))
 
 	if err != nil || output1 == nil {
 		fmt.Errorf("Error finding cluster by tag")
@@ -49,17 +40,18 @@ func setup() {
 	}
 
 	// Set up any environment variables needed for tests
+	if output == nil || output1 == nil || output.Identifier == nil || output1.Identifier == nil {
+		fmt.Errorf("Error finding cluster by tag")
+		return
+	}
+
 	os.Setenv("REGION", "us-east-1")
 	os.Setenv("CLUSTER1_ID", *output.Identifier)
 	os.Setenv("REGION2", "us-east-2")
 	os.Setenv("CLUSTER2_ID", *output1.Identifier)
-
-	// Add any other initialization code here
-	// For example: database connections, mock services, etc.
 }
 
 func teardown() {
-	// Cancel the context
 	cancel()
 }
 
@@ -82,7 +74,6 @@ func TestDeleteMultiRegionClustersRegion(t *testing.T) {
 			identifier2: os.Getenv("CLUSTER2_ID"),
 			wantErr:     false,
 		},
-		// Add more test cases as needed
 	}
 
 	for _, tt := range tests {

@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"example/internal/util"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -28,7 +30,8 @@ func CreateCluster(ctx context.Context, region string) error {
 	input := dsql.CreateClusterInput{
 		DeletionProtectionEnabled: &deleteProtect,
 		Tags: map[string]string{
-			"Name": "go single region cluster",
+			"Repo": os.Getenv("GITHUB_REPOSITORY"),
+			"Name": util.GetUniqueRunTagName("go single region cluster"),
 		},
 	}
 
@@ -68,7 +71,7 @@ func CreateCluster(ctx context.Context, region string) error {
 // Example usage in main function
 func main() {
 
-	region := "us-east-1"
+	region := util.GetEnvWithDefault("REGION_1", "us-east-1")
 
 	// Set up context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)

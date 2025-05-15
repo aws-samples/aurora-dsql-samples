@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"example/internal/util"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -44,7 +46,8 @@ func CreateMultiRegionClusters(ctx context.Context, witness, region1, region2 st
 			WitnessRegion: aws.String(witness),
 		},
 		Tags: map[string]string{
-			"Name": "go multi-region cluster",
+			"Repo": os.Getenv("GITHUB_REPOSITORY"),
+			"Name": util.GetUniqueRunTagName("go multi-region cluster"),
 		},
 	}
 
@@ -65,7 +68,8 @@ func CreateMultiRegionClusters(ctx context.Context, witness, region1, region2 st
 			Clusters:      cluster2Arns,
 		},
 		Tags: map[string]string{
-			"Name": "go multi-region cluster",
+			"Repo": os.Getenv("GITHUB_REPOSITORY"),
+			"Name": util.GetUniqueRunTagName("go multi-region cluster"),
 		},
 	}
 
@@ -144,7 +148,12 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	err := CreateMultiRegionClusters(ctx, "us-west-2", "us-east-1", "us-east-2")
+	witnessRegion := util.GetEnvWithDefault("WITNESS_REGION", "us-west-2")
+
+	region1 := util.GetEnvWithDefault("REGION_1", "us-east-1")
+	region2 := util.GetEnvWithDefault("REGION_2", "us-east-2")
+
+	err := CreateMultiRegionClusters(ctx, witnessRegion, region1, region2)
 	if err != nil {
 		fmt.Printf("failed to create multi-region clusters: %v", err)
 		panic(err)
