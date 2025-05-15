@@ -5,7 +5,7 @@
 The code examples in this topic show you how to use the AWS Java SDK v2 with DSQL
 to create, update, get, and delete single- and multi-Region clusters.
 
-Each file in the [/example](src/main/java/org/example) directory demonstrates a minimum
+Each file in the [/example](src/main/java/org/example) directory demonstrates a minimal
 working example for each operation. The `example()` method for each operation is invoked
 in [`DsqlClusterManagementTest.java`](src/test/java/org/example/DsqlClusterManagementTest.java).
 
@@ -27,8 +27,7 @@ in [`DsqlClusterManagementTest.java`](src/test/java/org/example/DsqlClusterManag
 
 ### Execute tests to create and delete clusters
 
-See [`DsqlClusterManagementTest.java`](src/test/java/org/example/DsqlClusterManagementTest.java) for configuration
-used in the `setup()` function.
+Optionally configure the regions for cluster creation and run with `mvn test`:
 
 ```sh
 # Optional: Single-Region examples will execute in REGION_1. Defaults to 'us-east-1'.
