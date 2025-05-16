@@ -39,22 +39,22 @@ describe 'perform single-region smoke tests' do
 
     expect {
       puts "Running single region test."
-      # cluster = create_cluster(region_1)
-      # cluster_id = cluster["identifier"]
-      # raise "Cluster identifier should not be null" if cluster_id.nil?
-      #
-      # get_response = get_cluster(region_1, cluster_id)
-      # raise "Get response did not contain ARN" if get_response["arn"].nil?
-      # raise "Deletion protection should be disabled before update." unless get_response["deletion_protection_enabled"]
-      #
-      # update_cluster(region_1, {
-      #   identifier: cluster_id,
-      #   deletion_protection_enabled: false
-      # })
-      # get_response = get_cluster(region_1, cluster_id)
-      # raise "Get response did not contain ARN" if get_response["arn"].nil?
-      # raise "Deletion protection should be disabled after update." if get_response["deletion_protection_enabled"]
-      # delete_cluster(region_1, cluster_id)
+      cluster = create_cluster(region_1)
+      cluster_id = cluster["identifier"]
+      raise "Cluster identifier should not be null" if cluster_id.nil?
+
+      get_response = get_cluster(region_1, cluster_id)
+      raise "Get response did not contain ARN" if get_response["arn"].nil?
+      raise "Deletion protection should be disabled before update." unless get_response["deletion_protection_enabled"]
+
+      update_cluster(region_1, {
+        identifier: cluster_id,
+        deletion_protection_enabled: false
+      })
+      get_response = get_cluster(region_1, cluster_id)
+      raise "Get response did not contain ARN" if get_response["arn"].nil?
+      raise "Deletion protection should be disabled after update." if get_response["deletion_protection_enabled"]
+      delete_cluster(region_1, cluster_id)
 
     }.not_to raise_error
   end
