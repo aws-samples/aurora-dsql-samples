@@ -63,14 +63,23 @@ func NewDSQLClient(ctx context.Context, region string) (*dsql.Client, error) {
 	return dsqlClient, nil
 }
 
-// GenerateDbConnectAdminAuthToken generates an authentication token for database connection
-func GenerateDbConnectAdminAuthToken(ctx context.Context, clusterEndpoint, region string) (string, error) {
+// GenerateDbConnectAuthToken generates an authentication token for database connection
+func GenerateDbConnectAuthToken(ctx context.Context, clusterEndpoint, region, user string) (string, error) {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	token, err := auth.GenerateDBConnectAdminAuthToken(ctx, clusterEndpoint, region, cfg.Credentials)
+	if user == "admin" {
+		token, err := auth.GenerateDBConnectAdminAuthToken(ctx, clusterEndpoint, region, cfg.Credentials)
+		if err != nil {
+			return "", err
+		}
+
+		return token, nil
+	}
+
+	token, err := auth.GenerateDbConnectAuthToken(ctx, clusterEndpoint, region, cfg.Credentials)
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +131,7 @@ func NewPool(ctx context.Context, clusterEndpoint string, region string) (*Pool,
 	}
 
 	// Generate initial token
-	token, err := GenerateDbConnectAdminAuthToken(poolCtx, clusterEndpoint, region)
+	token, err := GenerateDbConnectAuthToken(poolCtx, clusterEndpoint, region, dbConfig.User)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to generate auth token: %v", err)
@@ -205,7 +214,7 @@ func (p *Pool) refreshToken() error {
 	defer p.mu.Unlock()
 
 	// Generate new token
-	token, err := GenerateDbConnectAdminAuthToken(p.ctx, p.clusterEndpoint, p.config.Region)
+	token, err := GenerateDbConnectAuthToken(p.ctx, p.clusterEndpoint, p.config.Region, p.config.User)
 	if err != nil {
 		return fmt.Errorf("failed to refresh auth token: %v", err)
 	}

@@ -40,7 +40,7 @@ func TestGenerateDbConnectAdminAuthToken(t *testing.T) {
 	ctx := context.Background()
 
 	// Test token generation
-	token, err := GenerateDbConnectAdminAuthToken(ctx, clusterEndpoint, region)
+	token, err := GenerateDbConnectAuthToken(ctx, clusterEndpoint, region, "admin")
 	if err != nil {
 		t.Errorf("Error generating auth token: %v\n", err)
 	}
