@@ -39,9 +39,6 @@ ruby --version
 ### Execute tests to create and delete clusters
 
 ```sh
-# MacOS optional: Use rbenv to manage Ruby version
-rbenv install 3.3.5  
-
 # Optional: Single-Region examples will execute in REGION_1. Defaults to 'us-east-1'.
 export REGION_1="us-east-1"
 
