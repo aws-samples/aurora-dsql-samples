@@ -108,9 +108,11 @@ func getEnvInt(key string, defaultValue int) int {
 }
 
 // NewPool creates a new database connection pool with token refresh capability
-func NewPool(ctx context.Context, clusterEndpoint string) (*Pool, error) {
+func NewPool(ctx context.Context) (*Pool, error) {
 	// Create a cancellable context for the pool
 	poolCtx, cancel := context.WithCancel(ctx)
+
+	region := getEnv("REGION", "us-east-1")
 
 	// Create DSQL client
 	client, err := NewDSQLClient(poolCtx, region)
@@ -126,12 +128,12 @@ func NewPool(ctx context.Context, clusterEndpoint string) (*Pool, error) {
 		User:                 getEnv("CLUSTER_USER", "admin"),
 		Password:             "",
 		Database:             getEnv("DB_NAME", "postgres"),
-		Region:               getEnv("REGION", "us-east-1"),
+		Region:               region,
 		TokenRefreshInterval: getEnvInt("TOKEN_REFRESH_INTERVAL", 900), // Default to 15 minutes
 	}
 
 	// Generate initial token
-	token, err := GenerateDbConnectAuthToken(poolCtx, clusterEndpoint, dbConfig.Region, dbConfig.User)
+	token, err := GenerateDbConnectAuthToken(poolCtx, dbConfig.Host, dbConfig.Region, dbConfig.User)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to generate auth token: %v", err)
@@ -164,7 +166,7 @@ func NewPool(ctx context.Context, clusterEndpoint string) (*Pool, error) {
 		ctx:             poolCtx,
 		cancelFunc:      cancel,
 		dsqlClient:      client,
-		clusterEndpoint: clusterEndpoint,
+		clusterEndpoint: dbConfig.Host,
 	}
 
 	// Start token refresh goroutine if enabled
@@ -314,7 +316,7 @@ func (p *Pool) DemonstrateConnectionRefresh(ctx context.Context) error {
 
 // GetConnectionPool creates a new connection pool with token refresh capability
 func getConnectionPool(ctx context.Context, clusterEndpoint string, region string) (*pgxpool.Pool, error) {
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -323,11 +325,11 @@ func getConnectionPool(ctx context.Context, clusterEndpoint string, region strin
 	return pool.Pool, nil
 }
 
-func example(clusterEndpoint string, region string) error {
+func example() error {
 	ctx := context.Background()
 
 	// Establish connection pool
-	poolWrapper, err := NewPool(ctx, clusterEndpoint, region)
+	poolWrapper, err := NewPool(ctx)
 	if err != nil {
 		return err
 	}
@@ -372,7 +374,7 @@ func example(clusterEndpoint string, region string) error {
 
 	owners, err = pgx.CollectRows(rows, pgx.RowToStructByName[Owner])
 	fmt.Println(owners)
-	if err != nil || owners.len == 0 || owners[0].Name != "John Doe" || owners[0].City != "Anytown" {
+	if err != nil || len(owners) == 0 || owners[0].Name != "John Doe" || owners[0].City != "Anytown" {
 		panic("Error retrieving data")
 	}
 
@@ -394,7 +396,7 @@ func example(clusterEndpoint string, region string) error {
 
 // Run example
 func main() {
-	err := example(os.Getenv("CLUSTER_ENDPOINT"), os.Getenv("REGION"))
+	err := example()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to run example: %v\n", err)
 		os.Exit(1)

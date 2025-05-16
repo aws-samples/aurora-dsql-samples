@@ -60,7 +60,7 @@ func TestNewPool(t *testing.T) {
 
 	// Create a new pool with token refresh
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -95,7 +95,7 @@ func TestTokenRefresh(t *testing.T) {
 
 	// Create a new pool with token refresh
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -150,7 +150,7 @@ func TestMultipleConnectionsRefresh(t *testing.T) {
 
 	// Create a new pool with token refresh
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -229,7 +229,7 @@ func TestComprehensiveConnectionRefresh(t *testing.T) {
 
 	// Create a new pool with token refresh
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -396,7 +396,7 @@ func TestGetConnectionID(t *testing.T) {
 
 	// Create a new pool
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -426,7 +426,7 @@ func TestDemonstrateConnectionRefresh(t *testing.T) {
 
 	// Create a new pool
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -472,7 +472,7 @@ func TestDatabaseOperations(t *testing.T) {
 
 	// Create a new pool
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -565,7 +565,7 @@ func TestPeriodicTokenRefresh(t *testing.T) {
 
 	// Create a new pool with the short refresh interval
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -612,7 +612,7 @@ func TestConcurrentConnections(t *testing.T) {
 
 	// Create a new pool
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -757,7 +757,7 @@ func TestPoolConfiguration(t *testing.T) {
 
 	// Create a new pool with the custom configuration
 	ctx := context.Background()
-	pool, err := NewPool(ctx, clusterEndpoint, region)
+	pool, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool: %v\n", err)
 		return
@@ -779,7 +779,7 @@ func TestPoolConfiguration(t *testing.T) {
 	os.Unsetenv("TOKEN_REFRESH_INTERVAL")
 
 	// Create another pool with default configuration
-	pool2, err := NewPool(ctx, clusterEndpoint, region)
+	pool2, err := NewPool(ctx)
 	if err != nil {
 		t.Errorf("Error creating pool with default config: %v\n", err)
 		return
