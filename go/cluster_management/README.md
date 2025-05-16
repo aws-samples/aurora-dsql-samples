@@ -38,6 +38,7 @@ make test
 OR
 
 ```shell
+go env -w GOPROXY=direct
 go test -v -count=1 ./cmd/create_multi_region
 go test -v -count=1 ./cmd/create_single_region
 go test -v -count=1 ./cmd/get_cluster
