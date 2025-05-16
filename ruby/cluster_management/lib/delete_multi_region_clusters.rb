@@ -31,10 +31,10 @@ rescue Aws::Errors::ServiceError => e
 end
 
 def main
-  region_1 = ENV.fetch("REGION_1", "us-east-1")
-  cluster_id_1 = ENV.fetch("CLUSTER_ID_1")
-  region_2 = ENV.fetch("REGION_2", "us-east-2")
-  cluster_id_2 = ENV.fetch("CLUSTER_ID_2")
+  region_1 = ENV.fetch("CLUSTER_1_REGION", "us-east-1")
+  cluster_id_1 = ENV.fetch("CLUSTER_1_ID")
+  region_2 = ENV.fetch("CLUSTER_2_REGION", "us-east-2")
+  cluster_id_2 = ENV.fetch("CLUSTER_2_ID")
 
   delete_multi_region_clusters(region_1, cluster_id_1, region_2, cluster_id_2)
   puts "Deleted #{cluster_id_1} in #{region_1} and #{cluster_id_2} in #{region_2}"

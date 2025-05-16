@@ -9,8 +9,8 @@ rescue Aws::Errors::ServiceError => e
 end
 
 def main
-  region = ENV.fetch("REGION_1", "us-east-1")
-  cluster_id = ENV.fetch("CLUSTER_ID_1")
+  region = ENV.fetch("CLUSTER_REGION", "us-east-1")
+  cluster_id = ENV.fetch("CLUSTER_ID")
   cluster = get_cluster(region, cluster_id)
   pp cluster
 end

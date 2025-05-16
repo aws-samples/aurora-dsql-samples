@@ -42,13 +42,14 @@ ruby --version
 # MacOS optional: Use rbenv to manage Ruby version
 rbenv install 3.3.5  
 
-# Optional: Single-Region examples will execute in REGION_1. Defaults to 'us-east-1'.
-export REGION_1="us-east-1"
+# Optional: Single-Region examples will execute in CLUSTER_REGION. Defaults to 'us-east-1'.
+export CLUSTER_REGION="us-east-1"
 
-# Optional: Multi-Region examples will create clusters in REGION_1 and REGION_2
-# with WITNESS_REGION as witness for both. Defaults to 'us-east-2' for REGION_2
-# and 'us-west-2' for WITNESS_REGION.
-export REGION_2="us-east-2"
+# Optional: Multi-Region examples will create clusters in CLUSTER_1_REGION and CLUSTER_2_REGION
+# with WITNESS_REGION as witness for both. Defaults to 'us-east-1' for CLUSTER_1_REGION, 'us-east-2' 
+# for CLUSTER_2_REGION and 'us-west-2' for WITNESS_REGION.
+export CLUSTER_1_REGION="us-east-1"
+export CLUSTER_2_REGION="us-east-2"
 export WITNESS_REGION="us-west-2"
 
 bundle install
@@ -65,7 +66,7 @@ Files in [lib/](lib/) each have a `main()` function that let you exercise single
 
 ```shell
 # Check each operation for its expected environment variables
-REGION_1="us-east-1" CLUSTER_ID_1="<your cluster id>" \
+CLUSTER_REGION="us-east-1" CLUSTER_ID="<your cluster id>" \
   ruby lib/create_single_region_cluster.rb
 ```
 

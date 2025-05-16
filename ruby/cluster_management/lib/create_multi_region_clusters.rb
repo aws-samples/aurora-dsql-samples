@@ -65,8 +65,8 @@ rescue Aws::Errors::ServiceError => e
 end
 
 def main
-  region_1 = ENV.fetch("REGION_1", "us-east-1")
-  region_2 = ENV.fetch("REGION_2", "us-east-2")
+  region_1 = ENV.fetch("CLUSTER_1_REGION", "us-east-1")
+  region_2 = ENV.fetch("CLUSTER_2_REGION", "us-east-2")
   witness_region = ENV.fetch("WITNESS_REGION", "us-west-2")
 
   cluster_1, cluster_2 = create_multi_region_clusters(region_1, region_2, witness_region)
