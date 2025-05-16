@@ -52,10 +52,20 @@ jobs:
 
     - name: Configure and run integration for cluster management
       working-directory: ./java/cluster_management
-      env:
-        IS_CI: "true"
       run: |
         mvn validate
         mvn initialize
         mvn clean compile assembly:single
         mvn test
+
+  cleanup:
+    if: always()
+    needs: test
+    uses: ./.github/workflows/clean-clusters.yml
+    with:
+      aws_region: 'us-east-1'
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.JAVA_IAM_ROLE }}
+    permissions:
+      id-token: write
+      contents: read

@@ -55,8 +55,6 @@ jobs:
 
     - name: Configure and run integration for cluster management
       working-directory: ./python/cluster_management
-      env:
-        IS_CI: "TRUE"
       run: |
         python3 -m venv cm-integ
         source cm-integ/bin/activate
@@ -67,4 +65,15 @@ jobs:
         pip list
         echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
         pytest -v test/
-        
+
+  cleanup:
+    if: always()
+    needs: test
+    uses: ./.github/workflows/clean-clusters.yml
+    with:
+      aws_region: 'us-east-1'
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.PYTHON_IAM_ROLE }}
+    permissions:
+      id-token: write
+      contents: read
