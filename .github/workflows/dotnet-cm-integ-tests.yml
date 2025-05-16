@@ -1,18 +1,16 @@
-name: Dotnet cluster management integration tests 
+name: Dotnet cluster management integration tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
     paths:
       - 'dotnet/cluster_management/**'
       - '.github/workflows/dotnet-cm-integ-tests.yml'
-
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
     paths:
       - 'dotnet/cluster_management/**'
       - '.github/workflows/dotnet-cm-integ-tests.yml'
-
   # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
     inputs:
@@ -22,8 +20,27 @@ on:
         type: string
 
 jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Check formatting
+        working-directory: ./dotnet/cluster_management
+        run: |
+          dotnet format --verify-no-changes
+
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       id-token: write
       contents: read
@@ -33,22 +50,21 @@ jobs:
       pull-requests: write
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '8.0.x'
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.DOTNET_IAM_ROLE }}
-        aws-region: us-east-1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.DOTNET_IAM_ROLE }}
+          aws-region: us-east-1
 
-    - name: Configure and run integration for cluster management
-      working-directory: ./dotnet/cluster_management/ExampleTest.Tests
-      run: |
-        dotnet restore
-        dotnet test
+      - name: Configure and run integration for cluster management
+        working-directory: ./dotnet/cluster_management
+        run: |
+          dotnet test
