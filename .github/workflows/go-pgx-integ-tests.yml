@@ -52,4 +52,4 @@ jobs:
         REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
       run: |
         go env -w GOPROXY=direct
-        go test
+        go test -v
