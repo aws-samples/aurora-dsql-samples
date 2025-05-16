@@ -48,6 +48,8 @@ jobs:
 
     - name: Configure and run integration for cluster management
       working-directory: ./ruby/cluster_management
+      env:
+        IS_CI: "TRUE"
       run: |
         bundle install
         rspec
