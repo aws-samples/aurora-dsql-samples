@@ -21,7 +21,6 @@ Ensure you are authenticated with AWS credentials. No other setup is needed besi
 In a terminal run the following commands:
 
 ```sh
-# Use the account credentials dedicated for golang
 make test
 ```
 
