@@ -1,18 +1,25 @@
 import boto3
+import os
+from datetime import datetime
+import json
 
-def get_cluster(cluster_id, client):
+
+def get_cluster(region, identifier):
     try:
-        return client.get_cluster(identifier=cluster_id)
+        client = boto3.client("dsql", region_name=region)
+        return client.get_cluster(identifier=identifier)
     except:
-        print("Unable to get cluster")
+        print(f"Unable to get cluster {identifier} in region {region}")
         raise
 
+
 def main():
-    region = "us-east-1"
-    client = boto3.client("dsql", region_name=region)
-    cluster_id = "foo0bar1baz2quux3quuux4"
-    response = get_cluster(cluster_id, client)
-    print("Cluster Status: " + response['status'])
+    region = os.environ.get("REGION_1", "us-east-1")
+    cluster_id = os.environ.get("CLUSTER_ID_1")
+    assert cluster_id is not None, "Must provide CLUSTER_ID_1"
+    response = get_cluster(region, cluster_id)
+
+    print(json.dumps(response, indent=2, default=lambda obj: obj.isoformat() if isinstance(obj, datetime) else None))
 
 
 if __name__ == "__main__":

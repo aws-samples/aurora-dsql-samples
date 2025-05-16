@@ -1,18 +1,32 @@
 import boto3
+import os
 
-def delete_cluster(cluster_id, client):
-    try: 
-        return client.delete_cluster(identifier=cluster_id)
+
+def delete_cluster(region, identifier):
+    try:
+        client = boto3.client("dsql", region_name=region)
+        cluster = client.delete_cluster(identifier=identifier)
+        print(f"Initiated delete of {cluster['arn']}")
+
+        print("Waiting for cluster to finish deletion")
+        client.get_waiter("cluster_not_exists").wait(
+            identifier=cluster["identifier"],
+            WaiterConfig={
+                'Delay': 10,
+                'MaxAttempts': 50
+            }
+        )
     except:
-        print("Unable to delete cluster " + cluster_id)
+        print("Unable to delete cluster " + identifier)
         raise
 
+
 def main():
-    region = "us-east-1"
-    client = boto3.client("dsql", region_name=region)
-    cluster_id = "foo0bar1baz2quux3quuux4"
-    response = delete_cluster(cluster_id, client)
-    print("Deleting cluster with ID: " + cluster_id +  ", Cluster Status: " + response['status'])
+    region = os.environ.get("REGION_1", "us-east-1")
+    cluster_id = os.environ.get("CLUSTER_ID_1")
+    assert cluster_id is not None, "Must provide CLUSTER_ID_1"
+    delete_cluster(region, cluster_id)
+    print(f"Deleted {cluster_id}")
 
 
 if __name__ == "__main__":
