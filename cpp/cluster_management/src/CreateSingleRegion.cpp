@@ -47,8 +47,6 @@ CreateClusterResult CreateCluster(const Aws::String& region) {
 #ifdef STANDALONE_MODE
 int main() {
     Aws::String region = "us-east-1";
-    Aws::String clusterId = "";
-
     if (const char* env_var = std::getenv("CLUSTER_REGION")) {
         region = env_var;
     } 
