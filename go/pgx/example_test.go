@@ -22,7 +22,7 @@ func TestExample(t *testing.T) {
 	}
 
 	// Run the example
-	err := example(clusterEndpoint, region)
+	err := example()
 	if err != nil {
 		t.Errorf("Error running example: %v\n", err)
 	}

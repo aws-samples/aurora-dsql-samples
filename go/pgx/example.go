@@ -108,7 +108,7 @@ func getEnvInt(key string, defaultValue int) int {
 }
 
 // NewPool creates a new database connection pool with token refresh capability
-func NewPool(ctx context.Context, clusterEndpoint string, region string) (*Pool, error) {
+func NewPool(ctx context.Context, clusterEndpoint string) (*Pool, error) {
 	// Create a cancellable context for the pool
 	poolCtx, cancel := context.WithCancel(ctx)
 
@@ -121,34 +121,24 @@ func NewPool(ctx context.Context, clusterEndpoint string, region string) (*Pool,
 
 	// Get configuration from environment variables
 	dbConfig := Config{
-		Host:                 clusterEndpoint,
+		Host:                 getEnv("CLUSTER_ENDPOINT", ""),
 		Port:                 getEnv("DB_PORT", "5432"),
 		User:                 getEnv("CLUSTER_USER", "admin"),
 		Password:             "",
 		Database:             getEnv("DB_NAME", "postgres"),
-		Region:               region,
+		Region:               getEnv("REGION", "us-east-1"),
 		TokenRefreshInterval: getEnvInt("TOKEN_REFRESH_INTERVAL", 900), // Default to 15 minutes
 	}
 
 	// Generate initial token
-	token, err := GenerateDbConnectAuthToken(poolCtx, clusterEndpoint, region, dbConfig.User)
+	token, err := GenerateDbConnectAuthToken(poolCtx, clusterEndpoint, dbConfig.Region, dbConfig.User)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to generate auth token: %v", err)
 	}
 
 	// Build connection URL
-	var sb strings.Builder
-	sb.WriteString("postgres://")
-	sb.WriteString(dbConfig.User)
-	sb.WriteString("@")
-	sb.WriteString(dbConfig.Host)
-	sb.WriteString(":")
-	sb.WriteString(dbConfig.Port)
-	sb.WriteString("/")
-	sb.WriteString(dbConfig.Database)
-	sb.WriteString("?sslmode=verify-full")
-	url := sb.String()
+	url := CreateConnectionURL(dbConfig)
 
 	poolConfig, err := pgxpool.ParseConfig(url)
 	if err != nil {
@@ -159,12 +149,7 @@ func NewPool(ctx context.Context, clusterEndpoint string, region string) (*Pool,
 	// To avoid issues with parse config set the password directly in config
 	poolConfig.ConnConfig.Password = token
 
-	// Configure pool settings
-	poolConfig.MaxConns = 10
-	poolConfig.MinConns = 2
-	poolConfig.MaxConnLifetime = 1 * time.Hour
-	poolConfig.MaxConnIdleTime = 30 * time.Minute
-	poolConfig.HealthCheckPeriod = 1 * time.Minute
+	setPoolSettings(poolConfig)
 
 	// Create the connection pool
 	pgxPool, err := pgxpool.NewWithConfig(poolCtx, poolConfig)
@@ -186,6 +171,30 @@ func NewPool(ctx context.Context, clusterEndpoint string, region string) (*Pool,
 	go pool.refreshTokenPeriodically()
 
 	return pool, nil
+}
+
+func setPoolSettings(poolConfig *pgxpool.Config) {
+	// Configure pool settings
+	poolConfig.MaxConns = 10
+	poolConfig.MinConns = 2
+	poolConfig.MaxConnLifetime = 1 * time.Hour
+	poolConfig.MaxConnIdleTime = 30 * time.Minute
+	poolConfig.HealthCheckPeriod = 1 * time.Minute
+}
+
+func CreateConnectionURL(dbConfig Config) string {
+	var sb strings.Builder
+	sb.WriteString("postgres://")
+	sb.WriteString(dbConfig.User)
+	sb.WriteString("@")
+	sb.WriteString(dbConfig.Host)
+	sb.WriteString(":")
+	sb.WriteString(dbConfig.Port)
+	sb.WriteString("/")
+	sb.WriteString(dbConfig.Database)
+	sb.WriteString("?sslmode=verify-full")
+	url := sb.String()
+	return url
 }
 
 // refreshTokenPeriodically refreshes the authentication token at regular intervals
@@ -226,17 +235,7 @@ func (p *Pool) refreshToken() error {
 	p.Pool.Reset()
 
 	// Create a new connection config with the updated token
-	var sb strings.Builder
-	sb.WriteString("postgres://")
-	sb.WriteString(p.config.User)
-	sb.WriteString("@")
-	sb.WriteString(p.config.Host)
-	sb.WriteString(":")
-	sb.WriteString(p.config.Port)
-	sb.WriteString("/")
-	sb.WriteString(p.config.Database)
-	sb.WriteString("?sslmode=verify-full")
-	url := sb.String()
+	url := CreateConnectionURL(p.config)
 
 	poolConfig, err := pgxpool.ParseConfig(url)
 	if err != nil {
@@ -246,12 +245,7 @@ func (p *Pool) refreshToken() error {
 	// Update the password with the new token
 	poolConfig.ConnConfig.Password = token
 
-	// Configure pool settings
-	poolConfig.MaxConns = 10
-	poolConfig.MinConns = 2
-	poolConfig.MaxConnLifetime = 1 * time.Hour
-	poolConfig.MaxConnIdleTime = 30 * time.Minute
-	poolConfig.HealthCheckPeriod = 1 * time.Minute
+	setPoolSettings(poolConfig)
 
 	// Create a new pool with the updated token
 	newPool, err := pgxpool.NewWithConfig(p.ctx, poolConfig)
@@ -378,7 +372,7 @@ func example(clusterEndpoint string, region string) error {
 
 	owners, err = pgx.CollectRows(rows, pgx.RowToStructByName[Owner])
 	fmt.Println(owners)
-	if err != nil || owners[0].Name != "John Doe" || owners[0].City != "Anytown" {
+	if err != nil || owners.len == 0 || owners[0].Name != "John Doe" || owners[0].City != "Anytown" {
 		panic("Error retrieving data")
 	}
 
