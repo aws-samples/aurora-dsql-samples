@@ -33,7 +33,7 @@ export async function createCluster(region) {
 }
 
 async function main() {
-    const region = "us-east-1";
+    const region = process.env.CLUSTER_REGION || "us-east-1";
     const cluster = await createCluster(region);
     console.log(`Created ${cluster}`);
 }

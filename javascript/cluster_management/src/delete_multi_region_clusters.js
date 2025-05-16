@@ -1,18 +1,18 @@
 import { DSQLClient, DeleteClusterCommand, waitUntilClusterNotExists } from "@aws-sdk/client-dsql";
 
-export async function deleteMultiRegionClusters(region1, cluster1_id, region2, cluster2_id) {
+export async function deleteMultiRegionClusters(region1, cluster1Id, region2, cluster2Id) {
 
     const client1 = new DSQLClient({ region: region1 });
     const client2 = new DSQLClient({ region: region2 });
 
     try {
         const deleteClusterCommand1 = new DeleteClusterCommand({
-            identifier: cluster1_id,
+            identifier: cluster1Id,
         });
         const response1 = await client1.send(deleteClusterCommand1);
 
         const deleteClusterCommand2 = new DeleteClusterCommand({
-            identifier: cluster2_id,
+            identifier: cluster2Id,
         });
         const response2 = await client2.send(deleteClusterCommand2);
 
@@ -51,13 +51,18 @@ export async function deleteMultiRegionClusters(region1, cluster1_id, region2, c
 }
 
 async function main() {
-    const region1 = "us-east-1";
-    const cluster1_id = "<CLUSTER_ID_1>";
-    const region2 = "us-east-2";
-    const cluster2_id = "<CLUSTER_ID_2>";
+    const region1 = process.env.CLUSTER_1_REGION || "us-east-1";
+    const cluster1Id = process.env.CLUSTER_1_ID;
+    const region2 = process.env.CLUSTER_2_REGION || "us-east-2";
+    const cluster2Id = process.env.CLUSTER_2_ID;
 
-    const response = await deleteMultiRegionClusters(region1, cluster1_id, region2, cluster2_id);
-    console.log(`Deleted ${cluster1_id} in ${region1} and ${cluster2_id} in ${region2}`);
+    if (!cluster1_id || !cluster2_id) {
+        console.error("Error: CLUSTER_1_ID and CLUSTER_2_ID environment variables must be set");
+        process.exit(1);
+    }
+
+    await deleteMultiRegionClusters(region1, cluster1Id, region2, cluster2Id);
+    console.log(`Deleted ${cluster1Id} in ${region1} and ${cluster2Id} in ${region2}`);
 }
 
 if (process.env.NODE_ENV !== 'test') {

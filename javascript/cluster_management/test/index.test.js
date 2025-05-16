@@ -29,9 +29,9 @@ test('Single region cluster test', async function () {
 
 test('Multi region clusters test', async function () {
 
-    const region1 = 'us-east-1';
-    const region2 = 'us-east-2';
-    const witnessRegion = 'us-west-2';
+    const region1 = process.env.CLUSTER_1_REGION || "us-east-1";
+    const region2 = process.env.CLUSTER_2_REGION || "us-east-2";
+    const witnessRegion = process.env.WITNESS_REGION || "us-west-2";
 
     console.log("Starting multi region clusters lifecycle run");
     const { cluster1Id, cluster2Id } = await createMultiRegionCluster(region1, region2, witnessRegion);

@@ -34,8 +34,13 @@ export async function deleteCluster(region, clusterId) {
 }
 
 async function main() {
-  const region = "us-east-1";
-  const clusterId = "<CLUSTER_ID>";
+  const region = process.env.CLUSTER_REGION || "us-east-1";
+  const clusterId = process.env.CLUSTER_ID;
+
+  if (!clusterId) {
+    console.error("Error: CLUSTER_ID environment variables must be set");
+    process.exit(1);
+  }
 
   await deleteCluster(region, clusterId);
 }

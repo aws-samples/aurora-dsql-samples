@@ -88,9 +88,9 @@ export async function createMultiRegionCluster(region1, region2, witnessRegion) 
 }
 
 async function main() {
-    const region1 = "us-east-1";
-    const region2 = "us-east-2";
-    const witnessRegion = "us-west-2";
+    const region1 = process.env.CLUSTER_1_REGION || "us-east-1";
+    const region2 = process.env.CLUSTER_2_REGION || "us-east-2";
+    const witnessRegion = process.env.WITNESS_REGION || "us-west-2";
 
     await createMultiRegionCluster(region1, region2, witnessRegion);
 }
