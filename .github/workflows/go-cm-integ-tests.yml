@@ -90,3 +90,15 @@ jobs:
       run: |
         go env -w GOPROXY=direct
         go test
+
+  cleanup:
+    if: always()
+    needs: build
+    uses: ./.github/workflows/clean-clusters.yml
+    with:
+      aws_region: 'us-east-1'
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.GO_IAM_ROLE }}
+    permissions:
+      id-token: write
+      contents: read

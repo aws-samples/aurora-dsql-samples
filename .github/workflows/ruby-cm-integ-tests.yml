@@ -48,8 +48,18 @@ jobs:
 
     - name: Configure and run integration for cluster management
       working-directory: ./ruby/cluster_management
-      env:
-        IS_CI: "TRUE"
       run: |
         bundle install
         rspec
+
+  cleanup:
+    if: always()
+    needs: test
+    uses: ./.github/workflows/clean-clusters.yml
+    with:
+      aws_region: 'us-east-1'
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.RUBY_IAM_ROLE }}
+    permissions:
+      id-token: write
+      contents: read

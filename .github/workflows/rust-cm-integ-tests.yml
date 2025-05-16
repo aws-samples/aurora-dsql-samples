@@ -65,3 +65,15 @@ jobs:
         working-directory: ./rust/cluster_management
         run: |
           cargo test -- --nocapture
+
+  cleanup:
+    if: always()
+    needs: test
+    uses: ./.github/workflows/clean-clusters.yml
+    with:
+      aws_region: 'us-east-1'
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.RUST_IAM_ROLE }}
+    permissions:
+      id-token: write
+      contents: read

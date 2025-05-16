@@ -14,15 +14,6 @@ region_2 = os.environ.get("REGION_2", "us-east-2")
 witness_region = os.environ.get("WITNESS_REGION", "us-west-2")
 
 
-@pytest.fixture(scope='session', autouse=True)
-def run_after_tests():
-    yield
-    if os.environ.get('IS_CI') == "TRUE":
-        print(f"This is a CI run. Scanning for leaked clusters.")
-        delete_tests_clusters(region_1)
-        delete_tests_clusters(region_2)
-
-
 def test_single_region():
     try:
         print("Running single region test.")
@@ -63,57 +54,3 @@ def test_multi_region():
 
     except Exception as e:
         pytest.fail(f"Unexpected exception: {e}")
-
-
-def delete_tests_clusters(region):
-    """
-    Delete all clusters that are:
-        1. Not already deleting; and,
-        2. Tagged with 'Repo=aws-samples/aurora-dsql-samples'; and,
-        3. Tagged with 'Name=Python-CM-Example-*'
-    """
-    print(f"Deleting clusters associated with Python cluster management tests in {region}.")
-    client = boto3.client("dsql", region_name=region)
-
-    clusters_to_delete = []
-
-    # Get all clusters
-    paginator = client.get_paginator('list_clusters')
-
-    for page in paginator.paginate():
-        for listed_cluster in page['clusters']:
-            # Get detailed cluster info
-            cluster = client.get_cluster(identifier=listed_cluster['identifier'])
-
-            # Skip clusters that are already being deleted or are deleted
-            if cluster['status'] in ['DELETED', 'DELETING']:
-                continue
-
-            # Check tags to identify test clusters
-            try:
-                tags = cluster["tags"]
-
-                is_test_cluster = (
-                        tags.get('Repo', '') == 'aws-samples/aurora-dsql-samples' and
-                        tags.get('Name', '').startswith('Python-CM-Example-')
-                )
-
-                if is_test_cluster:
-                    clusters_to_delete.append(cluster)
-            except Exception as e:
-                print(f"Error checking tags for cluster {cluster['identifier']}: {e}")
-
-    print(f"Found {len(clusters_to_delete)} clusters to delete.")
-    for cluster in clusters_to_delete:
-        # Disable deletion protection if enabled
-        if cluster.get('deletionProtectionEnabled', False):
-            print(f"Disabling deletion protection on {cluster['arn']}")
-            client.update_cluster(
-                identifier=cluster['identifier'],
-                deletionProtectionEnabled=False
-            )
-
-        # Delete the cluster
-        print(f"Deleting {cluster}")
-        client.delete_cluster(identifier=cluster['identifier'])
-        print(f"Deleted {cluster['arn']}")

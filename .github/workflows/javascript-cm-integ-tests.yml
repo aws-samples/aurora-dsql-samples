@@ -52,3 +52,15 @@ jobs:
         run: |
           npm install
           npm test
+
+  cleanup:
+    if: always()
+    needs: test
+    uses: ./.github/workflows/clean-clusters.yml
+    with:
+      aws_region: 'us-east-1'
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+    permissions:
+      id-token: write
+      contents: read

@@ -68,3 +68,15 @@ jobs:
         working-directory: ./dotnet/cluster_management
         run: |
           dotnet test
+
+  cleanup:
+    if: always()
+    needs: test
+    uses: ./.github/workflows/clean-clusters.yml
+    with:
+      aws_region: 'us-east-1'
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.DOTNET_IAM_ROLE }}
+    permissions:
+      id-token: write
+      contents: read

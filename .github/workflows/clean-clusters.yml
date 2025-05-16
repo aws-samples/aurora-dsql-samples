@@ -1,0 +1,45 @@
+name: Clean up Aurora DSQL Clusters
+
+on:
+  workflow_call:
+    inputs:
+      aws_region:
+        required: false
+        type: string
+        default: 'us-east-1'
+        description: 'Default AWS region for credentials, does not limit access to other regions'
+    secrets:
+      AWS_IAM_ROLE:
+        required: true
+        description: 'AWS IAM role to assume for cluster cleanup'
+
+jobs:
+  cleanup:
+    name: Clean up Aurora DSQL Clusters
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update AWS CLI to latest version
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install --update
+          aws --version
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Run cluster cleanup script
+        env:
+          IS_CI: "true"
+        run: .github/scripts/clean-clusters.sh

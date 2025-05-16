@@ -42,21 +42,8 @@ public class DsqlClusterManagementTest {
 
     @AfterAll
     static void teardown() {
-        try {
-            if (System.getenv().containsKey("IS_CI")) {
-                logger.info("This is a CI run. Scanning for leaked clusters");
-                logger.info("Deleting test clusters in " + region1);
-                deleteTestsClusters(client1);
-
-                logger.info("Deleting test clusters in " + region2);
-                deleteTestsClusters(client2);
-            } else {
-                logger.info("This is not a CI run. Skipping leaked cluster cleanup");
-            }
-        } finally {
-            client1.close();
-            client2.close();
-        }
+        client1.close();
+        client2.close();
     }
 
     @Test
@@ -92,42 +79,6 @@ public class DsqlClusterManagementTest {
         logger.info("Deleting clusters");
         DeleteMultiRegionClusters.example(client1, cluster1.identifier(), client2, cluster2.identifier());
         logger.info("Finished multi region cluster lifecycle run");
-    }
-
-    /**
-     * Delete all clusters that are:
-     * <ol>
-     *     <li>Not already deleting; and,</li>
-     *     <li>Tagged with 'Repo=aws-samples/aurora-dsql-samples'; and,</li>
-     *     <li>Tagged with 'Name=java *'</li>
-     * </ol>
-     */
-    static void deleteTestsClusters(DsqlClient client) {
-        List<GetClusterResponse> clustersToDelete = client
-                .listClustersPaginator(SdkBuilder::build)
-                .clusters()
-                .stream()
-                .map(summary -> client.getCluster(r -> r.identifier(summary.identifier())))
-                .filter(c -> !Set.of(ClusterStatus.DELETED, ClusterStatus.DELETING).contains(c.status()))
-                .filter(GetClusterResponse::hasTags)
-                .filter(c -> {
-                    var tags = c.tags();
-                    boolean isTestCluster = tags.getOrDefault("Repo", "").equals("aws-samples/aurora-dsql-samples") &&
-                            tags.getOrDefault("Name", "").startsWith("java ");
-                    return isTestCluster;
-                })
-                .toList();
-
-        logger.info(String.format("Found %d clusters to delete", clustersToDelete.size()));
-        for (GetClusterResponse cluster : clustersToDelete) {
-            if (cluster.deletionProtectionEnabled()) {
-                logger.info("Disabling deletion protection on " + cluster.arn());
-                client.updateCluster(r -> r.identifier(cluster.identifier()).deletionProtectionEnabled(false));
-            }
-            logger.info("Deleting " + cluster);
-            client.deleteCluster(r -> r.identifier(cluster.identifier()));
-            logger.info("Deleted " + cluster.arn());
-        }
     }
 
     static DsqlClient createClient(Region region) {
