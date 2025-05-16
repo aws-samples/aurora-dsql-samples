@@ -34,10 +34,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
    
-    - name: Set up Ruby 2.5
+    - name: Set up Ruby 3.3
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: '2.5'
+        ruby-version: '3.3'
         bundler-cache: true
 
     - name: Configure AWS Credentials
@@ -48,6 +48,8 @@ jobs:
 
     - name: Configure and run integration for cluster management
       working-directory: ./ruby/cluster_management
+      env:
+        IS_CI: "TRUE"
       run: |
         bundle install
         rspec
