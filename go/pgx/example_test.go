@@ -38,14 +38,9 @@ func TestGenerateDbConnectAdminAuthToken(t *testing.T) {
 
 	// Create context and DSQL client
 	ctx := context.Background()
-	dsqlClient, err := NewDSQLClient(ctx, region)
-	if err != nil {
-		t.Errorf("Error creating DSQL client: %v\n", err)
-		return
-	}
 
 	// Test token generation
-	token, err := GenerateDbConnectAdminAuthToken(ctx, dsqlClient, clusterEndpoint, region)
+	token, err := GenerateDbConnectAdminAuthToken(ctx, clusterEndpoint, region)
 	if err != nil {
 		t.Errorf("Error generating auth token: %v\n", err)
 	}
@@ -81,7 +76,6 @@ func TestNewPool(t *testing.T) {
 
 // getConnectionID gets a unique identifier for a connection without using pg_backend_pid
 func getConnectionID(ctx context.Context, pool *pgxpool.Pool) (string, error) {
-	// Retrieve the session variable to confirm it was set
 	var connID string
 	err := pool.QueryRow(ctx, "select sys.current_session_id();").Scan(&connID)
 	if err != nil {
@@ -147,7 +141,6 @@ func TestTokenRefresh(t *testing.T) {
 }
 
 func TestMultipleConnectionsRefresh(t *testing.T) {
-	// Skip test if environment variables are not set
 	clusterEndpoint := os.Getenv("CLUSTER_ENDPOINT")
 	region := os.Getenv("REGION")
 
@@ -227,7 +220,6 @@ func TestMultipleConnectionsRefresh(t *testing.T) {
 }
 
 func TestComprehensiveConnectionRefresh(t *testing.T) {
-	// Skip test if environment variables are not set
 	clusterEndpoint := os.Getenv("CLUSTER_ENDPOINT")
 	region := os.Getenv("REGION")
 
@@ -346,7 +338,6 @@ func TestComprehensiveConnectionRefresh(t *testing.T) {
 
 // TestGetEnv tests the getEnv utility function
 func TestGetEnv(t *testing.T) {
-	// Save original environment variable if it exists
 	originalValue, originalExists := os.LookupEnv("TEST_ENV_VAR")
 
 	// Test with environment variable set
@@ -369,7 +360,6 @@ func TestGetEnv(t *testing.T) {
 
 // TestGetEnvInt tests the getEnvInt utility function
 func TestGetEnvInt(t *testing.T) {
-	// Save original environment variable if it exists
 	originalValue, originalExists := os.LookupEnv("TEST_ENV_INT")
 
 	// Test with valid integer environment variable
@@ -720,7 +710,6 @@ func TestConcurrentConnections(t *testing.T) {
 
 // TestPoolConfiguration tests that the connection pool is configured with the expected parameters
 func TestPoolConfiguration(t *testing.T) {
-	// Save original environment variables
 	origClusterUser := os.Getenv("CLUSTER_USER")
 	origDbPort := os.Getenv("DB_PORT")
 	origDbName := os.Getenv("DB_NAME")
