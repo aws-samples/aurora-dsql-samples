@@ -44,9 +44,49 @@ jobs:
       with:
         role-to-assume: ${{ secrets.GO_IAM_ROLE }}
         aws-region: us-east-1
+        
+    - name: echo-default-env-variables
+      run: |
+          echo "Home: ${HOME}"
+          echo "GITHUB_WORKFLOW: ${GITHUB_WORKFLOW}"
+          echo "GITHUB_ACTIONS: ${GITHUB_ACTIONS}"
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
+          echo "GITHUB_RUN_ID: ${GITHUB_RUN_ID}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_RUN_NUMBER: ${GITHUB_RUN_NUMBER}"
 
-    - name: Build & Run
-      working-directory: ./go/cluster_management
+
+    - name: Build & Run Create Multi region
+      working-directory: ./go/cluster_management/cmd/create_multi_region
+      run: |
+        go env -w GOPROXY=direct
+        go test
+    - name: Build & Run Create Single region
+      working-directory: ./go/cluster_management/cmd/create_single_region
+      run: |
+        go env -w GOPROXY=direct
+        go test
+    - name: Build & Run Get Cluster
+      working-directory: ./go/cluster_management/cmd/get_cluster
+      run: |
+        go env -w GOPROXY=direct
+        go test
+    - name: Build & Run Update Cluster
+      working-directory: ./go/cluster_management/cmd/update_cluster
+      run: |
+        go env -w GOPROXY=direct
+        go test
+    - name: Build & Run Delete Single region
+      working-directory: ./go/cluster_management/cmd/delete_single_region
+      run: |
+        go env -w GOPROXY=direct
+        go test
+    - name: Build & Run Delete Multi region
+      working-directory: ./go/cluster_management/cmd/delete_multi_region
       run: |
         go env -w GOPROXY=direct
         go test
