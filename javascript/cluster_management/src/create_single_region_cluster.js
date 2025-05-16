@@ -8,7 +8,8 @@ export async function createCluster(region) {
         const createClusterCommand = new CreateClusterCommand({
             deletionProtectionEnabled: true,
             tags: {
-                Name: "javascript single region cluster"
+                Name: "javascript single region cluster",
+                Repo: "aws-samples/aurora-dsql-samples"
             },
         });
         const response = await client.send(createClusterCommand);

@@ -20,9 +20,8 @@ export async function updateCluster(region, clusterId, deletionProtectionEnabled
 async function main() {
   const region = "us-east-1";
   const clusterId = "<CLUSTER_ID>";
-  const deletionProtectionEnabled = false;
 
-  const response = await updateCluster(region, clusterId, deletionProtectionEnabled);
+  const response = await updateCluster(region, clusterId, false);
   console.log(`Updated ${response.arn}`);
 }
 

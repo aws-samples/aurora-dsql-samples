@@ -1,8 +1,5 @@
 import { DSQLClient, GetClusterCommand } from "@aws-sdk/client-dsql";
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
 export async function getCluster(region, clusterId) {
 
   const client = new DSQLClient({ region });

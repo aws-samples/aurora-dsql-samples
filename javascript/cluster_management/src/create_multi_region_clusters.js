@@ -11,7 +11,8 @@ export async function createMultiRegionCluster(region1, region2, witnessRegion) 
         const createClusterCommand1 = new CreateClusterCommand({
             deletionProtectionEnabled: true,
             tags: {
-                Name: "javascript multi region cluster 1"
+                Name: "javascript multi region cluster 1",
+                Repo: "aws-samples/aurora-dsql-samples"
             },
             multiRegionProperties: {
                 witnessRegion: witnessRegion
@@ -26,7 +27,8 @@ export async function createMultiRegionCluster(region1, region2, witnessRegion) 
         const createClusterCommand2 = new CreateClusterCommand({
             deletionProtectionEnabled: true,
             tags: {
-                Name: "javascript multi region cluster 2"
+                Name: "javascript multi region cluster 2",
+                Repo: "aws-samples/aurora-dsql-samples"
             },
             multiRegionProperties: {
                 witnessRegion: witnessRegion,
