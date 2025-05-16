@@ -1,23 +1,23 @@
-name: Javascript cluster management integration tests 
+name: Javascript cluster management integration tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
-      - 'javascript/cluster_management/**'
-      - '.github/workflows/javascript-cm-integ-tests.yml'
+      - "javascript/cluster_management/**"
+      - ".github/workflows/javascript-cm-integ-tests.yml"
 
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
-      - 'javascript/cluster_management/**'
-      - '.github/workflows/javascript-cm-integ-tests.yml'
+      - "javascript/cluster_management/**"
+      - ".github/workflows/javascript-cm-integ-tests.yml"
 
   # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
     inputs:
       tags:
-        description: 'Manual Workflow Run'
+        description: "Manual Workflow Run"
         required: false
         type: string
 
@@ -33,23 +33,22 @@ jobs:
       pull-requests: write
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18.x'
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
-        aws-region: us-east-1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+          aws-region: us-east-1
 
-    - name: Configure and run integration for cluster management
-      working-directory: ./javascript/cluster_management
-      run: |
-        npm install
-        npm test
-        
+      - name: Configure and run integration for cluster management
+        working-directory: ./javascript/cluster_management
+        run: |
+          npm install
+          npm test
