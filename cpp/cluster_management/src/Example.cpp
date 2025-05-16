@@ -15,22 +15,48 @@ using namespace Aws;
 using namespace Aws::DSQL;
 using namespace Aws::DSQL::Model;
 
-int testSingleRegion() {
+ClusterStatus WaitForStatus(const Aws::String& region, const Aws::String& clusterId, const ClusterStatus waitStatus, int timeout) {
+    std::cout << "Watiting for cluster: " << clusterId << " to reach status: "  << ClusterStatusMapper::GetNameForClusterStatus(waitStatus) << std::endl;
+    int interval = 15;  // seconds
+    int approximateTimeElapsed = 0;
+    ClusterStatus retStatus = ClusterStatus::NOT_SET;
+    
+    try {
+        while (approximateTimeElapsed < timeout) {
+            auto clusterInfo = GetCluster(region, clusterId);
+            retStatus = clusterInfo.GetStatus();
+            std::cout << "Cluster status while waiting is: " << ClusterStatusMapper::GetNameForClusterStatus(retStatus) << std::endl;
+            if (retStatus == waitStatus)
+            {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(interval));
+            approximateTimeElapsed += interval;
+        }
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Error while waiting for status: " << e.what() << std::endl;
+        retStatus = ClusterStatus::NOT_SET;
+    }
+
+    return retStatus;
+}
+
+int TestSingleRegion() {
     std::cout << "Starting single region cluster lifecycle run" << std::endl; 
-    const int wait_for_cluster_seconds = 30; // Just an approximate arbitrarily chosen time
-    const int wait_for_cluster_update_seconds = 5; // Just an approximate arbitrarily chosen time
+    const int wait_for_cluster_seconds = 240; // Just an approximate arbitrarily chosen time
     
     Aws::String region = "us-east-1";
     if (const char* env_var = std::getenv("CLUSTER_1_REGION")) {
         region = env_var;
-        std::cout << "Region from environment: " <<  region << std::endl;
     } 
 
     auto cluster = CreateCluster(region);
     std::cout << "Created single region cluster: " <<  cluster.GetArn() << std::endl;
     auto clusterId = cluster.GetIdentifier();
-
-    std::this_thread::sleep_for(std::chrono::seconds(wait_for_cluster_seconds));
+    auto status = WaitForStatus(region, clusterId, ClusterStatus::ACTIVE, wait_for_cluster_seconds);
+    if (status != ClusterStatus::ACTIVE && status != ClusterStatus::CREATING) {
+        throw std::runtime_error("Cluster "  + clusterId + " did not reach ACTIVE or CREATING status within the expected time.");
+    }
 
     std::cout << "Disabling deletion protection" << std::endl;
 
@@ -42,21 +68,22 @@ int testSingleRegion() {
 
     auto retrievedCluster = GetCluster(region, clusterId);
     std::cout << "Cluster after update: "  << ClusterStatusMapper::GetNameForClusterStatus(retrievedCluster.GetStatus()) << std::endl;
-  
-    std::this_thread::sleep_for(std::chrono::seconds(wait_for_cluster_update_seconds));
 
     std::cout << "Deleting " <<  cluster.GetArn() << std::endl;
     DeleteCluster(region, clusterId);
+    if(WaitForStatus(region, clusterId, ClusterStatus::DELETING, wait_for_cluster_seconds) != ClusterStatus::DELETING)
+    {
+        throw std::runtime_error("Cluster "  + clusterId + " did not reach DELETING status within the expected time.");
+    }
     std::cout << "Finished single region cluster lifecycle run" << std::endl; 
 
     return 0;
 }
 
-int testMultiRegion() {
+int TestMultiRegion() {
     std::cout << "Starting multi region cluster lifecycle run" << std::endl; 
 
-    const int wait_for_cluster_seconds = 30; // Just an approximate arbitrarily chosen time
-    const int wait_for_cluster_update_seconds = 5; // Just an approximate arbitrarily chosen time
+    const int wait_for_cluster_seconds = 240; // Just an approximate arbitrarily chosen time
 
     // Define regions for the multi-region setup
     Aws::String region1 = "us-east-1";
@@ -85,7 +112,15 @@ int testMultiRegion() {
     auto cluster1Id = cluster1.GetIdentifier();
     auto cluster2Id = cluster2.GetIdentifier();
 
-    std::this_thread::sleep_for(std::chrono::seconds(wait_for_cluster_seconds));
+    auto status = WaitForStatus(region1, cluster1Id, ClusterStatus::ACTIVE, wait_for_cluster_seconds);
+    if (status != ClusterStatus::ACTIVE && status != ClusterStatus::CREATING) {
+        throw std::runtime_error("Cluster "  + cluster1Id + " did not reach ACTIVE or CREATING status within the expected time.");
+    }
+
+    status = WaitForStatus(region2, cluster2Id, ClusterStatus::ACTIVE, wait_for_cluster_seconds);
+    if (status != ClusterStatus::ACTIVE && status != ClusterStatus::CREATING) {
+        throw std::runtime_error("Cluster "  + cluster2Id + " did not reach ACTIVE or CREATING status within the expected time.");
+    }
 
     std::cout << "Disabling deletion protection" << std::endl;
     Aws::Map<Aws::String, Aws::String> updateParams;
@@ -105,10 +140,17 @@ int testMultiRegion() {
     retrievedCluster = GetCluster(region2, cluster2Id);
     std::cout << "Cluster2 after update: " << ClusterStatusMapper::GetNameForClusterStatus(retrievedCluster.GetStatus()) << std::endl;
 
-    std::this_thread::sleep_for(std::chrono::seconds(wait_for_cluster_update_seconds));
-
     std::cout << "Deleting clusters " <<  std::endl;
     DeleteMultiRegionClusters(region1, cluster1Id, region2, cluster2Id);
+
+    if(WaitForStatus(region1, cluster1Id, ClusterStatus::DELETING, wait_for_cluster_seconds) != ClusterStatus::DELETING)
+    {
+        throw std::runtime_error("Cluster "  + cluster1Id + " did not reach DELETING status within the expected time.");
+    }
+    if(WaitForStatus(region2, cluster2Id, ClusterStatus::DELETING, wait_for_cluster_seconds) != ClusterStatus::DELETING)
+    {
+        throw std::runtime_error("Cluster "  + cluster2Id + " did not reach DELETING status within the expected time.");
+    }
             
     std::cout << "Deleted " << cluster1Id << " in " << region1 
               << " and " << cluster2Id << " in " << region2 << std::endl;
@@ -124,14 +166,14 @@ int main(int argc, char *argv[]) {
     Aws::InitAPI(options);
 
     try {
-        testSingleRegion();
+        TestSingleRegion();
     } catch (const std::runtime_error& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         testStatus = -1;
     }
 
     try {
-        testMultiRegion();
+        TestMultiRegion();
     } catch (const std::runtime_error& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         testStatus = -1;

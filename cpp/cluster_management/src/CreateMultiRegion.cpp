@@ -114,15 +114,24 @@ std::pair<CreateClusterResult, CreateClusterResult> CreateMultiRegionClusters(
 //#define STANDALONE_MODE
 #ifdef STANDALONE_MODE
 int main() {
+    Aws::String region1 = "us-east-1";
+    Aws::String region2 = "us-east-2";
+    Aws::String witnessRegion = "us-west-2";
+
+    if (const char* env_var = std::getenv("CLUSTER_1_REGION")) {
+        region1 = env_var;
+    } 
+    if (const char* env_var = std::getenv("CLUSTER_2_REGION")) {
+        region2 = env_var;
+    } 
+    if (const char* env_var = std::getenv("WITNESS_REGION")) {
+        witnessRegion = env_var;
+    }
+
     Aws::SDKOptions options;
     Aws::InitAPI(options);
     {
-        try {
-            // Define regions for the multi-region setup
-            Aws::String region1 = "us-east-1";
-            Aws::String region2 = "us-east-2";
-            Aws::String witnessRegion = "us-west-2";
-            
+        try {           
             auto [cluster1, cluster2] = CreateMultiRegionClusters(region1, region2, witnessRegion);
             
             std::cout << "Created multi region clusters:" << std::endl;

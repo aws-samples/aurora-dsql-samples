@@ -46,13 +46,16 @@ CreateClusterResult CreateCluster(const Aws::String& region) {
 //#define STANDALONE_MODE
 #ifdef STANDALONE_MODE
 int main() {
+    Aws::String region = "us-east-1";
+    Aws::String clusterId = "";
+
+    if (const char* env_var = std::getenv("CLUSTER_REGION")) {
+        region = env_var;
+    } 
     Aws::SDKOptions options;
     Aws::InitAPI(options);
     {
         try {
-            // Define region for the single-region setup
-            Aws::String region = "us-east-1";
-            
             auto cluster = CreateCluster(region);
             
             std::cout << "Created single region cluster:" << std::endl;

@@ -38,14 +38,23 @@ void DeleteCluster(const Aws::String& region, const Aws::String& identifier) {
 //#define STANDALONE_MODE
 #ifdef STANDALONE_MODE
 int main() {
+    Aws::String region = "us-east-1";
+    Aws::String clusterId = "";
+
+    if (const char* env_var = std::getenv("CLUSTER_REGION")) {
+        region = env_var;
+    } 
+    if (const char* env_var = std::getenv("CLUSTER_ID")) {
+        clusterId = env_var;
+    } else {
+        std::cout << "Please set the CLUSTER_ID environment variable" << std::endl;
+        return -1;
+    }
+
     Aws::SDKOptions options;
     Aws::InitAPI(options);
     {
-        try {
-            // Define region and cluster ID
-            Aws::String region = "us-east-1";
-            Aws::String clusterId = "<your cluster id>";
-            
+        try {            
             DeleteCluster(region, clusterId);
             
             std::cout << "Deleted " << clusterId << std::endl;

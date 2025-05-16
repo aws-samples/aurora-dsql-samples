@@ -6,7 +6,7 @@ The code examples in this topic show you how to use the AWS CPP SDK with DSQL
 to create, read, update, and delete single- and multi-Region clusters.
 
 Each *.cpp file in the src directory demonstrates a minimum working example for each operation. Each of the files can be independently compiled to produce an independent program that can be executed.
-The Example.cpp invokes each individual operation to crate full examples of single- and multi-Region cluster lifecycles.
+The Example.cpp invokes each individual operation to create full examples of single- and multi-Region cluster lifecycles.
 
 ## Run the examples
 
@@ -160,17 +160,33 @@ export LD_LIBRARY_PATH="<your_path_to_aws-sdk-install>/lib:$LD_LIBRARY_PATH"
 export DYLD_FALLBACK_LIBRARY_PATH=<your_path_to_aws-sdk-install>/lib:$DYLD_FALLBACK_LIBRARY_PATH
 ```
 
-#### (Optional) Set Region environment variables
+#### Set Region (optional) and cluster environment variables
+
+##### Programs that work with a single region and a single cluster
 
 ```
-# Used in single and multi-region scenario. Defaults to 'us-east-1'
+# Defaults to 'us-east-1'
+export CLUSTER_REGION="<your region>"
+
+# e.g. "foo0bar1baz2quux3quuux4"
+export CLUSTER_ID="<your id>"
+```
+
+##### Programs that work with multi-region clusters
+
+```
+# Defaults to 'us-east-1'
 export CLUSTER_1_REGION="<your region 1>"
 
-# Used multi-region scenario. Defaults to 'us-east-2'
+# Defaults to 'us-east-2'
 export CLUSTER_2_REGION="<your region 2>"
 
-# Used in multi-region scenario. Defaults to 'us-west-2'
+# Defaults to 'us-west-2'
 export WITNESS_REGION="<your witness region>"
+
+# e.g. "foo0bar1baz2quux3quuux4"
+export CLUSTER_1_ID="<your id 1>"
+export CLUSTER_2_ID="<your id 2>"
 ```
 
 #### Run the example program

@@ -59,15 +59,35 @@ void DeleteMultiRegionClusters(
 //#define STANDALONE_MODE
 #ifdef STANDALONE_MODE
 int main() {
+    Aws::String region1 = "us-east-1";
+    Aws::String clusterId1 = "";
+    Aws::String region2 = "us-east-2";
+    Aws::String clusterId2 = "";
+
+    if (const char* env_var = std::getenv("CLUSTER_1_REGION")) {
+        region1 = env_var;
+    } 
+    if (const char* env_var = std::getenv("CLUSTER_2_REGION")) {
+        region2 = env_var;
+    } 
+
+    if (const char* env_var = std::getenv("CLUSTER_1_ID")) {
+        clusterId1 = env_var;
+    } else {
+        std::cout << "Please set the CLUSTER_1_ID environment variable" << std::endl;
+        return -1;
+    }
+    if (const char* env_var = std::getenv("CLUSTER_2_ID")) {
+        clusterId2 = env_var;
+    } else {
+        std::cout << "Please set the CLUSTER_2_ID environment variable" << std::endl;
+        return -1;
+    }
+
     Aws::SDKOptions options;
     Aws::InitAPI(options);
     {
-        try {
-            Aws::String region1 = "us-east-1";
-            Aws::String clusterId1 = "<your cluster id 1>";
-            Aws::String region2 = "us-east-2";
-            Aws::String clusterId2 = "<your cluster id 2>";
-            
+        try {            
             DeleteMultiRegionClusters(region1, clusterId1, region2, clusterId2);
             
             std::cout << "Deleted " << clusterId1 << " in " << region1 
