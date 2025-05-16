@@ -22,9 +22,14 @@ in [`dsql_cluster_management_spec.rb`](spec/dsql_cluster_management_spec.rb).
 
 ### Prerequisites
 
-- Ruby version >= 2.5 is installed.
+- Ruby version >= 3.3 is installed.
+  - **MacOS Optional:** Use rbenv to manage Ruby version
 
 ```bash
+# Optional use rbenv
+rbenv install 3.3.5
+rbenv local 3.3.5
+
 ruby --version
 ```
 
@@ -34,6 +39,9 @@ ruby --version
 ### Execute tests to create and delete clusters
 
 ```sh
+# MacOS optional: Use rbenv to manage Ruby version
+rbenv install 3.3.5  
+
 # Optional: Single-Region examples will execute in REGION_1. Defaults to 'us-east-1'.
 export REGION_1="us-east-1"
 

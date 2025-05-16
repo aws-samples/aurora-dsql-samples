@@ -11,51 +11,47 @@ witness_region = ENV.fetch("WITNESS_REGION", "us-west-2")
 
 describe 'perform multi-region smoke tests' do
   it 'does not raise any exception' do
+    puts "Running multi region test."
+    cluster_1, cluster_2 = create_multi_region_clusters(region_1, region_2, witness_region)
+    cluster_id_1 = cluster_1["identifier"]
+    cluster_id_2 = cluster_2["identifier"]
 
-    expect {
-      puts "Running multi region test."
-      cluster_1, cluster_2 = create_multi_region_clusters(region_1, region_2, witness_region)
-      cluster_id_1 = cluster_1["identifier"]
-      cluster_id_2 = cluster_2["identifier"]
-      raise "Cluster_1 identifier should not be null" if cluster_id_1.nil?
-      raise "Cluster_2 identifier should not be null" if cluster_id_2.nil?
+    expect(cluster_id_1).to_not be_nil
+    expect(cluster_1["status"]).to eq("ACTIVE")
+    expect(cluster_id_2).to_not be_nil
+    expect(cluster_2["status"]).to eq("ACTIVE")
 
-      update_cluster(region_1, {
-        identifier: cluster_id_1,
-        deletion_protection_enabled: false
-      })
-      update_cluster(region_2, {
-        identifier: cluster_id_2,
-        deletion_protection_enabled: false
-      })
+    update_cluster(region_1, {
+      identifier: cluster_id_1,
+      deletion_protection_enabled: false
+    })
+    update_cluster(region_2, {
+      identifier: cluster_id_2,
+      deletion_protection_enabled: false
+    })
 
-      delete_multi_region_clusters(region_1, cluster_id_1, region_2, cluster_id_2)
-    }.not_to raise_error
+    delete_multi_region_clusters(region_1, cluster_id_1, region_2, cluster_id_2)
   end
 end
 
 describe 'perform single-region smoke tests' do
   it 'does not raise any exception' do
+    puts "Running single region test."
+    cluster = create_cluster(region_1)
+    cluster_id = cluster["identifier"]
+    expect(cluster_id).to_not be_nil
+    get_response = get_cluster(region_1, cluster_id)
+    expect(get_response["arn"]).to_not be_nil
+    expect(get_response["deletion_protection_enabled"]).to be true
+    expect(get_response["status"]).to eq("ACTIVE")
 
-    expect {
-      puts "Running single region test."
-      cluster = create_cluster(region_1)
-      cluster_id = cluster["identifier"]
-      raise "Cluster identifier should not be null" if cluster_id.nil?
-
-      get_response = get_cluster(region_1, cluster_id)
-      raise "Get response did not contain ARN" if get_response["arn"].nil?
-      raise "Deletion protection should be disabled before update." unless get_response["deletion_protection_enabled"]
-
-      update_cluster(region_1, {
-        identifier: cluster_id,
-        deletion_protection_enabled: false
-      })
-      get_response = get_cluster(region_1, cluster_id)
-      raise "Get response did not contain ARN" if get_response["arn"].nil?
-      raise "Deletion protection should be disabled after update." if get_response["deletion_protection_enabled"]
-      delete_cluster(region_1, cluster_id)
-
-    }.not_to raise_error
+    update_cluster(region_1, {
+      identifier: cluster_id,
+      deletion_protection_enabled: false
+    })
+    get_response = get_cluster(region_1, cluster_id)
+    expect(get_response["arn"]).to_not be_nil
+    expect(get_response["deletion_protection_enabled"]).to be false
+    delete_cluster(region_1, cluster_id)
   end
 end
