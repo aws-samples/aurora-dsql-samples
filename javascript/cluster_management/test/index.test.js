@@ -1,6 +1,7 @@
 import { createCluster } from "../src/create_single_region_cluster";
 import { updateCluster } from "../src/update_cluster";
 import { deleteCluster } from "../src/delete_single_region_cluster";
+import { getCluster } from "../src/get_cluster";
 import { createMultiRegionCluster } from "../src/create_multi_region_clusters";
 import { deleteMultiRegionClusters } from "../src/delete_multi_region_clusters";
 
@@ -18,7 +19,9 @@ test('Single region cluster test', async function () {
     expect(cluster.identifier).toBeDefined();
 
     console.log("Disabling deletion protection");
-    const updatedCluster = await updateCluster(region, cluster.identifier, false);
+    await updateCluster(region, cluster.identifier, false);
+
+    const updatedCluster = await getCluster(region, cluster.identifier);
     console.log("Cluster after update: " + JSON.stringify(updatedCluster));
 
     console.log("Deleting " + cluster.arn);
@@ -40,11 +43,13 @@ test('Multi region clusters test', async function () {
     expect(cluster2Id).toBeDefined();
 
     console.log(`Disabling deletion protection for cluster 1 ${cluster1Id}`);
-    const updatedCluster1 = await updateCluster(region1, cluster1Id, false);
+    await updateCluster(region1, cluster1Id, false);
+    const updatedCluster1 = await getCluster(region1, cluster1Id);
     console.log("Cluster1 after update: " + JSON.stringify(updatedCluster1));
 
     console.log(`Disabling deletion protection for cluster 2 ${cluster2Id}`);
-    const updatedCluster2 = await updateCluster(region2, cluster2Id, false);
+    await updateCluster(region2, cluster2Id, false);
+    const updatedCluster2 = await getCluster(region2, cluster2Id);
     console.log("Cluster2 after update: " + JSON.stringify(updatedCluster2));
 
     console.log("Deleting multi region clusters");
