@@ -20,10 +20,7 @@ func CreateCluster(ctx context.Context, region string) error {
 	}
 
 	// Create a DSQL client
-	client := dsql.NewFromConfig(cfg, func(o *dsql.Options) {
-		// For internal test only not required for prod.
-		o.Region = region
-	})
+	client := dsql.NewFromConfig(cfg)
 
 	deleteProtect := true
 
