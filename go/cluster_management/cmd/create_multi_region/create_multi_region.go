@@ -22,9 +22,7 @@ func CreateMultiRegionClusters(ctx context.Context, witness, region1, region2 st
 	}
 
 	// Create a DSQL region 1 client
-	client := dsql.NewFromConfig(cfg, func(o *dsql.Options) {
-		o.Region = region1
-	})
+	client := dsql.NewFromConfig(cfg)
 
 	cfg2, err := config.LoadDefaultConfig(ctx, config.WithRegion(region2))
 	if err != nil {
@@ -32,9 +30,7 @@ func CreateMultiRegionClusters(ctx context.Context, witness, region1, region2 st
 	}
 
 	// Create a DSQL region 2 client
-	client2 := dsql.NewFromConfig(cfg2, func(o *dsql.Options) {
-		o.Region = region2
-	})
+	client2 := dsql.NewFromConfig(cfg2)
 
 	// Create cluster
 	deleteProtect := true
