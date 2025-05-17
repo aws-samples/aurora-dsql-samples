@@ -1,5 +1,9 @@
 package org.example;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
@@ -10,15 +14,11 @@ import software.amazon.awssdk.services.dsql.model.CreateClusterResponse;
 import software.amazon.awssdk.services.dsql.model.GetClusterResponse;
 import software.amazon.awssdk.services.dsql.model.UpdateClusterRequest;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-
 public class CreateMultiRegionClusters {
 
     public static void main(String[] args) {
-        Region region1 = Region.of(System.getenv().getOrDefault("REGION_1", "us-east-1"));
-        Region region2 = Region.of(System.getenv().getOrDefault("REGION_2", "us-east-2"));
+        Region region1 = Region.of(System.getenv().getOrDefault("CLUSTER_1_REGION", "us-east-1"));
+        Region region2 = Region.of(System.getenv().getOrDefault("CLUSTER_2_REGION", "us-east-2"));
         Region witnessRegion = Region.of(System.getenv().getOrDefault("WITNESS_REGION", "us-west-2"));
 
         DsqlClientBuilder clientBuilder = DsqlClient.builder()
