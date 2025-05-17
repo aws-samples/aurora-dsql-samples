@@ -55,10 +55,7 @@ func NewDSQLClient(ctx context.Context, region string) (*dsql.Client, error) {
 	}
 
 	// Create a DSQL client using NewFromConfig
-	dsqlClient := dsql.NewFromConfig(cfg, func(o *dsql.Options) {
-		// For internal test only not required for prod.
-		o.Region = region
-	})
+	dsqlClient := dsql.NewFromConfig(cfg)
 
 	return dsqlClient, nil
 }
