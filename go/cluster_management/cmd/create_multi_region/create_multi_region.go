@@ -146,8 +146,8 @@ func main() {
 
 	witnessRegion := util.GetEnvWithDefault("WITNESS_REGION", "us-west-2")
 
-	region1 := util.GetEnvWithDefault("REGION_1", "us-east-1")
-	region2 := util.GetEnvWithDefault("REGION_2", "us-east-2")
+	region1 := util.GetEnvWithDefault("CLUSTER_1_REGION", "us-east-1")
+	region2 := util.GetEnvWithDefault("CLUSTER_2_REGION", "us-east-2")
 
 	err := CreateMultiRegionClusters(ctx, witnessRegion, region1, region2)
 	if err != nil {

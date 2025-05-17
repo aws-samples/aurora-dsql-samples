@@ -88,10 +88,10 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	region1 := util.GetEnvWithDefault("REGION_1", "us-east-1")
-	region2 := util.GetEnvWithDefault("REGION_2", "us-east-2")
-	clusterId1 := util.GetEnvWithDefault("CLUSTER_ID_1", "CLUSTER_ID_1")
-	clusterId2 := util.GetEnvWithDefault("CLUSTER_ID_2", "CLUSTER_ID_2")
+	region1 := util.GetEnvWithDefault("CLUSTER_1_REGION", "us-east-1")
+	region2 := util.GetEnvWithDefault("CLUSTER_2_REGION", "us-east-2")
+	clusterId1 := util.GetEnvWithDefault("CLUSTER_1_ID", "CLUSTER_1_ID")
+	clusterId2 := util.GetEnvWithDefault("CLUSTER_2_ID", "CLUSTER_2_ID")
 
 	err := DeleteMultiRegionClusters(
 		ctx,

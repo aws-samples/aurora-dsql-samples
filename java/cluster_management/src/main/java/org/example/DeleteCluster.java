@@ -1,18 +1,18 @@
 package org.example;
 
+import java.time.Duration;
+import java.util.Optional;
+
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.dsql.DsqlClient;
 import software.amazon.awssdk.services.dsql.model.DeleteClusterResponse;
 
-import java.time.Duration;
-import java.util.Optional;
-
 public class DeleteCluster {
 
     public static void main(String[] args) {
-        Region region = Region.of(System.getenv().getOrDefault("REGION_1", "us-east-1"));
+        Region region = Region.of(System.getenv().getOrDefault("CLUSTER_1_REGION", "us-east-1"));
         String clusterId = Optional.ofNullable(System.getenv("CLUSTER_ID"))
                 .orElseThrow(() -> new IllegalStateException("Expected CLUSTER_ID in environment"));
 
