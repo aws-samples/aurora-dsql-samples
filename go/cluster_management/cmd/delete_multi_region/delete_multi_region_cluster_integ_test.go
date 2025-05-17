@@ -46,9 +46,9 @@ func setup() {
 	}
 
 	os.Setenv("REGION", "us-east-1")
-	os.Setenv("CLUSTER1_ID", *output.Identifier)
+	os.Setenv("CLUSTER_1_ID", *output.Identifier)
 	os.Setenv("REGION2", "us-east-2")
-	os.Setenv("CLUSTER2_ID", *output1.Identifier)
+	os.Setenv("CLUSTER_2_ID", *output1.Identifier)
 }
 
 func teardown() {
@@ -69,9 +69,9 @@ func TestDeleteMultiRegionClustersRegion(t *testing.T) {
 		{
 			name:        "Delete multi-region cluster",
 			region1:     "us-east-1",
-			identifier1: os.Getenv("CLUSTER1_ID"),
+			identifier1: os.Getenv("CLUSTER_1_ID"),
 			region2:     "us-east-2",
-			identifier2: os.Getenv("CLUSTER2_ID"),
+			identifier2: os.Getenv("CLUSTER_2_ID"),
 			wantErr:     false,
 		},
 	}

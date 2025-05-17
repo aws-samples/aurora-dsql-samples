@@ -1,23 +1,23 @@
 package org.example;
 
+import java.time.Duration;
+import java.util.Optional;
+
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.dsql.DsqlClient;
 import software.amazon.awssdk.services.dsql.DsqlClientBuilder;
 
-import java.time.Duration;
-import java.util.Optional;
-
 public class DeleteMultiRegionClusters {
 
     public static void main(String[] args) {
-        Region region1 = Region.of(System.getenv().getOrDefault("REGION_1", "us-east-1"));
-        String clusterId1 = Optional.ofNullable(System.getenv("CLUSTER_ID_1"))
-                .orElseThrow(() -> new IllegalStateException("Expected CLUSTER_ID_1 in environment"));
-        Region region2 = Region.of(System.getenv().getOrDefault("REGION_2", "us-east-1"));
-        String clusterId2 = Optional.ofNullable(System.getenv("CLUSTER_ID_2"))
-                .orElseThrow(() -> new IllegalStateException("Expected CLUSTER_ID_2 in environment"));
+        Region region1 = Region.of(System.getenv().getOrDefault("CLUSTER_1_REGION", "us-east-1"));
+        String clusterId1 = Optional.ofNullable(System.getenv("CLUSTER_1_ID"))
+                .orElseThrow(() -> new IllegalStateException("Expected CLUSTER_1_ID in environment"));
+        Region region2 = Region.of(System.getenv().getOrDefault("CLUSTER_2_REGION", "us-east-1"));
+        String clusterId2 = Optional.ofNullable(System.getenv("CLUSTER_2_ID"))
+                .orElseThrow(() -> new IllegalStateException("Expected CLUSTER_2_ID in environment"));
 
         DsqlClientBuilder clientBuilder = DsqlClient.builder()
                 .credentialsProvider(DefaultCredentialsProvider.create());

@@ -9,8 +9,8 @@ import boto3
 import os
 import pytest
 
-region_1 = os.environ.get("REGION_1", "us-east-1")
-region_2 = os.environ.get("REGION_2", "us-east-2")
+region_1 = os.environ.get("CLUSTER_1_REGION", "us-east-1")
+region_2 = os.environ.get("CLUSTER_2_REGION", "us-east-2")
 witness_region = os.environ.get("WITNESS_REGION", "us-west-2")
 
 
