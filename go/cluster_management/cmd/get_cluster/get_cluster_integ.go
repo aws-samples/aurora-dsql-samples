@@ -46,7 +46,7 @@ func main() {
 		log.Fatal("CLUSTER_ID environment variable is not set")
 	}
 
-	region := util.GetEnvWithDefault("CLUSTER_1_REGION", "us-east-1")
+	region := util.GetEnvWithDefault("CLUSTER_REGION", "us-east-1")
 
 	_, err := GetCluster(ctx, region, identifier)
 	if err != nil {
