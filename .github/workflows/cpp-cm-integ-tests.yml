@@ -78,6 +78,9 @@ jobs:
         WITNESS_REGION: us-west-2
       run: |
         ./example
+    concurrency:
+      # Ensure only 1 job mutates clusters in this account at a time.
+      group: ${{ github.workflow }}
 
   cleanup:
     if: always()
@@ -90,3 +93,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    concurrency:
+      # Ensure only 1 job mutates clusters in this account at a time.
+      group: ${{ github.workflow }}
