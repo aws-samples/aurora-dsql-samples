@@ -45,9 +45,9 @@ func setup() {
 		return
 	}
 
-	os.Setenv("REGION", "us-east-1")
+	os.Setenv("CLUSTER_1_REGION", "us-east-1")
 	os.Setenv("CLUSTER_1_ID", *output.Identifier)
-	os.Setenv("REGION2", "us-east-2")
+	os.Setenv("CLUSTER_2_REGION", "us-east-2")
 	os.Setenv("CLUSTER_2_ID", *output1.Identifier)
 }
 

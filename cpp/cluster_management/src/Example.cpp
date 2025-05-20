@@ -46,7 +46,7 @@ int TestSingleRegion() {
     const int wait_for_cluster_seconds = 240; // Just an approximate arbitrarily chosen time
     
     Aws::String region = "us-east-1";
-    if (const char* env_var = std::getenv("CLUSTER_1_REGION")) {
+    if (const char* env_var = std::getenv("CLUSTER_REGION")) {
         region = env_var;
     } 
 

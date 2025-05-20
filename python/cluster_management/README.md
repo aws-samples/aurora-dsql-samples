@@ -28,12 +28,13 @@ in [`test_dsql_cluster_management.py`](test/test_dsql_cluster_management.py).
 ### Execute tests to create and delete clusters
 
 ```sh
-# Optional: Single-Region examples will execute in CLUSTER_1_REGION. Defaults to 'us-east-1'.
-export CLUSTER_1_REGION="us-east-1"
+# Optional: Single-Region examples will execute in CLUSTER_REGION. Defaults to 'us-east-1'.
+export CLUSTER_REGION="us-east-1"
 
 # Optional: Multi-Region examples will create clusters in CLUSTER_1_REGION and CLUSTER_2_REGION
 # with WITNESS_REGION as witness for both. Defaults to 'us-east-2' for CLUSTER_2_REGION
 # and 'us-west-2' for WITNESS_REGION.
+export CLUSTER_1_REGION="us-east-1"
 export CLUSTER_2_REGION="us-east-2"
 export WITNESS_REGION="us-west-2"
 
@@ -52,7 +53,7 @@ Files in [src/](src/) each have a `main()` function that let you exercise single
 
 ```shell
 # Check each operation for its expected environment variables
-CLUSTER_1_REGION="us-east-1" CLUSTER_1_ID="<your cluster id>" \
+CLUSTER_REGION="us-east-1" CLUSTER_ID="<your cluster id>" \
   python src/get_cluster.py
 ```
 

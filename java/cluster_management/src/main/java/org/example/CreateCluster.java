@@ -14,7 +14,7 @@ import software.amazon.awssdk.services.dsql.model.GetClusterResponse;
 public class CreateCluster {
 
     public static void main(String[] args) {
-        Region region = Region.of(System.getenv().getOrDefault("CLUSTER_1_REGION", "us-east-1"));
+        Region region = Region.of(System.getenv().getOrDefault("CLUSTER_REGION", "us-east-1"));
 
         try (
                 DsqlClient client = DsqlClient.builder()

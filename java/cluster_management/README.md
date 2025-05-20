@@ -30,12 +30,13 @@ in [`DsqlClusterManagementTest.java`](src/test/java/org/example/DsqlClusterManag
 Optionally configure the regions for cluster creation and run with `mvn test`:
 
 ```sh
-# Optional: Single-Region examples will execute in CLUSTER_1_REGION. Defaults to 'us-east-1'.
-export CLUSTER_1_REGION="us-east-1"
+# Optional: Single-Region examples will execute in CLUSTER_REGION. Defaults to 'us-east-1'.
+export CLUSTER_REGION="us-east-1"
 
 # Optional: Multi-Region examples will create clusters in CLUSTER_1_REGION and CLUSTER_2_REGION
 # with WITNESS_REGION as witness for both. Defaults to 'us-east-2' for CLUSTER_2_REGION
 # and 'us-west-2' for WITNESS_REGION.
+export CLUSTER_1_REGION="us-east-1"
 export CLUSTER_2_REGION="us-east-2"
 export WITNESS_REGION="us-west-2"
 
@@ -56,7 +57,7 @@ The build process will produce a single `.jar` that can be invoked as:
 mvn clean compile assembly:single
 
 # Check each operation for its expected environment variables
-CLUSTER_1_REGION="us-east-1" CLUSTER_ID="<your cluster id>" \
+CLUSTER_REGION="us-east-1" CLUSTER_ID="<your cluster id>" \
   java \
   -cp target/AuroraDSQLClusterCrudExample-1.0-SNAPSHOT-jar-with-dependencies.jar \
   org.example.GetCluster
