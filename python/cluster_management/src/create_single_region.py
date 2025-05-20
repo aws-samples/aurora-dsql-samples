@@ -25,7 +25,7 @@ def create_cluster(region):
 
 
 def main():
-    region = os.environ.get("CLUSTER_1_REGION", "us-east-1")
+    region = os.environ.get("CLUSTER_REGION", "us-east-1")
     response = create_cluster(region)
     print(f"Created cluster: {response['arn']}")
 
