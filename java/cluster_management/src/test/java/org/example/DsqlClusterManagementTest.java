@@ -2,7 +2,6 @@ package org.example;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import org.junit.jupiter.api.AfterAll;
@@ -12,9 +11,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dsql.DsqlClient;
-import software.amazon.awssdk.services.dsql.model.ClusterStatus;
 import software.amazon.awssdk.services.dsql.model.GetClusterResponse;
-import software.amazon.awssdk.utils.builder.SdkBuilder;
 
 public class DsqlClusterManagementTest {
 
@@ -53,6 +50,7 @@ public class DsqlClusterManagementTest {
 
     @AfterAll
     static void teardown() {
+        client.close();
         client1.close();
         client2.close();
     }
