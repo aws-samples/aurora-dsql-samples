@@ -34,7 +34,7 @@ func setup() {
 	}
 
 	// Set up any environment variables needed for tests
-	os.Setenv("REGION", "us-east-1")
+	os.Setenv("CLUSTER_REGION", "us-east-1")
 	os.Setenv("CLUSTER_ID", *output.Identifier)
 }
 
@@ -53,7 +53,7 @@ func TestGetCluster(t *testing.T) {
 	}{
 		{
 			name:       "Get cluster retrieval",
-			region:     os.Getenv("REGION"),
+			region:     os.Getenv("CLUSTER_REGION"),
 			identifier: os.Getenv("CLUSTER_ID"),
 			wantErr:    false,
 		},

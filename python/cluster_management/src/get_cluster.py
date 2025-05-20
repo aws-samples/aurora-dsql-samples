@@ -14,9 +14,9 @@ def get_cluster(region, identifier):
 
 
 def main():
-    region = os.environ.get("REGION_1", "us-east-1")
-    cluster_id = os.environ.get("CLUSTER_ID_1")
-    assert cluster_id is not None, "Must provide CLUSTER_ID_1"
+    region = os.environ.get("CLUSTER_REGION", "us-east-1")
+    cluster_id = os.environ.get("CLUSTER_ID")
+    assert cluster_id is not None, "Must provide CLUSTER_ID"
     response = get_cluster(region, cluster_id)
 
     print(json.dumps(response, indent=2, default=lambda obj: obj.isoformat() if isinstance(obj, datetime) else None))

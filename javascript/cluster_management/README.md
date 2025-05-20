@@ -72,7 +72,7 @@ Files in the [/src](src) directory have a main() method that lets you exercise s
 
 ```
 # Check each operation for its expected environment variables
-REGION_1="us-east-1" CLUSTER_ID="<your cluster id>" \
+CLUSTER_REGION="us-east-1" CLUSTER_ID="<your cluster id>" \
 node ./src/get_cluster.js
 ```
 

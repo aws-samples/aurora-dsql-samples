@@ -25,7 +25,7 @@ rescue Aws::Errors::ServiceError => e
 end
 
 def main
-  region = ENV.fetch("CLUSTER_1_REGION", "us-east-1")
+  region = ENV.fetch("CLUSTER_REGION", "us-east-1")
   cluster = create_cluster(region)
   pp cluster
 end

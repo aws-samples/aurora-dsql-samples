@@ -27,7 +27,7 @@ func setup() {
 	// Initialize context with timeout for all tests
 	testCtx, cancel = context.WithTimeout(context.Background(), 10*time.Minute)
 
-	output, err := util.FindClusterWithTagAndRepository(testCtx, util.GetEnvWithDefault("REGION", "us-east-1"),
+	output, err := util.FindClusterWithTagAndRepository(testCtx, util.GetEnvWithDefault("CLUSTER_REGION", "us-east-1"),
 		"Name", util.GetUniqueRunTagName("go single region cluster"))
 
 	if err != nil || output == nil || output.Identifier == nil {
@@ -35,7 +35,7 @@ func setup() {
 		return
 	}
 	// Set up any environment variables needed for test
-	if err := os.Setenv("REGION", util.GetEnvWithDefault("REGION", "us-east-1")); err != nil {
+	if err := os.Setenv("CLUSTER_REGION", util.GetEnvWithDefault("CLUSTER_REGION", "us-east-1")); err != nil {
 		fmt.Errorf("Error setting REGION environment variable")
 		return
 	}
@@ -60,7 +60,7 @@ func TestUpdateCluster(t *testing.T) {
 	}{
 		{
 			name:       "Update cluster to disable delete protection",
-			region:     os.Getenv("REGION"),
+			region:     os.Getenv("CLUSTER_REGION"),
 			identifier: os.Getenv("CLUSTER_ID"),
 			wantErr:    false,
 		},

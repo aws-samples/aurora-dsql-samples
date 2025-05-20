@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"example/internal/util"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"log"
 	"os"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 
 	"github.com/aws/aws-sdk-go-v2/service/dsql"
 )
@@ -45,7 +46,7 @@ func main() {
 		log.Fatal("CLUSTER_ID environment variable is not set")
 	}
 
-	region := util.GetEnvWithDefault("REGION_1", "us-east-1")
+	region := util.GetEnvWithDefault("CLUSTER_REGION", "us-east-1")
 
 	_, err := GetCluster(ctx, region, identifier)
 	if err != nil {

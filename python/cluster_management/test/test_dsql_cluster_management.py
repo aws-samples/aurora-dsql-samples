@@ -9,29 +9,30 @@ import boto3
 import os
 import pytest
 
-region_1 = os.environ.get("REGION_1", "us-east-1")
-region_2 = os.environ.get("REGION_2", "us-east-2")
+region = os.environ.get("CLUSTER_REGION", "us-east-1")
+region_1 = os.environ.get("CLUSTER_1_REGION", "us-east-1")
+region_2 = os.environ.get("CLUSTER_2_REGION", "us-east-2")
 witness_region = os.environ.get("WITNESS_REGION", "us-west-2")
 
 
 def test_single_region():
     try:
         print("Running single region test.")
-        cluster = create_cluster(region_1)
+        cluster = create_cluster(region)
         cluster_id = cluster["identifier"]
         assert cluster_id is not None
 
-        get_response = get_cluster(region_1, cluster_id)
+        get_response = get_cluster(region, cluster_id)
         assert get_response["arn"] is not None
         assert get_response["deletionProtectionEnabled"] is True
 
-        update_cluster(region_1, cluster_id, deletion_protection_enabled=False)
+        update_cluster(region, cluster_id, deletion_protection_enabled=False)
 
-        get_response = get_cluster(region_1, cluster_id)
+        get_response = get_cluster(region, cluster_id)
         assert get_response["arn"] is not None
         assert get_response["deletionProtectionEnabled"] is False
 
-        delete_cluster(region_1, cluster_id)
+        delete_cluster(region, cluster_id)
     except Exception as e:
         pytest.fail(f"Unexpected exception: {e}")
 

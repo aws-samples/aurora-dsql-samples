@@ -58,8 +58,8 @@ def create_multi_region_clusters(region_1, region_2, witness_region):
 
 
 def main():
-    region_1 = os.environ.get("REGION_1", "us-east-1")
-    region_2 = os.environ.get("REGION_2", "us-east-2")
+    region_1 = os.environ.get("CLUSTER_1_REGION", "us-east-1")
+    region_2 = os.environ.get("CLUSTER_2_REGION", "us-east-2")
     witness_region = os.environ.get("WITNESS_REGION", "us-west-2")
     (cluster_1, cluster_2) = create_multi_region_clusters(region_1, region_2, witness_region)
     print("Created multi region clusters:")

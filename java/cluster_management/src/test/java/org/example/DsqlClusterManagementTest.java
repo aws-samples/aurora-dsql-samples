@@ -1,22 +1,27 @@
 package org.example;
 
-import org.junit.jupiter.api.*;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dsql.DsqlClient;
-import software.amazon.awssdk.services.dsql.model.ClusterStatus;
 import software.amazon.awssdk.services.dsql.model.GetClusterResponse;
-import software.amazon.awssdk.utils.builder.SdkBuilder;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.logging.Logger;
 
 public class DsqlClusterManagementTest {
 
     private static final Logger logger = Logger.getLogger(DsqlClusterManagementTest.class.getSimpleName());
 
+    // Single Region Cluster
+    private static Region region;
+    private static DsqlClient client;
+
+    // Multi Region Clusters
     private static Region region1;
     private static Region region2;
     private static Region witnessRegion;
@@ -27,21 +32,25 @@ public class DsqlClusterManagementTest {
     @BeforeAll
     static void setup() {
         Map<String, String> env = System.getenv();
-        region1 = Region.of(env.getOrDefault("REGION_1", "us-east-1"));
-        region2 = Region.of(env.getOrDefault("REGION_2", "us-east-2"));
+        
+        region = Region.of(env.getOrDefault("CLUSTER_REGION", "us-east-1"));
+        region1 = Region.of(env.getOrDefault("CLUSTER_1_REGION", "us-east-1"));
+        region2 = Region.of(env.getOrDefault("CLUSTER_2_REGION", "us-east-2"));
         witnessRegion = Region.of(env.getOrDefault("WITNESS_REGION", "us-west-2"));
 
         logger.info(String.format(
-                "Executing tests with REGION_1=%s REGION_2=%s WITNESS_REGION=%s",
+                "Executing tests with CLUSTER_1_REGION=%s CLUSTER_2_REGION=%s WITNESS_REGION=%s",
                 region1, region2, witnessRegion
                 ));
 
+        client = createClient(region);
         client1 = createClient(region1);
         client2 = createClient(region2);
     }
 
     @AfterAll
     static void teardown() {
+        client.close();
         client1.close();
         client2.close();
     }
@@ -49,17 +58,17 @@ public class DsqlClusterManagementTest {
     @Test
     public void singleRegionClusterLifecycle() {
         logger.info("Starting single region cluster lifecycle run");
-        GetClusterResponse cluster = CreateCluster.example(client1);
+        GetClusterResponse cluster = CreateCluster.example(client);
         logger.info("Created " + cluster);
 
         logger.info("Disabling deletion protection");
-        UpdateCluster.example(client1, cluster.identifier(), false);
+        UpdateCluster.example(client, cluster.identifier(), false);
 
-        GetClusterResponse updatedCluster = GetCluster.example(client1, cluster.identifier());
+        GetClusterResponse updatedCluster = GetCluster.example(client, cluster.identifier());
         logger.info("Cluster after update: " + updatedCluster);
 
         logger.info("Deleting " + cluster.arn());
-        DeleteCluster.example(client1, cluster.identifier());
+        DeleteCluster.example(client, cluster.identifier());
         logger.info("Finished single region cluster lifecycle run");
     }
 

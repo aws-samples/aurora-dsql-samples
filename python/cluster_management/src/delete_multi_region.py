@@ -42,12 +42,12 @@ def delete_multi_region_clusters(region_1, cluster_id_1, region_2, cluster_id_2)
 
 
 def main():
-    region_1 = os.environ.get("REGION_1", "us-east-1")
-    cluster_id_1 = os.environ.get("CLUSTER_ID_1")
-    assert cluster_id_1 is not None, "Must provide CLUSTER_ID_1"
-    region_2 = os.environ.get("REGION_2", "us-east-2")
-    cluster_id_2 = os.environ.get("CLUSTER_ID_2")
-    assert cluster_id_2 is not None, "Must provide CLUSTER_ID_2"
+    region_1 = os.environ.get("CLUSTER_1_REGION", "us-east-1")
+    cluster_id_1 = os.environ.get("CLUSTER_1_ID")
+    assert cluster_id_1 is not None, "Must provide CLUSTER_1_ID"
+    region_2 = os.environ.get("CLUSTER_2_REGION", "us-east-2")
+    cluster_id_2 = os.environ.get("CLUSTER_2_ID")
+    assert cluster_id_2 is not None, "Must provide CLUSTER_2_ID"
 
     delete_multi_region_clusters(region_1, cluster_id_1, region_2, cluster_id_2)
     print(f"Deleted {cluster_id_1} in {region_1} and {cluster_id_2} in {region_2}")

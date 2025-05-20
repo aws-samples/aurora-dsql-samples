@@ -70,7 +70,7 @@ func main() {
 		log.Fatal("CLUSTER_ID environment variable is not set")
 	}
 
-	region := util.GetEnvWithDefault("REGION_1", "us-east-1")
+	region := util.GetEnvWithDefault("CLUSTER_REGION", "us-east-1")
 
 	err := DeleteSingleRegion(ctx, identifier, region)
 	if err != nil {

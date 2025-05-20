@@ -68,7 +68,7 @@ func CreateCluster(ctx context.Context, region string) error {
 // Example usage in main function
 func main() {
 
-	region := util.GetEnvWithDefault("REGION_1", "us-east-1")
+	region := util.GetEnvWithDefault("CLUSTER_REGION", "us-east-1")
 
 	// Set up context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)

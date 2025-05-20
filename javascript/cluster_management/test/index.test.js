@@ -9,7 +9,7 @@ const timeout = 600 * 1000; // 10 minutes in milliseconds
 
 test('Single region cluster test', async function () {
 
-    const region = 'us-east-1';
+    const region = process.env.CLUSTER_REGION || 'us-east-1';
 
     console.log("Starting single region cluster lifecycle run");
     let cluster = await createCluster(region);
