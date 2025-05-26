@@ -8,21 +8,22 @@ To get started with Aurora DSQL, create clusters and more information, please re
 
 The subdirectories contain code examples for connecting and using Aurora DSQL in each programming language and ORM framework. The examples demonstrate the most common uses, such as installing clients, handling authentication, performing CRUD operations, and more. Please refer to the [documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/known-issues.html) for a full list of differences and limitations.
 
-|  Language   |          Client / ORM           |
-| :---------: | :-----------------------------: |
-|     C++     |       [libpq](cpp/libpq)        |
-| C# (dotnet) |     [npgsql](dotnet/npgsql)     |
-|     Go      |          [pgx](go/pgx/)         |
-|    Java     |      [pgjdbc](java/pgjdbc)      |
-| JavaScript  |[node-postgres](javascript/node-postgres/) |
-|   Python    |   [psycopg](python/psycopg/)    |
-|   Python    |  [psycopg2](python/psycopg2/)   |
-|   Python    | [sqlalchemy](python/sqlalchemy) |
-|    Ruby     |       [rails](ruby/rails)       |
-|    Ruby     |     [ruby-pg](ruby/ruby-pg)     |
-|    Rust     |        [sqlx](rust/sqlx)        |
-| Typescript  |[sequelize](typescript/sequelize)|
-| Typescript  | [type-orm](typescript/type-orm) |
+|  Language   |                Client / ORM                |
+| :---------: |:------------------------------------------:|
+|     C++     |             [libpq](cpp/libpq)             |
+| C# (dotnet) |          [npgsql](dotnet/npgsql)           |
+|     Go      |               [pgx](go/pgx/)               |
+|    Java     |           [pgjdbc](java/pgjdbc)            |
+| JavaScript  | [node-postgres](javascript/node-postgres/) |
+| JavaScript  |   [postgres-js](javascript/postgres-js/)   |
+|   Python    |         [psycopg](python/psycopg/)         |
+|   Python    |        [psycopg2](python/psycopg2/)        |
+|   Python    |      [sqlalchemy](python/sqlalchemy)       |
+|    Ruby     |            [rails](ruby/rails)             |
+|    Ruby     |          [ruby-pg](ruby/ruby-pg)           |
+|    Rust     |             [sqlx](rust/sqlx)              |
+| Typescript  |     [sequelize](typescript/sequelize)      |
+| Typescript  |      [type-orm](typescript/type-orm)       |
 
 |  Language   |                 Cluster Management                  |
 | :---------: | :-------------------------------------------------: |
