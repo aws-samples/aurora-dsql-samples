@@ -1,4 +1,4 @@
-# Psycopg2 with Aurora DSQL
+# Aurora DSQL with Psycopg2
 
 ## Overview
 

@@ -1,4 +1,4 @@
-# Npgsql with Aurora DSQL
+# Aurora DSQL with Npgsql
 
 ## Overview
 

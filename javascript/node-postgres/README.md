@@ -1,4 +1,4 @@
-# node-postgres with Aurora DSQL
+# Aurora DSQL with node-postgres
 
 ## Overview
 

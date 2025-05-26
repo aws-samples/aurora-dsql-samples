@@ -1,4 +1,4 @@
-# Rust with Aurora DSQL
+# Aurora DSQL with Rust
 
 ## Overview
 

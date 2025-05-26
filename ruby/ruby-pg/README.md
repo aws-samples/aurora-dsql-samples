@@ -1,4 +1,4 @@
-# Ruby-pg with Aurora DSQL
+# Aurora DSQL with Ruby-pg
 
 ## Overview
 

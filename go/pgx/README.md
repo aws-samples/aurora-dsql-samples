@@ -1,4 +1,4 @@
-# PGX with Aurora DSQL
+# Aurora DSQL with pgx
 
 ## Overview
 

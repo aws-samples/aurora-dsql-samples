@@ -1,4 +1,4 @@
-# Sequelize with Aurora DSQL
+# Aurora DSQL with Sequelize
 
 ## Overview
 
