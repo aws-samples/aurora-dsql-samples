@@ -1,4 +1,5 @@
-# Ruby on Rails with Aurora DSQL
+# Aurora DSQL with Ruby on Rails
+
 This example demonstrates how to use an Aurora DSQL cluster with a Ruby On Rails
 application. Aurora DSQL only supports token-based authentication so we extend the
 [`pg-aws_rds_iam`][rds-plugin-repo] plugin to generate Aurora DSQL auth tokens

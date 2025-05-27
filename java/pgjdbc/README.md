@@ -1,4 +1,4 @@
-# pgJDBC with Aurora DSQL
+# Aurora DSQL with pgJDBC
 
 ## Overview
 

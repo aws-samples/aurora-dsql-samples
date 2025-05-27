@@ -1,4 +1,4 @@
-# Libpq with Aurora DSQL
+# Aurora DSQL with libpq
 
 ## Overview
 

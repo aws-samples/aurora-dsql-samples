@@ -1,4 +1,4 @@
-# Postgres.js with Aurora DSQL
+# Aurora DSQL with Postgres.js
 
 ## Overview
 

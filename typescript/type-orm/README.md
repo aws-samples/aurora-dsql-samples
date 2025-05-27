@@ -1,4 +1,4 @@
-# TypeORM with Aurora DSQL
+# Aurora DSQL with TypeORM
 
 ## Overview
 

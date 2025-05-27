@@ -1,4 +1,4 @@
-# Aurora DSQL CPP SDK code examples
+# Aurora DSQL CPP code examples
 
 ## Overview
 
