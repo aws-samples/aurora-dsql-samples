@@ -33,7 +33,6 @@ const getDataSource = async () => {
       password: token,
       database: "postgres",
       ssl: {
-        ca: fs.readFileSync(path.join(__dirname, "root.pem")),
         rejectUnauthorized: true,
       },
       synchronize: false,

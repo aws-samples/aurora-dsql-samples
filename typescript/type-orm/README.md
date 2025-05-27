@@ -43,15 +43,6 @@ The code automatically detects the user type and adjusts its behavior accordingl
   [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
   guide.
 
-### Download the Amazon root certificate from the official trust store
-
-Download the Amazon root certificate from the official trust store. This example shows one of the available certs that
-can be used by the client. Other certs such as AmazonRootCA2.pem, AmazonRootCA3.pem, etc. can also be used.
-
-```
-wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
-```
-
 ### Set up environment for examples
 
 ```

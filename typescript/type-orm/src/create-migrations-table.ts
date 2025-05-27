@@ -33,7 +33,6 @@ const createMigrationsTable = async () => {
       port: 5432,
       database: "postgres",
       ssl: {
-        ca: fs.readFileSync(path.join(__dirname, "root.pem")),
         rejectUnauthorized: true,
       },
     });
