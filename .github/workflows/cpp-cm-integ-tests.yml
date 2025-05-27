@@ -6,11 +6,13 @@ on:
     paths:
       - 'cpp/cluster_management/**'
       - '.github/workflows/cpp-cm-integ-tests.yml'
+      - '.github/workflows/clean-clusters.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'cpp/cluster_management/**'
       - '.github/workflows/cpp-cm-integ-tests.yml'
+      - '.github/workflows/clean-clusters.yml'
   # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
     inputs:
