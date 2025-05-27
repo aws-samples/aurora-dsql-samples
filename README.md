@@ -1,4 +1,4 @@
-# Aurora DSQL (Distributed SQL) Samples
+# Aurora DSQL Samples
 
 This repository contains code examples that demonstrate how to use the [Aurora DSQL](https://aws.amazon.com/rds/aurora/dsql/).
 
