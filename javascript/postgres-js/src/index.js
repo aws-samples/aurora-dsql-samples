@@ -18,7 +18,9 @@ async function getConnection(clusterEndpoint, user, region) {
     database: "postgres",
     port: 5432,
     idle_timeout: 2,
-    ssl: true,
+    ssl: {
+      rejectUnauthorized: true,
+    }
     // max: 1, // Optionally set maximum connection pool size
   })
 

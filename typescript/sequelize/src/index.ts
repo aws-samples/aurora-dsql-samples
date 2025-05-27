@@ -32,8 +32,8 @@ async function getSequelizeConnection(): Promise<Sequelize> {
       clientMinMessages: 'ignore', // This is essential
       skipIndexes: true,
       ssl: {
-        mode: 'verify-full'
-      },
+        rejectUnauthorized: true,
+      }
     },
     pool: {
       max: 5,

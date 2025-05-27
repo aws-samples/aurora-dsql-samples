@@ -21,20 +21,15 @@ async function getConnection(clusterEndpoint, user, region) {
         signer.user = user;
         token = await signer.getDbConnectAuthToken()
       }
-      // <https://node-postgres.com/apis/client>
-      // By default `rejectUnauthorized` is true in TLS options
-      // <https://nodejs.org/api/tls.html#tls_tls_connect_options_callback>
-      // The config does not offer any specific parameter to set sslmode to verify-full
-      // Settings are controlled either via connection string or by setting
-      // rejectUnauthorized to false in ssl options
       let client = new Client({
         host: clusterEndpoint,
         user: user,
         password: token,
         database: "postgres",
         port: 5432,
-        // <https://node-postgres.com/announcements> for version 8.0
-        ssl: true
+        ssl: {
+          rejectUnauthorized: true,
+        }
       });
   
       // Connect

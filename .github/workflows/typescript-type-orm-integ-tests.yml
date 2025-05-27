@@ -53,7 +53,6 @@ jobs:
           REGION: ${{ secrets.TYPESCRIPT_TYPE_ORM_CLUSTER_REGION }}
         run: |
           npm install
-          wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
           npm run build
           npm run migrations-drop-table
           npm run migrations-create-table
