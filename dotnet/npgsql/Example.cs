@@ -49,7 +49,7 @@ internal static class Example
 
         try
         {
-            using var setSearchPath = new NpgsqlCommand($"SET search_path = {schema}", conn);
+            await using var setSearchPath = new NpgsqlCommand($"SET search_path = {schema}", conn);
             setSearchPath.ExecuteNonQuery();
         }
         catch
@@ -63,7 +63,7 @@ internal static class Example
 
     private static async Task ExerciseConnection(NpgsqlConnection conn)
     {
-        using var create =
+        await using var create =
             new NpgsqlCommand(@"
                 CREATE TABLE IF NOT EXISTS owner (
                     id UUID NOT NULL DEFAULT gen_random_uuid(),
@@ -76,14 +76,14 @@ internal static class Example
         create.ExecuteNonQuery();
 
         // Insert some data
-        using var insert = new NpgsqlCommand(
+        await using var insert = new NpgsqlCommand(
             "INSERT INTO owner(name, city, telephone) VALUES(@name, @city, @telephone)", conn);
         insert.Parameters.AddWithValue("name", "John Doe");
         insert.Parameters.AddWithValue("city", "Anytown");
         insert.Parameters.AddWithValue("telephone", "555-555-1999");
         insert.ExecuteNonQuery();
 
-        using var select = new NpgsqlCommand("SELECT * FROM owner where name=@name", conn);
+        await using var select = new NpgsqlCommand("SELECT * FROM owner where name=@name", conn);
         select.Parameters.AddWithValue("name", "John Doe");
         await using var reader = await select.ExecuteReaderAsync();
 
@@ -99,7 +99,7 @@ internal static class Example
 
         // Clean up the table after the example. If we run the example again we do not have to worry about data inserted
         // by previous runs
-        using var delete = new NpgsqlCommand("DELETE FROM owner where name=@name", conn);
+        await using var delete = new NpgsqlCommand("DELETE FROM owner where name=@name", conn);
         select.Parameters.AddWithValue("name", "John Doe");
         select.ExecuteNonQuery();
     }
