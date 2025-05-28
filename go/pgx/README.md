@@ -25,6 +25,19 @@ The example demonstrates a flexible connection approach using IAM authentication
 - This code is not tested in every AWS Region. For more information, see
   AWS Regional Services.
 
+## TLS connection configuration
+
+This example uses direct TLS connections where supported, and verifies the server certificate is trusted. Verified SSL
+connections should be used where possible to ensure data security during transmission.
+
+* Driver versions following the release of PostgreSQL 17 support direct TLS connections, bypassing the traditional
+  PostgreSQL connection preamble
+* Direct TLS connections provide improved connection performance and enhanced security
+* Not all PostgreSQL drivers support direct TLS connections yet, or only in recent versions following PostgreSQL 17
+* Ensure your installed driver version supports direct TLS negotiation, or use a version that is at least as recent as
+  the one used in this sample
+* If your driver doesn't support direct TLS connections, you may need to use the traditional preamble connection instead
+
 ## Configuration
 
 The following environment variables can be used to configure the connection parameter in this example:
