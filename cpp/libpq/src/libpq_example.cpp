@@ -34,6 +34,7 @@ PGconn* connectToCluster(std::string clusterUser, std::string clusterEndpoint, s
     std::string dbname = "postgres";
     std::string sslrootcert = "./root.pem";
     std::string sslmode = "verify-full";
+    std::string sslnegotiation = "direct";
     int port = 5432;
 
     // Generate a fresh password token for each connection, to ensure the token is not expired
@@ -46,8 +47,16 @@ PGconn* connectToCluster(std::string clusterUser, std::string clusterEndpoint, s
     } 
 
     char conninfo[4096];
-    sprintf(conninfo, "dbname=%s user=%s host=%s port=%i sslrootcert=%s sslmode=%s password=%s",
-            dbname.c_str(), clusterUser.c_str(), clusterEndpoint.c_str(), port, sslrootcert.c_str(), sslmode.c_str(), password_token.c_str());
+    sprintf(conninfo,
+            "dbname=%s user=%s host=%s port=%i sslrootcert=%s sslmode=%s sslnegotiation=%s password=%s",
+            dbname.c_str(),
+            clusterUser.c_str(),
+            clusterEndpoint.c_str(),
+            port,
+            sslrootcert.c_str(),
+            sslmode.c_str(),
+            sslnegotiation.c_str(),
+            password_token.c_str());
 
     PGconn *conn = PQconnectdb(conninfo);
 
