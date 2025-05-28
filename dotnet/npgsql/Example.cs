@@ -38,6 +38,7 @@ internal static class Example
             Host = clusterEndpoint,
             Port = 5432,
             SslMode = SslMode.VerifyFull,
+            SslNegotiation = SslNegotiation.Direct,
             Database = "postgres",
             Username = clusterUser,
             Password = password,
