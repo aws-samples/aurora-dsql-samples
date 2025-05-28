@@ -30,6 +30,8 @@ jobs:
       actions: read
       checks: write
       pull-requests: write
+    env:
+      GOPROXY: direct
 
     steps:
     - uses: actions/checkout@v4
@@ -51,5 +53,4 @@ jobs:
         CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
       run: |
-        go env -w GOPROXY=direct
         go test -v
