@@ -192,6 +192,7 @@ func CreateConnectionURL(dbConfig Config) string {
 	sb.WriteString("/")
 	sb.WriteString(dbConfig.Database)
 	sb.WriteString("?sslmode=verify-full")
+	sb.WriteString("&sslnegotiation=direct")
 	url := sb.String()
 	return url
 }
