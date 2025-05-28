@@ -80,4 +80,5 @@ jobs:
         CLUSTER_USER: admin
         LD_LIBRARY_PATH: /lib/x86_64-linux-gnu:/home/runner/work/aurora-dsql-samples/aurora-dsql-samples/cpp/libpq/aws-sdk-install/lib
       run: |
+        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
         ./libpq_example
