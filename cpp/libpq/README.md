@@ -47,6 +47,13 @@ The example contains comments explaining the code and the operations being perfo
   [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
   guide.
 
+### Download the Amazon root certificate from the official trust store
+
+Download the Amazon root certificate from the official trust store:
+
+```
+wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
+```
 
 #### C++ compiler 
 A c++ compiler that supports c++11 standard or newer.
