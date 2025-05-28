@@ -57,8 +57,8 @@ jobs:
         mkdir aws-sdk-build
         mkdir aws-sdk-install
         cd aws-sdk-build
-        cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/cpp/cluster_management/aws-sdk-install -DBUILD_ONLY="dsql"
-        cmake --build . --config=Release
+        cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=OFF -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/cpp/cluster_management/aws-sdk-install -DBUILD_ONLY="dsql"
+        cmake --build . --config=Release --parallel $(nproc)
         cmake --install . --config=Release
 
     - name: Configure AWS Credentials
