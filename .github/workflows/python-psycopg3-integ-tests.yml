@@ -29,7 +29,10 @@ jobs:
       actions: read
       checks: write
       pull-requests: write
-    
+    concurrency:
+      # Ensure only 1 job uses the workflow cluster at a time.
+      group: ${{ github.workflow }}
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
