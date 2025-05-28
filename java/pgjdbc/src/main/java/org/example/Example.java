@@ -45,6 +45,7 @@ public class Example {
         // to verify the server's root cert.
         props.setProperty("sslmode", "verify-full");
         props.setProperty("sslfactory", "org.postgresql.ssl.DefaultJavaSSLFactory");
+        props.setProperty("sslNegotiation", "direct");
 
         String url = "jdbc:postgresql://" + endpoint + ":5432/postgres";
 
