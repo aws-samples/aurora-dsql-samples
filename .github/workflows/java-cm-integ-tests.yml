@@ -33,6 +33,9 @@ jobs:
       actions: read
       checks: write
       pull-requests: write
+    concurrency:
+      # Ensure only 1 job mutates clusters in this account at a time.
+      group: ${{ github.workflow }}
 
     steps:
     - name: Checkout code
@@ -59,9 +62,6 @@ jobs:
         mvn initialize
         mvn clean compile assembly:single
         mvn test
-    concurrency:
-      # Ensure only 1 job mutates clusters in this account at a time.
-      group: ${{ github.workflow }}
 
   cleanup:
     if: always()

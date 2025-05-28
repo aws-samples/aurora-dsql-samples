@@ -32,6 +32,9 @@ jobs:
       actions: read
       checks: write
       pull-requests: write
+    concurrency:
+      # Ensure only 1 job mutates clusters in this account at a time.
+      group: ${{ github.workflow }}
     env:
       GOPROXY: direct
 
@@ -88,9 +91,6 @@ jobs:
       working-directory: ./go/cluster_management/cmd/delete_multi_region
       run: |
         go test
-    concurrency:
-      # Ensure only 1 job mutates clusters in this account at a time.
-      group: ${{ github.workflow }}
 
   cleanup:
     if: always()
