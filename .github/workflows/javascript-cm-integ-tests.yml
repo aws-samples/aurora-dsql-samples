@@ -6,12 +6,14 @@ on:
     paths:
       - "javascript/cluster_management/**"
       - ".github/workflows/javascript-cm-integ-tests.yml"
+      - '.github/workflows/clean-clusters.yml'
 
   pull_request:
     branches: ["main"]
     paths:
       - "javascript/cluster_management/**"
       - ".github/workflows/javascript-cm-integ-tests.yml"
+      - '.github/workflows/clean-clusters.yml'
 
   # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
