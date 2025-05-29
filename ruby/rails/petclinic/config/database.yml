@@ -44,6 +44,7 @@ development:
   schema_search_path: myschema
   <% end %>
 
+  sslnegotiation: direct
   sslmode: verify-full
   # Provide the path to the root certificate. 
   # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
