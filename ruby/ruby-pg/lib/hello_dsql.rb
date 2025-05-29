@@ -22,16 +22,22 @@ def create_connection(cluster_user, cluster_endpoint, region)
     password_token = token_generator.generate_db_connect_auth_token(auth_token_params)
   end 
 
-  PG.connect(
-      host: cluster_endpoint,
-      user: cluster_user,
-      password: password_token,
-      dbname: 'postgres',
-      port: 5432,
-      sslmode: 'verify-full',
-      sslrootcert: "./root.pem"
-  )
+  conn_params = {
+    host: cluster_endpoint,
+    user: cluster_user,
+    password: password_token,
+    dbname: 'postgres',
+    port: 5432,
+    sslmode: 'verify-full',
+    sslrootcert: "./root.pem"
+  }
 
+  # Use the more efficient connection method if it's supported.
+  if PG::library_version >= 170000
+    conn_params[:sslnegotiation] = "direct"
+  end
+
+  PG.connect(conn_params)
 end
 
 def example(conn)
