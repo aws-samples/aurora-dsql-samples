@@ -1,5 +1,6 @@
 ## Dependencies for engine creation
 import os
+import psycopg2.extensions
 from sqlalchemy import create_engine, select, event
 from sqlalchemy.engine import URL
 
@@ -42,13 +43,19 @@ def create_dsql_engine():
         host=cluster_endpoint, 
         database="postgres"
     )
-    
+
+    connect_args = {
+        "sslmode": "verify-full",
+        "sslrootcert": "./root.pem",
+    }
+
+    # Use the more efficient connection method if it's supported.
+    if psycopg2.extensions.libpq_version() >= 170000:
+        connect_args["sslnegotiation"] = "direct"
+
     # Create the engine
-    engine = create_engine(
-        url, 
-        connect_args={"sslmode": "verify-full", "sslrootcert": "./root.pem"},
-    )
-    
+    engine = create_engine(url, connect_args=connect_args)
+
     # Adds a listener that creates a new token every time a new connection is created in the SQLAlchemy engine
     @event.listens_for(engine, "do_connect")
     def add_token_to_params(dialect, conn_rec, cargs, cparams):
