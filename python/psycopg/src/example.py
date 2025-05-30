@@ -2,6 +2,7 @@ import boto3
 import psycopg
 import os
 import sys
+from psycopg import pq
 
 
 def create_connection(cluster_user, cluster_endpoint, region):
@@ -27,6 +28,10 @@ def create_connection(cluster_user, cluster_endpoint, region):
         "sslrootcert": ssl_cert_path,
         "password": password_token
     }
+
+    # Use the more efficient connection method if it's supported.
+    if pq.version() >= 170000:
+        conn_params["sslnegotiation"] = "direct"
 
     # Make a connection to the cluster
     conn = psycopg.connect(**conn_params)
