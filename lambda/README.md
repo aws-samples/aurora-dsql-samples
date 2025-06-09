@@ -28,11 +28,13 @@ A DSQL cluster can be added to a deployment stack using the CloudFormation DSQL 
 same parameters as a cluster would be created using the CLI or an SDK.
 
 ```javascript
-const dsqlCluster = new CfnResource(this, 'DsqlCluster', {
-  type: 'AWS::DSQL::Cluster',
-  properties: {
-    DeletionProtectionEnabled: false
-  }
+const dsqlCluster = new aws_dsql.CfnCluster(this, 'DsqlCluster', {
+  deletionProtectionEnabled: false,
+  tags: [{
+    key: 'Name', value: 'Lambda single region cluster',
+  }, {
+    key: 'Repo', value: 'aws-samples/aurora-dsql-samples',
+  }],
 });
 ```
 
@@ -49,7 +51,7 @@ const dsqlFunction = new Function(this, 'DsqlSample', {
   timeout: Duration.seconds(30),
   memorySize: 256,
   environment: {
-    CLUSTER_ENDPOINT: `${Fn.getAtt('DsqlCluster', 'Identifier')}.dsql.${region}.on.aws`,
+    CLUSTER_ENDPOINT: `${dsqlCluster.attrIdentifier}.dsql.${region}.on.aws`,
     CLUSTER_REGION: region
   }
 });
@@ -64,7 +66,7 @@ to connect. The following shows a basic way to add DSQL permissions:
 dsqlFunction.addToRolePolicy(new PolicyStatement({
   effect: Effect.ALLOW,
   actions: ['dsql:DbConnectAdmin', 'dsql:DbConnect'],
-  resources: [Fn.getAtt('DsqlCluster', 'ResourceArn').toString()]
+  resources: [dsqlCluster.attrResourceArn]
 }));
 ```
 
@@ -111,10 +113,6 @@ async function dsql_sample(clusterEndpoint, region) {
       await insertAndReadData(pool);
     }
     await dropTable(pool)
-
-  } catch (error) {
-    console.error(error);
-    throw new Error("Failed to connect to the database");
   } finally {
     pool?.end();
   }
@@ -229,8 +227,17 @@ this function you should hopefully see the following as a result:
 {statusCode": 200, "endpoint": "your_cluster_endpoint"}
 ```
 
-If the database returns an error or if the connection to the database fails, the Lambda function execution response returns a 500 status code.
+If the database returns an error or if the connection to the database fails, the Lambda function execution response returns the error that occurred.
 
-```
-{"statusCode": 500,"endpoint": "your_cluster_endpoint"}
-```
+## Additional resources
+
+* [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+* [AWS CDK Documentation](https://docs.aws.amazon.com/cdk/v2/guide/)
+* [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/)
+* [node-postgres Documentation](https://node-postgres.com/)
+
+---
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+SPDX-License-Identifier: MIT-0

@@ -1,4 +1,4 @@
-import {App, Stack, Duration, CfnResource, Fn} from 'aws-cdk-lib';
+import {App, aws_dsql, Stack, Duration} from 'aws-cdk-lib';
 import {Code, Function, Runtime} from 'aws-cdk-lib/aws-lambda';
 import {Effect, PolicyStatement} from "aws-cdk-lib/aws-iam";
 
@@ -11,11 +11,13 @@ class DsqlLambdaStack extends Stack {
     constructor(scope, id, props) {
         super(scope, id, props);
 
-        const dsqlCluster = new CfnResource(this, 'DsqlCluster', {
-            type: 'AWS::DSQL::Cluster',
-            properties: {
-                DeletionProtectionEnabled: false
-            }
+        const dsqlCluster = new aws_dsql.CfnCluster(this, 'DsqlCluster', {
+            deletionProtectionEnabled: false,
+            tags: [{
+                key: 'Name', value: 'Lambda single region cluster',
+            }, {
+                key: 'Repo', value: 'aws-samples/aurora-dsql-samples',
+            }],
         });
 
         // Define the Lambda function
@@ -26,7 +28,7 @@ class DsqlLambdaStack extends Stack {
             timeout: Duration.seconds(30),
             memorySize: 256,
             environment: {
-                CLUSTER_ENDPOINT: `${Fn.getAtt('DsqlCluster', 'Identifier')}.dsql.${region}.on.aws`,
+                CLUSTER_ENDPOINT: `${dsqlCluster.attrIdentifier}.dsql.${region}.on.aws`,
                 CLUSTER_REGION: region
             }
         });
@@ -35,14 +37,13 @@ class DsqlLambdaStack extends Stack {
         dsqlFunction.addToRolePolicy(new PolicyStatement({
             effect: Effect.ALLOW,
             actions: ['dsql:DbConnectAdmin', 'dsql:DbConnect'],
-            resources: [Fn.getAtt('DsqlCluster', 'ResourceArn').toString()]
+            resources: [dsqlCluster.attrResourceArn]
         }));
     }
 }
 
 new DsqlLambdaStack(app, "DsqlSample", {
     env: {
-        account: account,
-        region: region
+        account: account, region: region
     }
 })

@@ -11,10 +11,6 @@ async function dsql_sample(clusterEndpoint, region) {
             await insertAndReadData(pool);
         }
         await dropTable(pool)
-
-    } catch (error) {
-        console.error(error);
-        throw new Error("Failed to connect to the database");
     } finally {
         pool?.end();
     }
