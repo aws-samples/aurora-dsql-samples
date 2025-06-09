@@ -1,0 +1,13 @@
+{
+  "name": "dsql_lambda_js_howto",
+  "version": "1.0.0",
+  "description": "How To",
+  "type": "module",
+  "scripts": {
+    "cdk": "cdk"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.200.1",
+    "path": "^0.12.7"
+  }
+}

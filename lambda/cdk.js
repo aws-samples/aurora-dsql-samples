@@ -1,0 +1,48 @@
+import {App, Stack, Duration, CfnResource, Fn} from 'aws-cdk-lib';
+import {Code, Function, Runtime} from 'aws-cdk-lib/aws-lambda';
+import {Effect, PolicyStatement} from "aws-cdk-lib/aws-iam";
+
+const app = new App();
+
+const account = process.env.ACCOUNT_ID;
+const region = process.env.CLUSTER_REGION || 'us-east-1';
+
+class DsqlLambdaStack extends Stack {
+    constructor(scope, id, props) {
+        super(scope, id, props);
+
+        const dsqlCluster = new CfnResource(this, 'DsqlCluster', {
+            type: 'AWS::DSQL::Cluster',
+            properties: {
+                DeletionProtectionEnabled: false
+            }
+        });
+
+        // Define the Lambda function
+        const dsqlFunction = new Function(this, 'DsqlSample', {
+            runtime: Runtime.NODEJS_22_X,
+            handler: 'lambda.handler',
+            code: Code.fromAsset('sample'),
+            timeout: Duration.seconds(30),
+            memorySize: 256,
+            environment: {
+                CLUSTER_ENDPOINT: `${Fn.getAtt('DsqlCluster', 'Identifier')}.dsql.${region}.on.aws`,
+                CLUSTER_REGION: region
+            }
+        });
+
+        // Add DSQL permissions to the Lambda function
+        dsqlFunction.addToRolePolicy(new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ['dsql:DbConnectAdmin', 'dsql:DbConnect'],
+            resources: [Fn.getAtt('DsqlCluster', 'ResourceArn').toString()]
+        }));
+    }
+}
+
+new DsqlLambdaStack(app, "DsqlSample", {
+    env: {
+        account: account,
+        region: region
+    }
+})
