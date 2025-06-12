@@ -4,7 +4,6 @@ import {Effect, PolicyStatement} from "aws-cdk-lib/aws-iam";
 
 const app = new App();
 
-const account = process.env.ACCOUNT_ID;
 const region = process.env.CLUSTER_REGION || 'us-east-1';
 
 class DsqlLambdaStack extends Stack {
@@ -44,6 +43,6 @@ class DsqlLambdaStack extends Stack {
 
 new DsqlLambdaStack(app, "DsqlSample", {
     env: {
-        account: account, region: region
+        region: region
     }
 })
