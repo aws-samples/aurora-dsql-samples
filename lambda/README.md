@@ -8,7 +8,7 @@ finally delete the table. The sample code is using Node.js, but it could be crea
 
 - Permissions to create DSQL clusters, AWS Lambdas, and IAM policies
 - You must have installed npm `v8.5.3` or higher.
-- You must have installed aws-cdk `v2.1018.0` or higher.
+- You must have installed aws-cdk toolkit `v2.1018.0` or higher.
 - You must have AWS credentials configured in your local environment.
 
 ## ⚠️ Important
