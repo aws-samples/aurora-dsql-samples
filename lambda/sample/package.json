@@ -1,0 +1,12 @@
+{
+  "name": "dsql-lambda-sample",
+  "version": "1.0.0",
+  "description": "Lambda function for Aurora DSQL",
+  "main": "lambda.mjs",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/dsql-signer": "^3.705.0",
+    "pg": "^8.13.1",
+    "assert": "2.1.0"
+  }
+}
