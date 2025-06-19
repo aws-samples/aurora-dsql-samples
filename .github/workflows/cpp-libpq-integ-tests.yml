@@ -1,4 +1,4 @@
-name: C++ libpq Integration tests
+name: C++ libpq integration tests
 
 on:
   push:

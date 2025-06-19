@@ -1,4 +1,4 @@
-name: Java pgJDBC Integration tests
+name: Java pgJDBC integration tests
 
 on:
   push:
