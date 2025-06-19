@@ -5,16 +5,14 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dsql/auth"
-	"github.com/aws/aws-sdk-go-v2/service/dsql"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"log"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
-
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Owner struct {
@@ -32,43 +30,23 @@ type Config struct {
 	Password string
 	Database string
 	Region   string
-	// Token refresh interval in seconds (default: 15 minutes)
-	TokenRefreshInterval int
-}
-
-// Pool represents a connection pool to the database with token refresh capability
-type Pool struct {
-	Pool            *pgxpool.Pool
-	config          Config
-	ctx             context.Context
-	cancelFunc      context.CancelFunc
-	dsqlClient      *dsql.Client
-	clusterEndpoint string
-	mu              sync.Mutex
-}
-
-// NewDSQLClient creates a new DSQL client using AWS configuration
-func NewDSQLClient(ctx context.Context, region string) (*dsql.Client, error) {
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load AWS configuration: %v", err)
-	}
-
-	// Create a DSQL client using NewFromConfig
-	dsqlClient := dsql.NewFromConfig(cfg)
-
-	return dsqlClient, nil
 }
 
 // GenerateDbConnectAuthToken generates an authentication token for database connection
-func GenerateDbConnectAuthToken(ctx context.Context, clusterEndpoint, region, user string) (string, error) {
+func GenerateDbConnectAuthToken(
+	ctx context.Context, clusterEndpoint, region, user string, expiry time.Duration,
+) (string, error) {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return "", err
 	}
 
+	tokenOptions := func(options *auth.TokenOptions) {
+		options.ExpiresIn = expiry
+	}
+
 	if user == "admin" {
-		token, err := auth.GenerateDBConnectAdminAuthToken(ctx, clusterEndpoint, region, cfg.Credentials)
+		token, err := auth.GenerateDBConnectAdminAuthToken(ctx, clusterEndpoint, region, cfg.Credentials, tokenOptions)
 		if err != nil {
 			return "", err
 		}
@@ -76,109 +54,12 @@ func GenerateDbConnectAuthToken(ctx context.Context, clusterEndpoint, region, us
 		return token, nil
 	}
 
-	token, err := auth.GenerateDbConnectAuthToken(ctx, clusterEndpoint, region, cfg.Credentials)
+	token, err := auth.GenerateDbConnectAuthToken(ctx, clusterEndpoint, region, cfg.Credentials, tokenOptions)
 	if err != nil {
 		return "", err
 	}
 
 	return token, nil
-}
-
-func getEnv(key, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	return value
-}
-
-func getEnvInt(key string, defaultValue int) int {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	intValue, err := strconv.Atoi(value)
-	if err != nil {
-		return defaultValue
-	}
-	return intValue
-}
-
-// NewPool creates a new database connection pool with token refresh capability
-func NewPool(ctx context.Context) (*Pool, error) {
-	// Create a cancellable context for the pool
-	poolCtx, cancel := context.WithCancel(ctx)
-
-	region := getEnv("REGION", "us-east-1")
-
-	// Create DSQL client
-	client, err := NewDSQLClient(poolCtx, region)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to create DSQL client: %v", err)
-	}
-
-	// Get configuration from environment variables
-	dbConfig := Config{
-		Host:                 getEnv("CLUSTER_ENDPOINT", ""),
-		Port:                 getEnv("DB_PORT", "5432"),
-		User:                 getEnv("CLUSTER_USER", "admin"),
-		Password:             "",
-		Database:             getEnv("DB_NAME", "postgres"),
-		Region:               region,
-		TokenRefreshInterval: getEnvInt("TOKEN_REFRESH_INTERVAL", 900), // Default to 15 minutes
-	}
-
-	// Generate initial token
-	token, err := GenerateDbConnectAuthToken(poolCtx, dbConfig.Host, dbConfig.Region, dbConfig.User)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to generate auth token: %v", err)
-	}
-
-	// Build connection URL
-	url := CreateConnectionURL(dbConfig)
-
-	poolConfig, err := pgxpool.ParseConfig(url)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("unable to parse pool config: %v", err)
-	}
-
-	// To avoid issues with parse config set the password directly in config
-	poolConfig.ConnConfig.Password = token
-
-	setPoolSettings(poolConfig)
-
-	// Create the connection pool
-	pgxPool, err := pgxpool.NewWithConfig(poolCtx, poolConfig)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("unable to create connection pool: %v", err)
-	}
-
-	pool := &Pool{
-		Pool:            pgxPool,
-		config:          dbConfig,
-		ctx:             poolCtx,
-		cancelFunc:      cancel,
-		dsqlClient:      client,
-		clusterEndpoint: dbConfig.Host,
-	}
-
-	// Start token refresh goroutine if enabled
-	go pool.refreshTokenPeriodically()
-
-	return pool, nil
-}
-
-func setPoolSettings(poolConfig *pgxpool.Config) {
-	// Configure pool settings
-	poolConfig.MaxConns = 10
-	poolConfig.MinConns = 2
-	poolConfig.MaxConnLifetime = 1 * time.Hour
-	poolConfig.MaxConnIdleTime = 30 * time.Minute
-	poolConfig.HealthCheckPeriod = 1 * time.Minute
 }
 
 func CreateConnectionURL(dbConfig Config) string {
@@ -197,150 +78,133 @@ func CreateConnectionURL(dbConfig Config) string {
 	return url
 }
 
-// refreshTokenPeriodically refreshes the authentication token at regular intervals
-func (p *Pool) refreshTokenPeriodically() {
-	// Calculate refresh interval (75% of token lifetime to refresh before expiration)
-	refreshInterval := time.Duration(p.config.TokenRefreshInterval) * time.Second * 3 / 4
-
-	ticker := time.NewTicker(refreshInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-p.ctx.Done():
-			return
-		case <-ticker.C:
-			if err := p.refreshToken(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error refreshing token: %v\n", err)
-			}
-		}
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
 	}
+	return value
 }
 
-// refreshToken generates a new token and updates the connection pool
-func (p *Pool) refreshToken() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func getEnvOrThrow(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		panic(fmt.Errorf("environment variable %s not set", key))
+	}
+	return value
+}
 
-	// Generate new token
-	token, err := GenerateDbConnectAuthToken(p.ctx, p.clusterEndpoint, p.config.Region, p.config.User)
+func getEnvInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	intValue, err := strconv.Atoi(value)
 	if err != nil {
-		return fmt.Errorf("failed to refresh auth token: %v", err)
+		return defaultValue
+	}
+	return intValue
+}
+
+// NewPool creates a new database connection pool with token refresh capability
+func NewPool(
+	ctx context.Context, poolOptFns ...func(options *pgxpool.Config),
+) (*pgxpool.Pool, context.CancelFunc, error) {
+	// Create a cancellable context for the pool
+	poolCtx, cancel := context.WithCancel(ctx)
+
+	// Get configuration from environment variables
+	dbConfig := Config{
+		Host:     getEnvOrThrow("CLUSTER_ENDPOINT"),
+		User:     getEnvOrThrow("CLUSTER_USER"),
+		Region:   getEnvOrThrow("REGION"),
+		Port:     getEnv("DB_PORT", "5432"),
+		Database: getEnv("DB_NAME", "postgres"),
+		Password: "",
 	}
 
-	// Update all connections in the pool with the new token
-	conns := p.Pool.Stat().TotalConns()
+	// This doesn't need to be configurable for most applications, but we allow
+	// configuration here for the sake of unit testing. Default token expiry is
+	// longer, but we intend to use the token immediately after it is generated.
+	expirySeconds := getEnvInt("TOKEN_EXPIRY_SECS", 30)
+	expiry := time.Duration(expirySeconds) * time.Second
 
-	// Reset the pool to force new connections with the updated token
-	p.Pool.Reset()
-
-	// Create a new connection config with the updated token
-	url := CreateConnectionURL(p.config)
+	url := CreateConnectionURL(dbConfig)
 
 	poolConfig, err := pgxpool.ParseConfig(url)
 	if err != nil {
-		return fmt.Errorf("unable to parse pool config during token refresh: %v", err)
+		cancel()
+		return nil, nil, fmt.Errorf("unable to parse pool config: %v", err)
 	}
 
-	// Update the password with the new token
-	poolConfig.ConnConfig.Password = token
+	poolConfig.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
+		token, err := GenerateDbConnectAuthToken(ctx, dbConfig.Host, dbConfig.Region, dbConfig.User, expiry)
+		if err != nil {
+			return fmt.Errorf("failed to generate auth token: %w", err)
+		}
 
-	setPoolSettings(poolConfig)
+		cfg.Password = token
+		return nil
+	}
 
-	// Create a new pool with the updated token
-	newPool, err := pgxpool.NewWithConfig(p.ctx, poolConfig)
+	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		user := conn.Config().User
+
+		var schema string
+		if user == "admin" {
+			schema = "public"
+		} else {
+			schema = "myschema"
+		}
+
+		_, err := conn.Exec(ctx, fmt.Sprintf("SET search_path = %s", schema))
+		if err != nil {
+			return fmt.Errorf("failed to set search_path to %s: %w", schema, err)
+		}
+
+		return nil
+	}
+
+	poolConfig.MaxConns = 10
+	poolConfig.MinConns = 2
+	poolConfig.MaxConnLifetime = 1 * time.Hour
+	poolConfig.MaxConnIdleTime = 30 * time.Minute
+	poolConfig.HealthCheckPeriod = 1 * time.Minute
+
+	// Allow  the pool settings to be overridden.
+	for _, fn := range poolOptFns {
+		fn(poolConfig)
+	}
+
+	// Create the connection pool
+	pgxPool, err := pgxpool.NewWithConfig(poolCtx, poolConfig)
 	if err != nil {
-		return fmt.Errorf("unable to create new connection pool during token refresh: %v", err)
+		cancel()
+		return nil, nil, fmt.Errorf("unable to create connection pool: %v", err)
 	}
 
-	// Replace the old pool with the new one
-	oldPool := p.Pool
-	p.Pool = newPool
-
-	// Close the old pool
-	oldPool.Close()
-
-	fmt.Printf("Successfully refreshed token and updated %d connections\n", conns)
-	return nil
-}
-
-// Close closes the connection pool and cancels the refresh goroutine
-func (p *Pool) Close() {
-	p.cancelFunc()
-	p.Pool.Close()
-}
-
-// GetConnectionID returns a unique identifier for a connection in the pool
-func (p *Pool) GetConnectionID(ctx context.Context) (string, error) {
-	// Retrieve the session variable to confirm it was set
-	var connID string
-	err := p.Pool.QueryRow(ctx, "select sys.current_session_id();").Scan(&connID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get connection ID: %v", err)
-	}
-	return connID, nil
-}
-
-// DemonstrateConnectionRefresh shows that connections before and after refresh are different
-func (p *Pool) DemonstrateConnectionRefresh(ctx context.Context) error {
-	// Get connection ID before refresh
-	connIDBefore, err := p.GetConnectionID(ctx)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Connection ID before refresh: %s\n", connIDBefore)
-
-	// Refresh token
-	err = p.refreshToken()
-	if err != nil {
-		return fmt.Errorf("failed to refresh token: %v", err)
-	}
-
-	// Get connection ID after refresh
-	connIDAfter, err := p.GetConnectionID(ctx)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Connection ID after refresh: %s\n", connIDAfter)
-
-	// Verify that the connections are different
-	if connIDBefore == connIDAfter {
-		return fmt.Errorf("connection IDs before and after refresh are the same: %s", connIDBefore)
-	}
-
-	fmt.Println("Successfully verified that connections before and after refresh are different")
-	return nil
-}
-
-// GetConnectionPool creates a new connection pool with token refresh capability
-func getConnectionPool(ctx context.Context, clusterEndpoint string, region string) (*pgxpool.Pool, error) {
-	pool, err := NewPool(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Return just the pgxpool.Pool to maintain compatibility with existing code
-	return pool.Pool, nil
+	return pgxPool, cancel, nil
 }
 
 func example() error {
 	ctx := context.Background()
 
 	// Establish connection pool
-	poolWrapper, err := NewPool(ctx)
+	pool, cancel, err := NewPool(ctx)
 	if err != nil {
 		return err
 	}
-	defer poolWrapper.Close()
-
-	pool := poolWrapper.Pool
+	defer func() {
+		pool.Close()
+		cancel()
+	}()
 
 	// Ping the database to verify connection
-	if err := pool.Ping(ctx); err != nil {
+	err = pool.Ping(ctx)
+	if err != nil {
 		return fmt.Errorf("unable to ping database: %v", err)
 	}
 
-	// Create owner table
 	_, err = pool.Exec(ctx, `
                 CREATE TABLE IF NOT EXISTS owner (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -350,44 +214,38 @@ func example() error {
                 )
         `)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to create table: %v", err)
 	}
 
-	// insert data
 	query := `INSERT INTO owner (id, name, city, telephone) VALUES ($1, $2, $3, $4)`
 	_, err = pool.Exec(ctx, query, uuid.New(), "John Doe", "Anytown", "555-555-0150")
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to insert data: %v", err)
 	}
 
-	owners := []Owner{}
-	// Define the SQL query to insert a new owner record.
 	query = `SELECT id, name, city, telephone FROM owner where name='John Doe'`
-
 	rows, err := pool.Query(ctx, query)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to read data: %v", err)
 	}
 	defer rows.Close()
 
-	owners, err = pgx.CollectRows(rows, pgx.RowToStructByName[Owner])
-	fmt.Println(owners)
-	if err != nil || len(owners) == 0 || owners[0].Name != "John Doe" || owners[0].City != "Anytown" {
-		panic("Error retrieving data")
+	owners, err := pgx.CollectRows(rows, pgx.RowToStructByName[Owner])
+	if err != nil {
+		return fmt.Errorf("error collecting rows: %w", err)
+	}
+	if len(owners) == 0 {
+		return fmt.Errorf("no data found for John Doe")
+	}
+	if owners[0].Name != "John Doe" || owners[0].City != "Anytown" {
+		return fmt.Errorf("unexpected data retrieved: got name=%s, city=%s, expected name=John Doe, city=Anytown",
+			owners[0].Name, owners[0].City)
 	}
 
 	_, err = pool.Exec(ctx, `DELETE FROM owner where name='John Doe'`)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to clean table: %v", err)
 	}
-
-	// Demonstrate that connections before and after refresh are different
-	fmt.Println("\n--- Demonstrating connection refresh ---")
-	err = poolWrapper.DemonstrateConnectionRefresh(ctx)
-	if err != nil {
-		return fmt.Errorf("connection refresh demonstration failed: %v", err)
-	}
-	fmt.Println("--- End of connection refresh demonstration ---")
 
 	return nil
 }
@@ -396,7 +254,8 @@ func example() error {
 func main() {
 	err := example()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to run example: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error: %v", err)
 	}
+
+	fmt.Println("Connection exercised successfully")
 }

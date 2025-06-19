@@ -53,6 +53,7 @@ jobs:
     - name: Build & Run
       working-directory: ./go/pgx
       env:
+        CLUSTER_USER: "admin"
         CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
       run: |
