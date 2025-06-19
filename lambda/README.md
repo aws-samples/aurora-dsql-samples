@@ -70,8 +70,6 @@ dsqlFunction.addToRolePolicy(new PolicyStatement({
 }));
 ```
 
-[!NOTE]
-We're using an admin role to minimize prerequisite steps to get started. You shouldn't use an admin database role for your production applications. See [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html) to learn how to create custom database roles with authorization that has the fewest permissions to your database.
 
 ### Create the code package that the Lambda function can run
 
