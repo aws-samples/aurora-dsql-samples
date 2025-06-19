@@ -1,4 +1,4 @@
-name: Java cluster management integration tests 
+name: Java SDK cluster management integration tests 
 
 on:
   push:

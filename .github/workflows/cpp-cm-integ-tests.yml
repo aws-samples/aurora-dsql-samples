@@ -1,4 +1,4 @@
-name: C++ cluster management Integration tests
+name: C++ SDK cluster management Integration tests
 
 on:
   push:

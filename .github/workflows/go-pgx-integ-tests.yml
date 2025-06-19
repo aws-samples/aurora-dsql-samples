@@ -1,4 +1,4 @@
-name: pgx(go) Integration tests 
+name: Go pgx Integration tests 
 
 on:
   push:

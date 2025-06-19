@@ -1,4 +1,4 @@
-name: Javascript cluster management integration tests
+name: JavaScript SDK cluster management integration tests
 
 on:
   push:

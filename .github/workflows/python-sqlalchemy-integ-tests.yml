@@ -1,4 +1,4 @@
-name: Python SQL Alchemy integration tests
+name: Python SQLAlchemy integration tests
 
 on:
   push:

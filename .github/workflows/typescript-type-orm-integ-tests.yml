@@ -1,4 +1,4 @@
-name: type-orm integration tests
+name: TypeScript TypeORM integration tests
 
 on:
   push:
