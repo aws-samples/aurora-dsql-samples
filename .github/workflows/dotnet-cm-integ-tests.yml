@@ -1,4 +1,4 @@
-name: Dotnet cluster management integration tests
+name: Dotnet SDK cluster management integration tests
 
 on:
   push:

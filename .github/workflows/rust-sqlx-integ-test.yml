@@ -1,4 +1,4 @@
-name: Rust SQLx Integration Tests
+name: Rust SQLx integration Tests
 
 on:
   push:

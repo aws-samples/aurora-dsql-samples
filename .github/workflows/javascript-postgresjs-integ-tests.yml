@@ -1,4 +1,4 @@
-name: Postgres-js integration tests
+name: JavaScript Postgres.js integration tests
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Python cluster management integration tests
+name: Python SDK cluster management integration tests
 
 on:
   push:

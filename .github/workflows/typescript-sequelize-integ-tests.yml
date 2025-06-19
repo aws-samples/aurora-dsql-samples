@@ -1,4 +1,4 @@
-name: Typescript Sequelize integration tests 
+name: TypeScript Sequelize integration tests 
 
 on:
   push:

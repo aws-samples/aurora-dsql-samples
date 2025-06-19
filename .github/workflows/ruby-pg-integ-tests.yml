@@ -1,4 +1,4 @@
-name: ruby-pg Integration tests
+name: Ruby pg integration tests
 
 on:
   push:

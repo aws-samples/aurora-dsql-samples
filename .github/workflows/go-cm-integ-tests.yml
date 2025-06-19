@@ -1,4 +1,4 @@
-name: pgx(go) cluster management tests 
+name: Go SDK cluster management integration tests 
 
 on:
   push:

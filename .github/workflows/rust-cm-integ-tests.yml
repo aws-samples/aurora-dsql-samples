@@ -1,4 +1,4 @@
-name: Rust cluster management integration tests
+name: Rust SDK cluster management integration tests
 
 on:
   push:
