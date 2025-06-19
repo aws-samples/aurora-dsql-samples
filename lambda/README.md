@@ -19,6 +19,7 @@ finally delete the table. The sample code is using Node.js, but it could be crea
   [Grant least privilege](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege).
 - This code is not tested in every AWS Region. For more information, see
   [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
+- This sample uses an admin role to minimize prerequisite steps to get started. It is not a good practice to use an admin database role for your production applications. See [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html) to learn how to create custom database roles with authorization that has the fewest permissions to your database.
 
 ## How-to use Aurora DSQL with AWS Lambda
 
