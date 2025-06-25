@@ -20,7 +20,8 @@ class DsqlLambdaStack extends Stack {
         });
 
         // Define the Lambda function
-        const dsqlFunction = new Function(this, 'DsqlSample', {
+        const dsqlFunction = new Function(this, 'DsqlLambdaSample', {
+            functionName: 'DsqlLambdaSample',
             runtime: Runtime.NODEJS_22_X,
             handler: 'lambda.handler',
             code: Code.fromAsset('sample'),

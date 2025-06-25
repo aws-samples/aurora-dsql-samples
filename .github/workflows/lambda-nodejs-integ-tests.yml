@@ -1,0 +1,131 @@
+name: CDK Lambda DSQL Sample Test
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'lambda/**'
+      - '.github/workflows/lambda-nodejs-integ-tests.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'lambda/**'
+      - '.github/workflows/lambda-nodejs-integ-tests.yml'
+  # Give us a button to allow running the workflow on demand for testing.
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Manual Workflow Run'
+        required: false
+        type: string
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+      checks: write
+      pull-requests: write
+    concurrency:
+      # Ensure only 1 job uses the workflow cluster at a time.
+      group: ${{ github.workflow }}
+    defaults:
+      run:
+        working-directory: ./lambda
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: |
+            ./lambda/package-lock.json
+            ./lambda/sample/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm --prefix ./sample install
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+          aws-region: us-east-1
+
+      - name: CDK Bootstrap
+        run: npx cdk bootstrap
+
+      - name: CDK Deploy
+        run: |
+          npx cdk deploy --require-approval never
+
+  integration-test:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./lambda
+
+    permissions:
+      id-token: write
+      contents: read
+
+    concurrency:
+      # Ensure only 1 job uses the workflow cluster at a time.
+      group: ${{ github.workflow }}
+
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: |
+            ./lambda/package-lock.json
+            ./lambda/sample/package-lock.json
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+          aws-region: us-east-1
+
+      - name: Update AWS CLI to latest version
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install --update
+          aws --version
+
+      - name: Run sample Lambda
+        run: |
+          RESPONSE=$(aws lambda invoke \
+            --function-name DsqlLambdaSample \
+            --query 'FunctionError' \
+            --output text \
+            /dev/stdout)
+  
+          if [ "$RESPONSE" = "None" ] || [ -z "$RESPONSE" ]; then
+            echo "Lambda invocation successful - no errors"
+          else
+            echo "Lambda invocation failed with error: $RESPONSE"
+            exit 1
+          fi
+
+      - name: Clean up CDK deployment
+        if: always()  # Run even if previous steps failed
+        run: |
+          echo "Cleaning up CDK deployment"
+          npx cdk destroy --force
+
