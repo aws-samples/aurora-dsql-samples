@@ -56,15 +56,12 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+          role-to-assume: ${{ secrets.LAMBDA_IAM_ROLE }}
           aws-region: us-east-1
-
-      - name: CDK Bootstrap
-        run: npx cdk bootstrap
 
       - name: CDK Deploy
         run: |
-          npx cdk deploy --require-approval never
+          npx cdk deploy --require-approval never --quiet --no-lookups 2>&1 | sed -E 's/[0-9]{12}/XXXXXXXXXXXX/g'
 
   integration-test:
     needs: build-and-deploy
@@ -80,7 +77,6 @@ jobs:
     concurrency:
       # Ensure only 1 job uses the workflow cluster at a time.
       group: ${{ github.workflow }}
-
 
     steps:
       - name: Checkout code
@@ -98,7 +94,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+          role-to-assume: ${{ secrets.LAMBDA_IAM_ROLE }}
           aws-region: us-east-1
 
       - name: Update AWS CLI to latest version
@@ -116,7 +112,7 @@ jobs:
             --output text \
             /dev/stdout)
   
-          if [ "$RESPONSE" = "None" ] || [ -z "$RESPONSE" ]; then
+          if [ "$RESPONSE" = "None" ]; then
             echo "Lambda invocation successful - no errors"
           else
             echo "Lambda invocation failed with error: $RESPONSE"
@@ -127,5 +123,4 @@ jobs:
         if: always()  # Run even if previous steps failed
         run: |
           echo "Cleaning up CDK deployment"
-          npx cdk destroy --force
-
+          npx cdk destroy --force --require-approval never --no-lookups  2>&1 | sed -E 's/[0-9]{12}/XXXXXXXXXXXX/g'
