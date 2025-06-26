@@ -110,12 +110,22 @@ jobs:
             --function-name DsqlLambdaSample \
             --query 'FunctionError' \
             --output text \
-            /dev/null)
-  
-          if [ "$RESPONSE" = "None" ]; then
-            echo "Lambda invocation successful - no errors"
-          else
+            response.json)
+
+          if [ "$RESPONSE" != "None" ] && [ -n "$RESPONSE" ]; then
             echo "Lambda invocation failed with error: $RESPONSE"
+            exit 1
+          fi
+
+          if [ -f response.json ] && jq -e '.endpoint' response.json > /dev/null; then
+            echo "Lambda execution successful"
+          else
+            if [ -f response.json ]; then
+              echo "Response content:"
+              cat response.json
+            else
+              echo "Response file not found"
+            fi
             exit 1
           fi
 
