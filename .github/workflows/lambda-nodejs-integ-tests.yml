@@ -110,7 +110,7 @@ jobs:
             --function-name DsqlLambdaSample \
             --query 'FunctionError' \
             --output text \
-            /dev/stdout)
+            /dev/null)
   
           if [ "$RESPONSE" = "None" ]; then
             echo "Lambda invocation successful - no errors"
@@ -123,4 +123,5 @@ jobs:
         if: always()  # Run even if previous steps failed
         run: |
           echo "Cleaning up CDK deployment"
+          npm install
           npx cdk destroy --force --require-approval never --no-lookups  2>&1 | sed -E 's/[0-9]{12}/XXXXXXXXXXXX/g'
