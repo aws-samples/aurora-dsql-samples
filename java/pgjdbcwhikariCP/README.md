@@ -1,0 +1,108 @@
+# Aurora DSQL with HikariCP Connection Pool Example
+
+## Overview
+
+This example demonstrates how to connect to Aurora DSQL using HikariCP connection pooling with `pgJDBC` and Amazon Aurora DSQL.
+
+This project extends the basic Aurora DSQL example by integrating HikariCP. HikariCP provides:
+
+- **Connection Pooling**: Reuses database connections to improve performance
+- **Connection Management**: Automatically handles connection lifecycle
+- **Monitoring**: Built-in metrics and leak detection
+- **Configuration**: Extensive tuning options for optimal performance
+
+## About the code example
+
+The example maintains the flexible connection approach as maintained in the standalone `pgJDBC` and Amazon Aurora DSQL example and continues to work for both admin and non-admin users. It introduces connection pooling via the HikariCP library and supports DSQL's dynamic IAM token generation and token refresh.
+
+
+## ⚠️ Important
+
+* Running this code might result in charges to your AWS account.
+* We recommend that you grant your code least privilege. At most, grant only the
+  minimum permissions required to perform the task. For more information, see
+  [Grant least privilege](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege).
+* This code is not tested in every AWS Region. For more information, see
+  [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
+
+
+
+## Prerequisites
+
+* You must have an AWS account, and have your default credentials and AWS Region
+  configured as described in the
+  [Globally configuring AWS SDKs and tools](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html)
+  guide.
+* Java Development Kit (JDK): Ensure you have JDK 17+ installed.
+
+   _To verify that Java is installed, you can run:_
+   ```bash
+   java -version
+   ```
+
+* Build Tool (Maven or Gradle)
+   - _Maven_: Ensure Maven is installed if that is your preferred option. You can download it from the [official website](https://maven.apache.org/download.cgi).
+   - _Gradle_: Ensure Gradle is installed if that is your preferred option. You can download it from the [official website](https://gradle.org/install/).
+* AWS SDK: Ensure that you set up the latest version of the AWS Java SDK from the [official website](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/setup.html)
+* You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the
+  [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html)
+  guide.
+* If connecting as a non-admin user, ensure the user is linked to an IAM role and is granted access to the `myschema`
+  schema. See the
+  [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
+  guide.
+
+## Environment Variables
+
+Set the following environment variables or update the hardcoded values in the code:
+
+```bash
+# e.g. "admin"
+export CLUSTER_USER="<your user>"
+  
+# e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
+export CLUSTER_ENDPOINT="<your endpoint>"
+
+# e.g. "us-east-1"
+export REGION="<your region>"
+```
+
+## Dependencies
+
+The project includes these key dependencies:
+
+- **HikariCP 5.1.0**: High-performance connection pool
+- **PostgreSQL JDBC 42.7.4**: PostgreSQL database driver
+- **AWS SDK for Java 2.31.32**: Aurora DSQL utilities
+- **JUnit 5.10.0**: Testing framework
+
+## Building and Running
+
+### Build the project:
+```bash
+mvn clean compile
+```
+
+### Run the example:
+```bash
+mvn exec:java -Dexec.mainClass="org.example.Example"
+```
+
+### Run tests:
+```bash
+mvn test
+```
+
+The example demonstrates successful connection pooling with Aurora DSQL, showing multiple connections being obtained from the pool and database operations being performed successfully.
+
+## Additional resources
+
+* [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+* [pgJDBC Documentation](https://jdbc.postgresql.org/documentation/)
+* [AWS SDK for Java Documentation](https://docs.aws.amazon.com/sdk-for-java/)
+
+---
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+SPDX-License-Identifier: MIT-0
