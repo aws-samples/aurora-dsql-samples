@@ -2,6 +2,7 @@ package org.example;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.postgresql.ds.PGSimpleDataSource;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.dsql.DsqlUtilities;
 import software.amazon.awssdk.services.dsql.model.GenerateAuthTokenRequest;
@@ -11,19 +12,19 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
- * Aurora DSQL Connection Manager with Automatic Token Refresh
+ * Aurora DSQL Connection Manager with Dynamic Token Refresh
  * 
  * This implementation provides:
- * - HikariCP connection pooling optimized for Aurora DSQL
- * - Automatic auth token refresh every 10 minutes (tokens expire after 15)
- * - Real-time connection pool monitoring and health checks
+ * - HikariCP connection pooling optimized for Aurora DSQL using PostgreSQL DataSource
+ * - Dynamic auth token generation via custom getCredentials method
+ * - Connection Management: Automatically handles connection lifecycle
+ * - Monitoring: Built-in metrics and leak detection
+ * - Configuration: Extensive tuning options for optimal performance
  * - Thread-safe singleton pattern with graceful shutdown
  * - Production-ready configuration with connection validation
+ * - Direct PostgreSQL DataSource configuration with custom credential provider
  */
 public class Example {
 
@@ -31,7 +32,7 @@ public class Example {
     private static final Object lock = new Object();
     
     private HikariDataSource dataSource;
-    private ScheduledExecutorService tokenRefreshExecutor;
+    private CustomPGDataSource pgDataSource;
     private DsqlUtilities dsqlUtilities;
     private String endpoint;
     private String user;
@@ -47,12 +48,11 @@ public class Example {
                 .region(Region.of(region))
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
+
+        this.pgDataSource = new CustomPGDataSource();
         
         // Initialize connection pool
         initializeConnectionPool();
-        
-        // Start token refresh scheduler (refresh every 10 minutes, tokens expire after 15)
-        startTokenRefreshScheduler();
     }
 
     /**
@@ -79,16 +79,22 @@ public class Example {
     }
 
     private void initializeConnectionPool() {
-        HikariConfig config = new HikariConfig();
-        
-        // JDBC URL for Aurora DSQL
-        String jdbcUrl = "jdbc:postgresql://" + endpoint + ":5432/postgres";
-        config.setJdbcUrl(jdbcUrl);
-        config.setUsername(user);
-        config.setPassword(generateAuthToken());
+        // Create PostgreSQL DataSource
+        this.pgDataSource.setServerNames(new String[]{endpoint});
+        this.pgDataSource.setPortNumbers(new int[]{5432});
+        this.pgDataSource.setDatabaseName("postgres");
+        this.pgDataSource.setUser(user);
+        // Password will be provided dynamically via getCredentials method
         
         // PostgreSQL SSL configuration for Aurora DSQL
-        config.addDataSourceProperty("sslmode", "verify-full");
+        this.pgDataSource.setSslMode("verify-full");
+        // Note: SSL factory and negotiation are set via connection properties in HikariCP config
+        
+        // Configure HikariCP with the PostgreSQL DataSource
+        HikariConfig config = new HikariConfig();
+        config.setDataSource(this.pgDataSource);
+        
+        // Additional SSL properties via HikariCP
         config.addDataSourceProperty("sslfactory", "org.postgresql.ssl.DefaultJavaSSLFactory");
         config.addDataSourceProperty("sslNegotiation", "direct");
         
@@ -118,9 +124,9 @@ public class Example {
     /**
      * Generate a fresh authentication token for Aurora DSQL
      */
-    private String generateAuthToken() {
+    private String generateAuthToken(String url, String user, int port) {
         GenerateAuthTokenRequest tokenGenerator = GenerateAuthTokenRequest.builder()
-                .hostname(endpoint)
+                .hostname(extractHostname(url))
                 .region(Region.of(region))
                 .build();
 
@@ -130,34 +136,51 @@ public class Example {
             return dsqlUtilities.generateDbConnectAuthToken(tokenGenerator);
         }
     }
-
-    private void startTokenRefreshScheduler() {
-        tokenRefreshExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "AuroraDSQL-TokenRefresh");
-            t.setDaemon(true);
-            return t;
-        });
-        
-        // Refresh tokens every 10 minutes (tokens expire after 15 minutes)
-        tokenRefreshExecutor.scheduleAtFixedRate(this::refreshConnectionPool, 10, 10, TimeUnit.MINUTES);
-    }
     
-    private void refreshConnectionPool() {
-        try {
-            System.out.println("Refreshing Aurora DSQL connection pool with new auth tokens...");
+    /**
+     * Extract hostname from URL
+     */
+    private String extractHostname(String url) {
+        if (url == null) {
+            return endpoint;
+        }
+        // Handle both JDBC URLs and plain hostnames
+        if (url.startsWith("jdbc:postgresql://")) {
+            String withoutProtocol = url.substring("jdbc:postgresql://".length());
+            int colonIndex = withoutProtocol.indexOf(':');
+            int slashIndex = withoutProtocol.indexOf('/');
             
-            // Create new pool with fresh tokens
-            HikariDataSource oldDataSource = this.dataSource;
-            initializeConnectionPool();
-            
-            // Gracefully shutdown old pool
-            if (oldDataSource != null) {
-                oldDataSource.close();
+            if (colonIndex > 0 && (slashIndex == -1 || colonIndex < slashIndex)) {
+                return withoutProtocol.substring(0, colonIndex);
+            } else if (slashIndex > 0) {
+                return withoutProtocol.substring(0, slashIndex);
+            } else {
+                return withoutProtocol;
             }
-            
-            System.out.println("Connection pool refreshed successfully");
-        } catch (Exception e) {
-            System.err.println("Failed to refresh connection pool: " + e.getMessage());
+        }
+        return url;
+    }
+
+    /**
+     * Custom PostgreSQL DataSource that provides dynamic token generation
+     */
+    private class CustomPGDataSource extends PGSimpleDataSource {
+        @Override
+        public Connection getConnection() throws SQLException {
+            // Generate fresh token for each connection request
+            String token = generateAuthToken(getUrl(), getUser(), getPortNumber());
+            return super.getConnection(getUser(), token);
+        }
+        
+        @Override
+        public Connection getConnection(String username, String password) throws SQLException {
+            // If specific credentials are provided, use them
+            if (password != null && !password.isEmpty()) {
+                return super.getConnection(username, password);
+            }
+            // Otherwise generate a fresh token
+            String token = generateAuthToken(getUrl(), username, getPortNumber());
+            return super.getConnection(username, token);
         }
     }
 
@@ -214,19 +237,6 @@ public class Example {
     }
 
     private void shutdownInternal() {
-        // Stop token refresh scheduler
-        if (tokenRefreshExecutor != null && !tokenRefreshExecutor.isShutdown()) {
-            tokenRefreshExecutor.shutdown();
-            try {
-                if (!tokenRefreshExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    tokenRefreshExecutor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                tokenRefreshExecutor.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
-        
         // Close connection pool
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
@@ -236,7 +246,7 @@ public class Example {
     }
 
     public static void main(String[] args) throws SQLException, InterruptedException {
-        System.out.println("Starting Aurora DSQL Connection Manager with Automatic Token Refresh");
+        System.out.println("Starting Aurora DSQL Connection Manager with Dynamic Token Generation");
         System.out.println();
         
         String clusterEndpoint = System.getenv("CLUSTER_ENDPOINT");
@@ -248,10 +258,10 @@ public class Example {
         String region = System.getenv("REGION");
         assert region != null : "REGION environment variable is not set";
 
-        // Initialize the connection manager with automatic token refresh
+        // Initialize the connection manager with dynamic token generation
         System.out.println("Initializing Aurora DSQL Connection Manager...");
         initialize(clusterEndpoint, clusterUser, region);
-        System.out.println("Connection Manager initialized with automatic token refresh!");
+        System.out.println("Connection Manager initialized with dynamic token generation!");
         System.out.println(getPoolStats());
         System.out.println();
         
@@ -292,11 +302,11 @@ public class Example {
         }
         
         System.out.println();
-        System.out.println("Aurora DSQL Connection Manager example completed successfully!");
+        System.out.println("Aurora DSQL Connection Manager with Dynamic Token Generation example completed successfully!");
     }
     
     private static void testBasicConnectivity(String clusterUser) throws SQLException {
-        System.out.println("Testing basic connectivity...");
+        System.out.println("Testing basic connectivity with dynamic token generation...");
         
         try (Connection conn = getConnection()) {
             // Set schema for non-admin users
