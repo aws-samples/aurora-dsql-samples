@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.example</groupId>
-    <artifactId>AuroraDSQLExample</artifactId>
+    <artifactId>AuroraDSQLHikariCPExample</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -14,6 +14,7 @@
         <mainClass>org.example.Example</mainClass>
         <aws.sdk.version>2.31.32</aws.sdk.version>
         <slf4j.version>2.0.17</slf4j.version>
+        <hikaricp.version>6.3.0</hikaricp.version>
         <trimStackTrace>false</trimStackTrace>
     </properties>
 
@@ -28,6 +29,12 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>42.7.7</version>
+        </dependency>
+        <!-- HikariCP Connection Pool -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${hikaricp.version}</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -116,4 +123,3 @@
         </repository>
     </repositories>
 </project>
-
