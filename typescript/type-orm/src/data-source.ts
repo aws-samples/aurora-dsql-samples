@@ -14,23 +14,21 @@ const getDataSource = async () => {
     region: region,
   });
 
-  let token: string;
   let schema: string = "public";
 
   try {
-    if (user === "admin") {
-      token = await signer.getDbConnectAdminAuthToken();
-    } else {
-      token = await signer.getDbConnectAuthToken();
+    if (user !== "admin") {
       schema = "myschema";
-    }
+    } 
 
     let AppDataSource = new DataSource({
       type: "postgres",
       host: clusterEndpoint,
       port: 5432,
       username: user,
-      password: token,
+      password: () => user === "admin" 
+        ? signer.getDbConnectAdminAuthToken() 
+        : signer.getDbConnectAuthToken(),
       database: "postgres",
       ssl: {
         rejectUnauthorized: true,
