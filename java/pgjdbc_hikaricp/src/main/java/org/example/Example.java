@@ -54,7 +54,7 @@ public class Example {
         this.pgDataSource.setPortNumbers(new int[]{5432});
         this.pgDataSource.setDatabaseName("postgres");
         this.pgDataSource.setUser(user);
-        // Password will be provided dynamically via getConnections method
+        // Password will be provided dynamically via getConnection method
         
         // PostgreSQL SSL configuration for Aurora DSQL
         this.pgDataSource.setSslMode("verify-full");
