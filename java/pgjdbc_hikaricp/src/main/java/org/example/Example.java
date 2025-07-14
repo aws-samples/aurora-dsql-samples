@@ -50,9 +50,18 @@ public class Example {
                 .build();
 
         this.pgDataSource = new CustomPGDataSource();
+        this.pgDataSource.setServerNames(new String[]{endpoint});
+        this.pgDataSource.setPortNumbers(new int[]{5432});
+        this.pgDataSource.setDatabaseName("postgres");
+        this.pgDataSource.setUser(user);
+        // Password will be provided dynamically via getConnections method
+        
+        // PostgreSQL SSL configuration for Aurora DSQL
+        this.pgDataSource.setSslMode("verify-full");
+        // Note: SSL factory and negotiation are set via connection properties in HikariCP config
         
         // Initialize connection pool
-        initializeConnectionPool();
+        initializeConnectionPool(this.user);
     }
 
     /**
@@ -78,17 +87,7 @@ public class Example {
         return instance;
     }
 
-    private void initializeConnectionPool() {
-        // Create PostgreSQL DataSource
-        this.pgDataSource.setServerNames(new String[]{endpoint});
-        this.pgDataSource.setPortNumbers(new int[]{5432});
-        this.pgDataSource.setDatabaseName("postgres");
-        this.pgDataSource.setUser(user);
-        // Password will be provided dynamically via getCredentials method
-        
-        // PostgreSQL SSL configuration for Aurora DSQL
-        this.pgDataSource.setSslMode("verify-full");
-        // Note: SSL factory and negotiation are set via connection properties in HikariCP config
+    private void initializeConnectionPool(String username) {
         
         // Configure HikariCP with the PostgreSQL DataSource
         HikariConfig config = new HikariConfig();
@@ -114,7 +113,10 @@ public class Example {
         // Performance optimizations
         config.setAutoCommit(true);
         config.setReadOnly(false);
-        
+        if (!username.equals("admin")) {
+          config.setSchema("myschema");
+        }
+
         // Monitoring
         config.setRegisterMbeans(true);
         
@@ -309,13 +311,6 @@ public class Example {
         System.out.println("Testing basic connectivity with dynamic token generation...");
         
         try (Connection conn = getConnection()) {
-            // Set schema for non-admin users
-            if (!clusterUser.equals("admin")) {
-                Statement setSchema = conn.createStatement();
-                setSchema.execute("SET search_path=myschema");
-                setSchema.close();
-            }
-            
             // Test basic query
             Statement test = conn.createStatement();
             ResultSet rs = test.executeQuery("SELECT 1 as test_value");
