@@ -28,17 +28,14 @@ import java.sql.Statement;
  */
 public class Example {
 
-    private static volatile Example instance;
-    private static final Object lock = new Object();
-    
-    private HikariDataSource dataSource;
-    private CustomPGDataSource pgDataSource;
+    private final HikariDataSource dataSource;
+    private final CustomPGDataSource pgDataSource;
     private DsqlUtilities dsqlUtilities;
     private String endpoint;
     private String user;
     private String region;
 
-    private Example(String endpoint, String user, String region) {
+    public Example(String endpoint, String user, String region) {
         this.endpoint = endpoint;
         this.user = user;
         this.region = region;
@@ -61,33 +58,10 @@ public class Example {
         // Note: SSL factory and negotiation are set via connection properties in HikariCP config
         
         // Initialize connection pool
-        initializeConnectionPool(this.user);
+        this.dataSource = initializeConnectionPool(this.user);
     }
 
-    /**
-     * Initialize the connection manager singleton
-     */
-    public static void initialize(String endpoint, String user, String region) {
-        if (instance == null) {
-            synchronized (lock) {
-                if (instance == null) {
-                    instance = new Example(endpoint, user, region);
-                }
-            }
-        }
-    }
-
-    /**
-     * Get the singleton instance
-     */
-    private static Example getInstance() {
-        if (instance == null) {
-            throw new IllegalStateException("Connection manager not initialized. Call initialize() first.");
-        }
-        return instance;
-    }
-
-    private void initializeConnectionPool(String username) {
+    private HikariDataSource initializeConnectionPool(String username) {
         
         // Configure HikariCP with the PostgreSQL DataSource
         HikariConfig config = new HikariConfig();
@@ -120,7 +94,7 @@ public class Example {
         // Monitoring
         config.setRegisterMbeans(true);
         
-        this.dataSource = new HikariDataSource(config);
+        return new HikariDataSource(config);
     }
 
     /**
@@ -189,19 +163,15 @@ public class Example {
     /**
      * Get a connection from the managed pool
      */
-    public static Connection getConnection() throws SQLException {
-        return getInstance().dataSource.getConnection();
+    public Connection getConnection() throws SQLException {
+        return this.dataSource.getConnection();
     }
 
     /**
      * Get connection pool statistics
      */
-    public static String getPoolStats() {
-        if (instance == null) {
-            return "Connection manager not initialized";
-        }
-        
-        var pool = instance.dataSource.getHikariPoolMXBean();
+    public String getPoolStats() {
+        var pool = dataSource.getHikariPoolMXBean();
         return String.format("Pool Stats - Total: %d, Active: %d, Idle: %d, Waiting: %d",
                 pool.getTotalConnections(),
                 pool.getActiveConnections(),
@@ -212,33 +182,15 @@ public class Example {
     /**
      * Check if the connection pool is healthy
      */
-    public static boolean isHealthy() {
-        if (instance == null) {
-            return false;
-        }
-        
-        try (Connection conn = instance.dataSource.getConnection()) {
+    public boolean isHealthy() {
+        try (Connection conn = this.dataSource.getConnection()) {
             return conn.isValid(5); // 5 second timeout
         } catch (SQLException e) {
             return false;
         }
     }
 
-    /**
-     * Shutdown the connection manager
-     */
-    public static void shutdown() {
-        if (instance != null) {
-            synchronized (lock) {
-                if (instance != null) {
-                    instance.shutdownInternal();
-                    instance = null;
-                }
-            }
-        }
-    }
-
-    private void shutdownInternal() {
+    public void shutdown() {
         // Close connection pool
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
@@ -262,52 +214,52 @@ public class Example {
 
         // Initialize the connection manager with dynamic token generation
         System.out.println("Initializing Aurora DSQL Connection Manager...");
-        initialize(clusterEndpoint, clusterUser, region);
+        Example example = new Example(clusterEndpoint, clusterUser, region);
         System.out.println("Connection Manager initialized with dynamic token generation!");
-        System.out.println(getPoolStats());
+        System.out.println(example.getPoolStats());
         System.out.println();
         
         try {
             // Test basic connectivity
-            testBasicConnectivity(clusterUser);
+            example.testBasicConnectivity(clusterUser);
             
             // Demonstrate connection pooling with multiple concurrent connections
             System.out.println("Testing connection pool with multiple connections...");
             
-            try (Connection conn1 = getConnection()) {
+            try (Connection conn1 = example.getConnection()) {
                 System.out.println("Connection 1 obtained from pool");
-                executeExample(conn1, clusterUser, 1);
+                example.executeExample(conn1, clusterUser, 1);
             }
             
-            try (Connection conn2 = getConnection()) {
+            try (Connection conn2 = example.getConnection()) {
                 System.out.println("Connection 2 obtained from pool");
-                executeExample(conn2, clusterUser, 2);
+                example.executeExample(conn2, clusterUser, 2);
             }
             
-            try (Connection conn3 = getConnection()) {
+            try (Connection conn3 = example.getConnection()) {
                 System.out.println("Connection 3 obtained from pool");
-                executeExample(conn3, clusterUser, 3);
+                example.executeExample(conn3, clusterUser, 3);
             }
             
             // Monitor pool health and statistics
-            monitorPoolHealth(clusterUser);
+            example.monitorPoolHealth(clusterUser);
             
             // Display final statistics
             System.out.println("Final Pool Statistics:");
-            System.out.println(getPoolStats());
-            System.out.println("Health Status: " + (isHealthy() ? "Healthy" : "Unhealthy"));
+            System.out.println(example.getPoolStats());
+            System.out.println("Health Status: " + (example.isHealthy() ? "Healthy" : "Unhealthy"));
             
         } finally {
             // Graceful shutdown
             System.out.println("Shutting down Connection Manager...");
-            shutdown();
+            example.shutdown();
         }
         
         System.out.println();
         System.out.println("Aurora DSQL Connection Manager with Dynamic Token Generation example completed successfully!");
     }
     
-    private static void testBasicConnectivity(String clusterUser) throws SQLException {
+    private void testBasicConnectivity(String clusterUser) throws SQLException {
         System.out.println("Testing basic connectivity with dynamic token generation...");
         
         try (Connection conn = getConnection()) {
@@ -325,12 +277,12 @@ public class Example {
         System.out.println();
     }
     
-    private static void monitorPoolHealth(String clusterUser) throws SQLException {
+    private void monitorPoolHealth(String clusterUser) throws SQLException {
         System.out.println("Monitoring pool health...");
         
         // Check pool health
-        boolean isHealthy = isHealthy();
-        System.out.println("Health Status: " + (isHealthy ? "Healthy" : "Unhealthy"));
+        boolean healthy = isHealthy();
+        System.out.println("Health Status: " + (healthy ? "Healthy" : "Unhealthy"));
         
         // Get detailed stats
         System.out.println(getPoolStats());
@@ -355,7 +307,7 @@ public class Example {
         System.out.println();
     }
     
-    private static void executeExample(Connection conn, String clusterUser, int connectionNumber) throws SQLException {
+    private void executeExample(Connection conn, String clusterUser, int connectionNumber) throws SQLException {
         if (!clusterUser.equals("admin")) {
             Statement setSchema = conn.createStatement();
             setSchema.execute("SET search_path=myschema");
