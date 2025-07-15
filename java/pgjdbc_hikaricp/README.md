@@ -10,6 +10,9 @@ This project extends the basic Aurora DSQL example by integrating HikariCP. Hika
 ## About the code example
 The example maintains the flexible connection approach as maintained in the standalone `pgJDBC` and Amazon Aurora DSQL example and continues to work for both admin and non-admin users. It introduces connection pooling via the HikariCP library and supports DSQL's dynamic IAM token generation and token refresh.
 
+### Token Refresh Architecture
+Aurora DSQL uses IAM-based authentication with short-lived tokens (15 minutes by default). This example implements a custom `CustomPGDataSource` that extends PostgreSQL's `PGSimpleDataSource` to automatically generate fresh tokens for each connection request. The token generation process uses AWS SDK's `DsqlUtilities` to create admin or non-admin tokens based on the user type.
+
 ## ⚠️ Important
 * Running this code might result in charges to your AWS account.
 * We recommend that you grant your code least privilege. At most, grant only the
@@ -88,7 +91,9 @@ This example uses HikariCP with configuration settings optimized for Aurora DSQL
 - **Idle Timeout**: 5 minutes (300,000ms) - Connections idle longer than this are removed from the pool
 - **Max Lifetime**: 10 minutes (600,000ms) - Maximum lifetime of connections in the pool
 
-These timeout values are specifically set to be shorter than Aurora DSQL's authentication token expiry time to ensure tokens remain valid throughout the connection lifecycle. For more information about Aurora DSQL authentication tokens, see [Using authentication tokens](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_authentication-token.html).
+⚠️ **Aurora DSQL Connection Limitation**: Aurora DSQL has a hard limit where connections cannot exceed 60 minutes. The `maxLifetime` setting must be configured to be significantly shorter than this limit to prevent connection failures. The example uses 10 minutes to provide a safe margin.
+
+These timeout values are specifically set to be shorter than both Aurora DSQL's authentication token expiry time (15 minutes) and the connection lifetime limit (60 minutes) to ensure tokens remain valid and connections don't exceed DSQL's limits. For more information about Aurora DSQL authentication tokens, see [Using authentication tokens](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_authentication-token.html).
 
 ### Connection Validation and Monitoring
 - **Connection Test Query**: `SELECT 1` - Simple query to validate connection health
@@ -106,7 +111,15 @@ The example configures SSL settings required for Aurora DSQL:
 - **SSL Factory**: Uses PostgreSQL's default Java SSL factory
 - **SSL Negotiation**: Direct SSL negotiation for optimal performance
 
-These settings provide a production-ready configuration that handles Aurora DSQL's unique requirements including dynamic token refresh and secure connections.
+### Dynamic Token Management
+The example handles Aurora DSQL's unique authentication requirements:
+
+1. **Fresh Token Generation**: Each connection request generates a new IAM token using `DsqlUtilities`
+2. **Token Type Selection**: Automatically selects admin or non-admin token based on user type
+3. **Connection Lifecycle Alignment**: HikariCP timeouts are configured to work within DSQL's 60-minute connection limit and 15-minute token expiry
+4. **Automatic Refresh**: No manual token refresh needed - new tokens are generated per connection
+
+These settings provide a production-ready configuration that handles Aurora DSQL's unique requirements including the 60-minute connection limit, dynamic token refresh, and secure connections.
 
 ## Additional resources
 
