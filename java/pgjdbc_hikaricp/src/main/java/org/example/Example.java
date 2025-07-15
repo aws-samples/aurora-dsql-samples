@@ -228,7 +228,7 @@ public class Example {
             try (Connection conn1 = example.getConnection();
                  Connection conn2 = example.getConnection();
                  Connection conn3 = example.getConnection()) {
-                
+
                 System.out.println("Connection 1 obtained from pool");
                 example.executeExample(conn1, clusterUser, 1);
 
