@@ -2,8 +2,7 @@
 
 ## Overview
 
-This example demonstrates how to connect to Aurora DSQL using HikariCP connection pooling with `pgJDBC` and Amazon Aurora DSQL.
-This project extends the basic Aurora DSQL example by integrating HikariCP. HikariCP provides:
+This example demonstrates how to connect to Aurora DSQL using HikariCP connection pooling with `pgJDBC`. HikariCP provides:
 
 - **Connection Pooling**: Reuses database connections to improve performance
 - **Connection Management**: Automatically handles connection lifecycle
