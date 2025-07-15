@@ -287,13 +287,6 @@ public class Example {
         
         // Cleanup test data
         try (Connection conn = getConnection()) {
-            // Set schema for non-admin users
-            if (!clusterUser.equals("admin")) {
-                Statement setSchema = conn.createStatement();
-                setSchema.execute("SET search_path=myschema");
-                setSchema.close();
-            }
-            
             Statement cleanup = conn.createStatement();
             int deletedRows = cleanup.executeUpdate("DELETE FROM owner WHERE name LIKE '%John Doe%'");
             cleanup.close();
@@ -306,12 +299,6 @@ public class Example {
     }
     
     private void executeExample(Connection conn, String clusterUser, int connectionNumber) throws SQLException {
-        if (!clusterUser.equals("admin")) {
-            Statement setSchema = conn.createStatement();
-            setSchema.execute("SET search_path=myschema");
-            setSchema.close();
-        }
-        
         // Create a new table named owner
         Statement create = conn.createStatement();
         create.executeUpdate("""
