@@ -69,7 +69,7 @@ public class Example {
         // Configure HikariCP with the PostgreSQL DataSource
         HikariConfig config = new HikariConfig();
         config.setDataSource(this.pgDataSource);
-        
+
         // HikariCP pool configuration optimized for Aurora DSQL
         config.setPoolName("AuroraDSQLPool");
         config.setMaximumPoolSize(20);                    // Production pool size
@@ -225,17 +225,16 @@ public class Example {
             // Demonstrate connection pooling with multiple concurrent connections
             System.out.println("Testing connection pool with multiple connections...");
             
-            try (Connection conn1 = example.getConnection()) {
+            try (Connection conn1 = example.getConnection();
+                 Connection conn2 = example.getConnection();
+                 Connection conn3 = example.getConnection()) {
+                
                 System.out.println("Connection 1 obtained from pool");
                 example.executeExample(conn1, clusterUser, 1);
-            }
-            
-            try (Connection conn2 = example.getConnection()) {
+
                 System.out.println("Connection 2 obtained from pool");
                 example.executeExample(conn2, clusterUser, 2);
-            }
-            
-            try (Connection conn3 = example.getConnection()) {
+
                 System.out.println("Connection 3 obtained from pool");
                 example.executeExample(conn3, clusterUser, 3);
             }
