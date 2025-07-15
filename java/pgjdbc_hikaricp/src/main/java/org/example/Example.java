@@ -17,14 +17,16 @@ import java.sql.Statement;
  * Aurora DSQL Connection Manager with Dynamic Token Refresh
  * <p>
  * This implementation provides:
- * - HikariCP connection pooling optimized for Aurora DSQL using PostgreSQL DataSource
- * - Dynamic auth token generation via custom getConnection method
- * - Connection Management: Automatically handles connection lifecycle
- * - Monitoring: Built-in metrics and leak detection
- * - Configuration: Extensive tuning options for optimal performance
- * - Thread-safe singleton pattern with graceful shutdown
- * - Production-ready configuration with connection validation
- * - Direct PostgreSQL DataSource configuration with custom credential provider
+ * <ul>
+ * <li>HikariCP connection pooling optimized for Aurora DSQL using PostgreSQL DataSource</li>
+ * <li>Dynamic auth token generation via custom getConnection method</li>
+ * <li>Connection Management: Automatically handles connection lifecycle</li>
+ * <li>Monitoring: Built-in metrics and leak detection</li>
+ * <li>Configuration: Extensive tuning options for optimal performance</li>
+ * <li>Thread-safe singleton pattern with graceful shutdown</li>
+ * <li>Production-ready configuration with connection validation</li>
+ * <li>Direct PostgreSQL DataSource configuration with custom credential provider</li>
+ * </ul>
  */
 public class Example {
 
@@ -139,6 +141,11 @@ public class Example {
      * Custom PostgreSQL DataSource that provides dynamic token generation
      */
     private class CustomPGDataSource extends PGSimpleDataSource {
+        /**
+         * Override connection to obtain a token for each connection
+         * @return new connection for Hikari pool with updated token
+         * @throws SQLException
+         */
         @Override
         public Connection getConnection() throws SQLException {
             // Generate fresh token for each connection request
@@ -146,6 +153,11 @@ public class Example {
             return super.getConnection(getUser(), token);
         }
 
+        /**
+         * Override connection to obtain a token for each connection
+         * @return new connection for Hikari pool with updated token
+         * @throws SQLException
+         */
         @Override
         public Connection getConnection(String username, String password) throws SQLException {
             // If specific credentials are provided, use them
