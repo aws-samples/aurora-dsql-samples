@@ -94,7 +94,7 @@
                     </archive>
                 </configuration>
             </plugin>
-            <!-- Add the assemble plugin with standard configuration -->
+            <!-- Add the assembly plugin with standard configuration -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
