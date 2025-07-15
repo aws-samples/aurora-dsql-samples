@@ -75,6 +75,39 @@ _Gradle_:
 
 The example demonstrates successful connection pooling with Aurora DSQL, showing multiple connections being obtained from the pool and database operations being performed successfully.
 
+## HikariCP Configuration
+
+This example uses HikariCP with configuration settings optimized for Aurora DSQL. The key configuration parameters include:
+
+### Pool Size Settings
+- **Maximum Pool Size**: 20 connections - Production-ready pool size that balances resource usage with performance
+- **Minimum Idle**: 5 connections - Keeps connections ready for immediate use, reducing connection acquisition latency
+
+### Connection Lifecycle Management
+- **Connection Timeout**: 30 seconds - Maximum time to wait for a connection from the pool
+- **Idle Timeout**: 5 minutes (300,000ms) - Connections idle longer than this are removed from the pool
+- **Max Lifetime**: 10 minutes (600,000ms) - Maximum lifetime of connections in the pool
+
+These timeout values are specifically set to be shorter than Aurora DSQL's authentication token expiry time to ensure tokens remain valid throughout the connection lifecycle. For more information about Aurora DSQL authentication tokens, see [Using authentication tokens](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_authentication-token.html).
+
+### Connection Validation and Monitoring
+- **Connection Test Query**: `SELECT 1` - Simple query to validate connection health
+- **Validation Timeout**: 5 seconds - Maximum time for connection validation
+- **Leak Detection Threshold**: 60 seconds - Detects potential connection leaks for debugging
+
+### Performance Optimizations
+- **Auto Commit**: Enabled by default for optimal performance
+- **Schema Setting**: Automatically sets `myschema` for non-admin users
+- **MBean Registration**: Enabled for JMX monitoring and metrics
+
+### SSL Configuration
+The example configures SSL settings required for Aurora DSQL:
+- **SSL Mode**: `verify-full` - Ensures secure connections with certificate verification
+- **SSL Factory**: Uses PostgreSQL's default Java SSL factory
+- **SSL Negotiation**: Direct SSL negotiation for optimal performance
+
+These settings provide a production-ready configuration that handles Aurora DSQL's unique requirements including dynamic token refresh and secure connections.
+
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
