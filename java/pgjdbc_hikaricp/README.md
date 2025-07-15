@@ -7,7 +7,7 @@ This example demonstrates how to connect to Aurora DSQL using HikariCP connectio
 - **Connection Pooling**: Reuses database connections to improve performance
 - **Connection Management**: Automatically handles connection lifecycle
 - **Monitoring**: Built-in metrics and leak detection
-- **Configuration**: Extensive tuning options for optimal performance
+- **Configuration**: tuning options to align with token refresh
 
 ## About the code example
 
@@ -131,7 +131,7 @@ The example handles Aurora DSQL's unique authentication requirements:
 
 1. **Fresh Token Generation**: Each connection request generates a new IAM token using `DsqlUtilities`
 2. **Token Type Selection**: Automatically selects admin or non-admin token based on user type
-3. **Connection Lifecycle Alignment**: HikariCP timeouts are configured to work within DSQL's 60-minute connection limit and 15-minute token expiry
+3. **Connection Lifecycle Alignment**: HikariCP timeouts are configured to work within DSQL's connection limit and 15-minute token expiry
 4. **Automatic Refresh**: No manual token refresh needed - new tokens are generated per connection
 
 These settings provide a production-ready configuration that handles Aurora DSQL's unique requirements including the 60-minute connection limit, dynamic token refresh, and secure connections.
