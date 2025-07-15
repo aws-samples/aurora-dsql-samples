@@ -15,7 +15,7 @@ import java.sql.Statement;
 
 /**
  * Aurora DSQL Connection Manager with Dynamic Token Refresh
- * 
+ * <p>
  * This implementation provides:
  * - HikariCP connection pooling optimized for Aurora DSQL using PostgreSQL DataSource
  * - Dynamic auth token generation via custom getCredentials method
@@ -30,16 +30,16 @@ public class Example {
 
     private final HikariDataSource dataSource;
     private final CustomPGDataSource pgDataSource;
-    private DsqlUtilities dsqlUtilities;
-    private String endpoint;
-    private String user;
-    private String region;
+    private final DsqlUtilities dsqlUtilities;
+    private final String endpoint;
+    private final String user;
+    private final String region;
 
     public Example(String endpoint, String user, String region) {
         this.endpoint = endpoint;
         this.user = user;
         this.region = region;
-        
+
         // Initialize AWS DSQL utilities
         this.dsqlUtilities = DsqlUtilities.builder()
                 .region(Region.of(region))
@@ -52,20 +52,18 @@ public class Example {
         this.pgDataSource.setDatabaseName("postgres");
         this.pgDataSource.setUser(user);
         // Password will be provided dynamically via getConnection method
-        
+
         // PostgreSQL SSL configuration for Aurora DSQL
         this.pgDataSource.setSslMode("verify-full");
-        // Note: SSL factory and negotiation are set via connection properties in HikariCP config
-        // Additional SSL properties via HikariCP
-        pgDataSource.setSslfactory("org.postgresql.ssl.DefaultJavaSSLFactory");
-        pgDataSource.setSslNegotiation("direct");
-        
-        // Initialize connection pool
+        // Note: SSL factory allow for server certificate validation to be managed by java certificate store
+        this.pgDataSource.setSslfactory("org.postgresql.ssl.DefaultJavaSSLFactory");
+        this.pgDataSource.setSslNegotiation("direct");
+
         this.dataSource = initializeConnectionPool(this.user);
     }
 
     private HikariDataSource initializeConnectionPool(String username) {
-        
+
         // Configure HikariCP with the PostgreSQL DataSource
         HikariConfig config = new HikariConfig();
         config.setDataSource(this.pgDataSource);
@@ -78,28 +76,27 @@ public class Example {
         config.setIdleTimeout(300000);                    // 5 minutes (shorter than token expiry)
         config.setMaxLifetime(600000);                    // 10 minutes (shorter than token expiry)
         config.setLeakDetectionThreshold(60000);          // 60 seconds
-        
+
         // Connection validation
         config.setConnectionTestQuery("SELECT 1");
         config.setValidationTimeout(5000);                // 5 seconds
-        
-        // Performance optimizations
+
         config.setAutoCommit(true);
         config.setReadOnly(false);
         if (!username.equals("admin")) {
-          config.setSchema("myschema");
+            config.setSchema("myschema");
         }
 
         // Monitoring
         config.setRegisterMbeans(true);
-        
+
         return new HikariDataSource(config);
     }
 
     /**
      * Generate a fresh authentication token for Aurora DSQL
      */
-    private String generateAuthToken(String url, String user, int port) {
+    private String generateAuthToken(String url, String user) {
         GenerateAuthTokenRequest tokenGenerator = GenerateAuthTokenRequest.builder()
                 .hostname(extractHostname(url))
                 .region(Region.of(region))
@@ -111,20 +108,20 @@ public class Example {
             return dsqlUtilities.generateDbConnectAuthToken(tokenGenerator);
         }
     }
-    
+
     /**
      * Extract hostname from URL
      */
     private String extractHostname(String url) {
         if (url == null) {
-            return endpoint;
+            throw new IllegalArgumentException("URL cannot be null");
         }
         // Handle both JDBC URLs and plain hostnames
         if (url.startsWith("jdbc:postgresql://")) {
             String withoutProtocol = url.substring("jdbc:postgresql://".length());
             int colonIndex = withoutProtocol.indexOf(':');
             int slashIndex = withoutProtocol.indexOf('/');
-            
+
             if (colonIndex > 0 && (slashIndex == -1 || colonIndex < slashIndex)) {
                 return withoutProtocol.substring(0, colonIndex);
             } else if (slashIndex > 0) {
@@ -132,8 +129,9 @@ public class Example {
             } else {
                 return withoutProtocol;
             }
+        } else {
+            throw new IllegalArgumentException("Invalid URL expected url should contain jdbc:postgresql://");
         }
-        return url;
     }
 
     /**
@@ -143,10 +141,10 @@ public class Example {
         @Override
         public Connection getConnection() throws SQLException {
             // Generate fresh token for each connection request
-            String token = generateAuthToken(getUrl(), getUser(), getPortNumber());
+            String token = generateAuthToken(getUrl(), getUser());
             return super.getConnection(getUser(), token);
         }
-        
+
         @Override
         public Connection getConnection(String username, String password) throws SQLException {
             // If specific credentials are provided, use them
@@ -154,7 +152,7 @@ public class Example {
                 return super.getConnection(username, password);
             }
             // Otherwise generate a fresh token
-            String token = generateAuthToken(getUrl(), username, getPortNumber());
+            String token = generateAuthToken(getUrl(), username);
             return super.getConnection(username, token);
         }
     }
@@ -166,138 +164,6 @@ public class Example {
         return this.dataSource.getConnection();
     }
 
-    /**
-     * Get connection pool statistics
-     */
-    public String getPoolStats() {
-        var pool = dataSource.getHikariPoolMXBean();
-        return String.format("Pool Stats - Total: %d, Active: %d, Idle: %d, Waiting: %d",
-                pool.getTotalConnections(),
-                pool.getActiveConnections(),
-                pool.getIdleConnections(),
-                pool.getThreadsAwaitingConnection());
-    }
-
-    /**
-     * Check if the connection pool is healthy
-     */
-    public boolean isHealthy() {
-        try (Connection conn = this.dataSource.getConnection()) {
-            return conn.isValid(5); // 5 second timeout
-        } catch (SQLException e) {
-            return false;
-        }
-    }
-
-    public void shutdown() {
-        // Close connection pool
-        if (dataSource != null && !dataSource.isClosed()) {
-            dataSource.close();
-        }
-        
-        System.out.println("Aurora DSQL Connection Manager shutdown completed");
-    }
-
-    public static void main(String[] args) throws SQLException, InterruptedException {
-        System.out.println("Starting Aurora DSQL Connection Manager with Dynamic Token Generation");
-        System.out.println();
-        
-        String clusterEndpoint = System.getenv("CLUSTER_ENDPOINT");
-        assert clusterEndpoint != null : "CLUSTER_ENDPOINT environment variable is not set";
-
-        String clusterUser = System.getenv("CLUSTER_USER");
-        assert clusterUser != null : "CLUSTER_USER environment variable is not set";
-
-        String region = System.getenv("REGION");
-        assert region != null : "REGION environment variable is not set";
-
-        // Initialize the connection manager with dynamic token generation
-        System.out.println("Initializing Aurora DSQL Connection Manager...");
-        Example example = new Example(clusterEndpoint, clusterUser, region);
-        System.out.println("Connection Manager initialized with dynamic token generation!");
-        System.out.println(example.getPoolStats());
-        System.out.println();
-        
-        try {
-            // Test basic connectivity
-            example.testBasicConnectivity(clusterUser);
-            
-            // Demonstrate connection pooling with multiple concurrent connections
-            System.out.println("Testing connection pool with multiple connections...");
-            
-            try (Connection conn1 = example.getConnection();
-                 Connection conn2 = example.getConnection();
-                 Connection conn3 = example.getConnection()) {
-
-                System.out.println("Connection 1 obtained from pool");
-                example.executeExample(conn1, clusterUser, 1);
-
-                System.out.println("Connection 2 obtained from pool");
-                example.executeExample(conn2, clusterUser, 2);
-
-                System.out.println("Connection 3 obtained from pool");
-                example.executeExample(conn3, clusterUser, 3);
-            }
-            
-            // Monitor pool health and statistics
-            example.monitorPoolHealth(clusterUser);
-            
-            // Display final statistics
-            System.out.println("Final Pool Statistics:");
-            System.out.println(example.getPoolStats());
-            System.out.println("Health Status: " + (example.isHealthy() ? "Healthy" : "Unhealthy"));
-            
-        } finally {
-            // Graceful shutdown
-            System.out.println("Shutting down Connection Manager...");
-            example.shutdown();
-        }
-        
-        System.out.println();
-        System.out.println("Aurora DSQL Connection Manager with Dynamic Token Generation example completed successfully!");
-    }
-    
-    private void testBasicConnectivity(String clusterUser) throws SQLException {
-        System.out.println("Testing basic connectivity with dynamic token generation...");
-        
-        try (Connection conn = getConnection()) {
-            // Test basic query
-            Statement test = conn.createStatement();
-            ResultSet rs = test.executeQuery("SELECT 1 as test_value");
-            if (rs.next()) {
-                System.out.println("Basic connectivity test passed! Test value: " + rs.getInt("test_value"));
-            }
-            rs.close();
-            test.close();
-            
-            System.out.println(getPoolStats());
-        }
-        System.out.println();
-    }
-    
-    private void monitorPoolHealth(String clusterUser) throws SQLException {
-        System.out.println("Monitoring pool health...");
-        
-        // Check pool health
-        boolean healthy = isHealthy();
-        System.out.println("Health Status: " + (healthy ? "Healthy" : "Unhealthy"));
-        
-        // Get detailed stats
-        System.out.println(getPoolStats());
-        
-        // Cleanup test data
-        try (Connection conn = getConnection()) {
-            Statement cleanup = conn.createStatement();
-            int deletedRows = cleanup.executeUpdate("DELETE FROM owner WHERE name LIKE '%John Doe%'");
-            cleanup.close();
-            
-            System.out.println("Cleaned up " + deletedRows + " test records");
-        }
-        
-        System.out.println("Pool health monitoring completed!");
-        System.out.println();
-    }
-    
     private void executeExample(Connection conn, String clusterUser, int connectionNumber) throws SQLException {
         // Create a new table named owner
         Statement create = conn.createStatement();
@@ -329,5 +195,66 @@ public class Example {
             System.out.println("Data verified: " + rs.getString("name") + " from " + rs.getString("city"));
         }
         read.close();
+    }
+
+    public static void main(String[] args) throws SQLException, InterruptedException {
+        System.out.println("Starting Aurora DSQL Connection Manager with Dynamic Token Generation");
+        System.out.println();
+
+        String clusterEndpoint = System.getenv("CLUSTER_ENDPOINT");
+        assert clusterEndpoint != null : "CLUSTER_ENDPOINT environment variable is not set";
+
+        String clusterUser = System.getenv("CLUSTER_USER");
+        assert clusterUser != null : "CLUSTER_USER environment variable is not set";
+
+        String region = System.getenv("REGION");
+        assert region != null : "REGION environment variable is not set";
+
+        // Initialize the connection manager with dynamic token generation
+        System.out.println("Initializing Aurora DSQL Connection Manager...");
+        Example example = new Example(clusterEndpoint, clusterUser, region);
+        System.out.println("Connection Manager initialized with dynamic token generation!");
+        System.out.println();
+
+        try {
+
+            // Demonstrate connection pooling with multiple concurrent connections
+            System.out.println("Testing connection pool with multiple connections...");
+
+            try (Connection conn1 = example.getConnection();
+                 Connection conn2 = example.getConnection();
+                 Connection conn3 = example.getConnection()) {
+
+                System.out.println("Connection 1 obtained from pool");
+                example.executeExample(conn1, clusterUser, 1);
+
+                System.out.println("Connection 2 obtained from pool");
+                example.executeExample(conn2, clusterUser, 2);
+
+                System.out.println("Connection 3 obtained from pool");
+                example.executeExample(conn3, clusterUser, 3);
+            }
+
+            try (Connection conn = example.getConnection()) {
+                Statement cleanup = conn.createStatement();
+                int deletedRows = cleanup.executeUpdate("DELETE FROM owner WHERE name LIKE '%John Doe%'");
+                cleanup.close();
+
+                System.out.println("Cleaned up " + deletedRows + " test records");
+            }
+
+        } finally {
+            // Graceful shutdown
+            System.out.println("Shutting down Connection Manager...");
+            // Close connection pool
+            if (example.dataSource != null && !example.dataSource.isClosed()) {
+                example.dataSource.close();
+            }
+
+            System.out.println("Aurora DSQL Connection Manager shutdown completed");
+        }
+
+        System.out.println();
+        System.out.println("Aurora DSQL Connection Manager with Dynamic Token Generation example completed successfully!");
     }
 }
