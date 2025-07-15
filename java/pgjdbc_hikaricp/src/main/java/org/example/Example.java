@@ -56,6 +56,9 @@ public class Example {
         // PostgreSQL SSL configuration for Aurora DSQL
         this.pgDataSource.setSslMode("verify-full");
         // Note: SSL factory and negotiation are set via connection properties in HikariCP config
+        // Additional SSL properties via HikariCP
+        pgDataSource.setSslfactory("org.postgresql.ssl.DefaultJavaSSLFactory");
+        pgDataSource.setSslNegotiation("direct");
         
         // Initialize connection pool
         this.dataSource = initializeConnectionPool(this.user);
@@ -67,9 +70,7 @@ public class Example {
         HikariConfig config = new HikariConfig();
         config.setDataSource(this.pgDataSource);
         
-        // Additional SSL properties via HikariCP
-        config.addDataSourceProperty("sslfactory", "org.postgresql.ssl.DefaultJavaSSLFactory");
-        config.addDataSourceProperty("sslNegotiation", "direct");
+
         
         // HikariCP pool configuration optimized for Aurora DSQL
         config.setPoolName("AuroraDSQLPool");
