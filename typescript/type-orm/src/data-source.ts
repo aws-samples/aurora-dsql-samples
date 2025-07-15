@@ -45,7 +45,7 @@ const getDataSource = async () => {
         max: 5,                      
         idleTimeoutMillis: 10000,     
         connectionTimeoutMillis: 30000,   
-        maxLifetimeSeconds: 3600,  // Maximum connection duration 1 hour (3600 seconds)
+        maxLifetimeSeconds: 2700,  // 45 min
       },
     });
 
