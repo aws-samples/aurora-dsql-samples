@@ -134,7 +134,7 @@ The example handles Aurora DSQL's unique authentication requirements:
 3. **Connection Lifecycle Alignment**: HikariCP timeouts are configured to work within DSQL's connection limit and 15-minute token expiry
 4. **Automatic Refresh**: No manual token refresh needed - new tokens are generated per connection
 
-These settings provide a production-ready configuration that handles Aurora DSQL's unique requirements including the 60-minute connection limit, dynamic token refresh, and secure connections.
+These settings provide a production-ready configuration that handles Aurora DSQL's unique requirements including the connection limit, dynamic token refresh, and secure connections.
 
 ## Additional resources
 
