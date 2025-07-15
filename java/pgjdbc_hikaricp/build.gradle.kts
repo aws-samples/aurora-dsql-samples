@@ -17,14 +17,15 @@ repositories {
 }
 
 dependencies {
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
     implementation("org.postgresql:postgresql:42.7.7")
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("software.amazon.awssdk:dsql:2.31.32")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     implementation("org.slf4j:slf4j-api:2.0.17")
     implementation("org.slf4j:slf4j-simple:2.0.17")
+    
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.test {
