@@ -18,7 +18,7 @@ import java.sql.Statement;
  * <p>
  * This implementation provides:
  * - HikariCP connection pooling optimized for Aurora DSQL using PostgreSQL DataSource
- * - Dynamic auth token generation via custom getCredentials method
+ * - Dynamic auth token generation via custom getConnection method
  * - Connection Management: Automatically handles connection lifecycle
  * - Monitoring: Built-in metrics and leak detection
  * - Configuration: Extensive tuning options for optimal performance
@@ -53,7 +53,8 @@ public class Example {
 
         // PostgreSQL SSL configuration for Aurora DSQL
         this.pgDataSource.setSslMode("verify-full");
-        // Note: SSL factory allow for server certificate validation to be managed by java certificate store
+        // Use the DefaultJavaSSLFactory so that Java's default trust store can be used
+        // to verify the server's root cert.
         this.pgDataSource.setSslfactory("org.postgresql.ssl.DefaultJavaSSLFactory");
         this.pgDataSource.setSslNegotiation("direct");
 
