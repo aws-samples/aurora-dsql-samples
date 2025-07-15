@@ -70,8 +70,6 @@ public class Example {
         HikariConfig config = new HikariConfig();
         config.setDataSource(this.pgDataSource);
         
-
-        
         // HikariCP pool configuration optimized for Aurora DSQL
         config.setPoolName("AuroraDSQLPool");
         config.setMaximumPoolSize(20);                    // Production pool size
