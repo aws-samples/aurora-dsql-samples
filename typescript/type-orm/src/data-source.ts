@@ -39,11 +39,13 @@ const getDataSource = async () => {
       schema: schema,
       migrations: [path.join(__dirname, "/migrations/**/*{.ts,.js}")],
       migrationsRun: false,
-      // Pass the pooling options to the underlying node pg driver 
+      // Pool options
       extra: {
-        max: 10,                      // Default pool size
-        idleTimeoutMillis: 10000,     // Default idle time out - 10 seconds
-        connectionTimeoutMillis: 0,   // Default connection time out (no timeout)  
+        min: 0,
+        max: 5,                      
+        idleTimeoutMillis: 10000,     
+        connectionTimeoutMillis: 30000,   
+        maxLifetimeSeconds: 3600,  // Maximum connection duration 1 hour (3600 seconds)
       },
     });
 
