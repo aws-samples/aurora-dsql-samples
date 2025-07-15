@@ -31,12 +31,10 @@ public class Example {
     private final HikariDataSource dataSource;
     private final CustomPGDataSource pgDataSource;
     private final DsqlUtilities dsqlUtilities;
-    private final String endpoint;
     private final String user;
     private final String region;
 
     public Example(String endpoint, String user, String region) {
-        this.endpoint = endpoint;
         this.user = user;
         this.region = region;
 
@@ -63,6 +61,8 @@ public class Example {
     }
 
     private HikariDataSource initializeConnectionPool(String username) {
+
+
 
         // Configure HikariCP with the PostgreSQL DataSource
         HikariConfig config = new HikariConfig();
@@ -164,7 +164,7 @@ public class Example {
         return this.dataSource.getConnection();
     }
 
-    private void executeExample(Connection conn, String clusterUser, int connectionNumber) throws SQLException {
+    private void executeExample(Connection conn, int connectionNumber) throws SQLException {
         // Create a new table named owner
         Statement create = conn.createStatement();
         create.executeUpdate("""
@@ -197,7 +197,7 @@ public class Example {
         read.close();
     }
 
-    public static void main(String[] args) throws SQLException, InterruptedException {
+    public static void main(String[] args) throws SQLException {
         System.out.println("Starting Aurora DSQL Connection Manager with Dynamic Token Generation");
         System.out.println();
 
@@ -226,13 +226,13 @@ public class Example {
                  Connection conn3 = example.getConnection()) {
 
                 System.out.println("Connection 1 obtained from pool");
-                example.executeExample(conn1, clusterUser, 1);
+                example.executeExample(conn1, 1);
 
                 System.out.println("Connection 2 obtained from pool");
-                example.executeExample(conn2, clusterUser, 2);
+                example.executeExample(conn2, 2);
 
                 System.out.println("Connection 3 obtained from pool");
-                example.executeExample(conn3, clusterUser, 3);
+                example.executeExample(conn3, 3);
             }
 
             try (Connection conn = example.getConnection()) {
