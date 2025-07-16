@@ -39,6 +39,14 @@ const getDataSource = async () => {
       schema: schema,
       migrations: [path.join(__dirname, "/migrations/**/*{.ts,.js}")],
       migrationsRun: false,
+      // Pool options
+      extra: {
+        min: 0,
+        max: 5,                      
+        idleTimeoutMillis: 10000,     
+        connectionTimeoutMillis: 30000,   
+        maxLifetimeSeconds: 2700,  // 45 min
+      },
     });
 
     return AppDataSource;
