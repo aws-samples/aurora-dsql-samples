@@ -11,20 +11,21 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |  Language   |                Client / ORM                |
 | :---------: | :----------------------------------------: |
 |     C++     |             [libpq](cpp/libpq)             |
-| C# (dotnet) |          [npgsql](dotnet/npgsql)           |
+| C# (dotnet) |          [Npgsql](dotnet/npgsql)           |
 |     Go      |               [pgx](go/pgx/)               |
-|    Java     |           [pgjdbc](java/pgjdbc)            |
-|    Java     |   [pgjdbc_hikari](java/pgjdbc_hikaricp)    |
-| JavaScript  | [node-postgres](javascript/node-postgres/) |
-| JavaScript  |   [postgres-js](javascript/postgres-js/)   |
+|    Java     | [HikariCP + pgJDBC](java/pgjdbc_hikaricp)  |
+|    Java     |           [pgJDBC](java/pgjdbc)            |
+| JavaScript  | [AWS Lambda + node-postgres](lambda/) |
+| JavaScript  | [node-postgres (standalone)](javascript/node-postgres/) |
+| JavaScript  |   [Postgres.js](javascript/postgres-js/)   |
 |   Python    |         [psycopg](python/psycopg/)         |
 |   Python    |        [psycopg2](python/psycopg2/)        |
-|   Python    |      [sqlalchemy](python/sqlalchemy)       |
-|    Ruby     |            [rails](ruby/rails)             |
-|    Ruby     |          [ruby-pg](ruby/ruby-pg)           |
+|   Python    |      [SQLAlchemy](python/sqlalchemy)       |
+|    Ruby     |            [Rails](ruby/rails)             |
+|    Ruby     |             [pg](ruby/ruby-pg)             |
 |    Rust     |             [sqlx](rust/sqlx)              |
-| Typescript  |     [sequelize](typescript/sequelize)      |
-| Typescript  |      [type-orm](typescript/type-orm)       |
+| Typescript  |     [Sequelize](typescript/sequelize)      |
+| Typescript  |      [TypeORM](typescript/type-orm)        |
 
 |  Language   |                 Cluster Management                  |
 | :---------: | :-------------------------------------------------: |
