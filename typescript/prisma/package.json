@@ -1,0 +1,34 @@
+{
+    "name": "prisma-example",
+    "version": "1.0.0",
+    "main": "dist/index.js",
+    "scripts": {
+        "prisma:generate": "npx prisma generate --schema=prisma/veterinary-schema.prisma",
+        "prisma:migrate-up": "PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy --schema=prisma/veterinary-schema.prisma",
+        "prisma:migrate-down": "npx prisma db execute --file prisma/migrations/0_init/down.sql --schema prisma/veterinary-schema.prisma",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "prebuild": "npm run prisma:generate",
+        "build": "tsc",
+        "presample": "npm run build",
+        "sample": "tsx src/index.ts",
+        "pretest": "npm run build",
+        "test": "jest"
+    },
+    "devDependencies": {
+        "@types/jest": "^30.0.0",
+        "@types/node": "^24.1.0",
+        "prettier": "^3.6.2",
+        "prisma": "^6.12.0",
+        "ts-jest": "^29.4.1",
+        "tsx": "^4.20.3",
+        "typescript": "^5.8.3"
+    },
+    "dependencies": {
+        "@aws-sdk/dsql-signer": "^3.848.0",
+        "@prisma/adapter-pg": "^6.14.0",
+        "@prisma/client": "^6.12.0",
+        "@types/pg": "^8.15.5",
+        "pg": "^8.16.3"
+    }
+}
