@@ -1,0 +1,48 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../generated/prisma-vet"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model SpecialtyToVet {
+  A String @db.VarChar(80)
+  B String @db.Uuid
+
+  @@id([A, B])
+  @@map("_SpecialtyToVet")
+}
+
+model owner {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String  @db.VarChar(30)
+  city      String  @db.VarChar(80)
+  telephone String? @db.VarChar(20)
+  pets      pet[]
+}
+
+model pet {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @db.VarChar(30)
+  birthDate DateTime @db.Date
+  ownerId   String?  @db.Uuid
+  owner     owner?   @relation(fields: [ownerId], references: [id])
+
+  @@index([ownerId])
+}
+
+model specialty {
+  name String @id @db.VarChar(80)
+  vets vet[]  @relation("SpecialtyToVet")
+}
+
+model vet {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String      @db.VarChar(30)
+  specialties specialty[] @relation("SpecialtyToVet")
+}

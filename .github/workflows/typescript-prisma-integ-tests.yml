@@ -1,0 +1,235 @@
+name: TypeScript Prisma integration tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "typescript/prisma/**"
+      - ".github/workflows/typescript-prisma-integ-tests.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "typescript/prisma/**"
+      - ".github/workflows/typescript-prisma-integ-tests.yml"
+  # Give us a button to allow running the workflow on demand for testing.
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Manual Workflow Run"
+        required: false
+        type: string
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Check formatting
+        working-directory: ./typescript/prisma
+        run: |
+          npm ci
+          npm run format:check
+
+  prisma-integ-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      # Explicitly set permissions, following the principle of least privilege
+      actions: read
+      checks: write
+      pull-requests: write
+    concurrency:
+      # Ensure only 1 job uses the workflow cluster at a time.
+      group: ${{ github.workflow }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
+          aws-region: us-east-1
+
+      - name: Download DSQL certificate
+        run: |
+          mkdir -p ~/.postgresql
+          wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O ~/.postgresql/root.crt
+
+      - name: Install dependencies
+        working-directory: ./typescript/prisma
+        run: |
+          npm ci
+
+      - name: Build project
+        working-directory: ./typescript/prisma
+        run: |
+          npm run build
+
+      - name: Run tests
+        working-directory: ./typescript/prisma
+        env:
+          CLUSTER_USER: "admin"
+          NON_ADMIN_SCHEMA: "myschema"
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          npm run test
+
+      - name: Create auth helper
+        run: |
+          cat > /tmp/generate-prisma-url.sh << 'EOF'
+          configure_credentials() {
+            local user=$1
+
+            if [ "$user" = "admin" ]; then
+              local auth_type="admin-auth"
+              local schema="public"
+            else
+              local auth_type="auth"
+              local schema="$NON_ADMIN_SCHEMA"
+            fi
+
+            export PGHOST=$CLUSTER_ENDPOINT
+            export PGPASSWORD=$(aws dsql generate-db-connect-${auth_type}-token --region $REGION --hostname $PGHOST --expires-in 300)
+            export PGUSER=$user
+            export PGDATABASE="postgres"
+            export PGSSLMODE="verify-full"
+
+            # URL-encode password for consumption by Prisma.
+            prisma_pass=$(python -c "from urllib.parse import quote; print(quote('$PGPASSWORD', safe=''))")
+            export DATABASE_URL="postgresql://$PGUSER:$prisma_pass@$CLUSTER_ENDPOINT:5432/$PGDATABASE?sslmode=$PGSSLMODE&schema=$schema"
+          }
+          EOF
+
+      - name: Run migrations as admin
+        working-directory: ./typescript/prisma
+        env:
+          CLUSTER_USER: "admin"
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          source /tmp/generate-prisma-url.sh
+          configure_credentials $CLUSTER_USER
+
+          # Ensure clean state first.
+          npm run prisma:migrate-down
+
+          npm run prisma:migrate-up
+
+      - name: Run sample as admin
+        working-directory: ./typescript/prisma
+        env:
+          CLUSTER_USER: "admin"
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          npm run sample
+
+      - name: Clean admin schema
+        working-directory: ./typescript/prisma
+        env:
+          CLUSTER_USER: "admin"
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          source /tmp/generate-prisma-url.sh
+          configure_credentials $CLUSTER_USER
+
+          npm run prisma:migrate-down
+
+      - name: Create non-admin role
+        working-directory: ./typescript/prisma
+        env:
+          ADMIN_USER: "admin"
+          NON_ADMIN_USER: "myuser"
+          NON_ADMIN_SCHEMA: "myschema"
+          CLUSTER_ROLE: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          source /tmp/generate-prisma-url.sh
+          configure_credentials $ADMIN_USER
+
+          # Ensure clean state first.
+          psql -c "REVOKE ALL PRIVILEGES ON SCHEMA \"$NON_ADMIN_SCHEMA\" FROM \"$NON_ADMIN_USER\"" || true
+          psql -c "DROP SCHEMA IF EXISTS \"$NON_ADMIN_SCHEMA\" CASCADE"
+          psql -c "AWS IAM REVOKE \"$NON_ADMIN_USER\" FROM '$CLUSTER_ROLE'" || true
+          psql -c "DROP ROLE IF EXISTS \"$NON_ADMIN_USER\""
+
+          psql -c "CREATE ROLE \"$NON_ADMIN_USER\" WITH LOGIN"
+          psql -c "AWS IAM GRANT \"$NON_ADMIN_USER\" TO '$CLUSTER_ROLE'"
+          psql -c "CREATE SCHEMA \"$NON_ADMIN_SCHEMA\""
+          psql -c "GRANT ALL PRIVILEGES ON SCHEMA \"$NON_ADMIN_SCHEMA\" TO \"$NON_ADMIN_USER\""
+
+      - name: Run migrations as non-admin
+        working-directory: ./typescript/prisma
+        env:
+          CLUSTER_USER: "myuser"
+          NON_ADMIN_SCHEMA: "myschema"
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          source /tmp/generate-prisma-url.sh
+          configure_credentials $CLUSTER_USER
+
+          # Ensure clean state first.
+          npm run prisma:migrate-down
+
+          npm run prisma:migrate-up
+
+      - name: Run sample as non-admin
+        working-directory: ./typescript/prisma
+        env:
+          CLUSTER_USER: "myuser"
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          npm run sample
+
+      - name: Clean non-admin schema
+        working-directory: ./typescript/prisma
+        env:
+          CLUSTER_USER: "myuser"
+          NON_ADMIN_SCHEMA: "myschema"
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          source /tmp/generate-prisma-url.sh
+          configure_credentials $CLUSTER_USER
+
+          npm run prisma:migrate-down
+
+      - name: Clean non-admin role
+        working-directory: ./typescript/prisma
+        env:
+          ADMIN_USER: "admin"
+          NON_ADMIN_USER: "myuser"
+          NON_ADMIN_SCHEMA: "myschema"
+          CLUSTER_ROLE: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          source /tmp/generate-prisma-url.sh
+          configure_credentials $ADMIN_USER
+
+          psql -c "REVOKE ALL PRIVILEGES ON SCHEMA \"$NON_ADMIN_SCHEMA\" FROM \"$NON_ADMIN_USER\""
+          psql -c "DROP SCHEMA \"$NON_ADMIN_SCHEMA\" CASCADE"
+          psql -c "AWS IAM REVOKE \"$NON_ADMIN_USER\" FROM '$CLUSTER_ROLE'"
+          psql -c "DROP ROLE \"$NON_ADMIN_USER\""

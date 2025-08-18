@@ -63,6 +63,8 @@ logs/
 .env
 .env.local
 .env.*.local
+mise.toml
+root.pem
 
 # Test output
 TEST-*.xml

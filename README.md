@@ -24,8 +24,10 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |    Ruby     |            [Rails](ruby/rails)             |
 |    Ruby     |             [pg](ruby/ruby-pg)             |
 |    Rust     |             [sqlx](rust/sqlx)              |
+| Typescript  |         [Prisma](typescript/prisma)        |
 | Typescript  |     [Sequelize](typescript/sequelize)      |
 | Typescript  |      [TypeORM](typescript/type-orm)        |
+
 
 |  Language   |                 Cluster Management                  |
 | :---------: | :-------------------------------------------------: |
