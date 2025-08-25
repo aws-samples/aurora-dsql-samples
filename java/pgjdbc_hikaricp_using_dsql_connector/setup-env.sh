@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Aurora DSQL JDBC Wrapper with HikariCP - Environment Setup Script
+# Aurora DSQL JDBC Connector with HikariCP - Environment Setup Script
 # This script helps you set up the required environment variables
 
-echo "Aurora DSQL JDBC Wrapper with HikariCP - Environment Setup"
+echo "Aurora DSQL JDBC Connector with HikariCP - Environment Setup"
 echo "=========================================================="
 echo
 
@@ -33,7 +33,7 @@ prompt_optional() {
     fi
 }
 
-echo "Setting up environment variables for Aurora DSQL JDBC Wrapper with HikariCP..."
+echo "Setting up environment variables for Aurora DSQL JDBC Connector with HikariCP..."
 echo
 
 # Required variables

@@ -49,7 +49,7 @@ public class Example {
             throw new IllegalArgumentException("Username cannot be null or empty");
         }
         
-        // Configure HikariCP with Aurora DSQL JDBC Wrapper
+        // Configure HikariCP with Aurora DSQL JDBC Connector
         HikariConfig config = new HikariConfig();
         
         // Aurora DSQL JDBC Connector configuration
@@ -91,7 +91,7 @@ public class Example {
 
     /**
      * Get a connection from the managed pool
-     * The Aurora DSQL JDBC Wrapper handles token generation and refresh automatically
+     * The Aurora DSQL JDBC Connector handles token generation and refresh automatically
      */
     public Connection getConnection() throws SQLException {
         if (this.dataSource == null) {
