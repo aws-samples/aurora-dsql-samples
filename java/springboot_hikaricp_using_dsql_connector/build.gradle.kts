@@ -34,5 +34,5 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.postgresql:postgresql:42.7.7")
-	implementation("software.amazon.dsql:aurora-dsql-jdbc-wrapper:1.0.0")
+	implementation("software.amazon.dsql:aurora-dsql-jdbc-connector:1.0.0")
 }

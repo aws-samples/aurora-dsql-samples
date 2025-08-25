@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Aurora DSQL JDBC Wrapper - Environment Setup Script
+# Aurora DSQL JDBC Connector - Environment Setup Script
 # This script helps you set up the required environment variables
 
-echo "Aurora DSQL JDBC Wrapper - Environment Setup"
+echo "Aurora DSQL JDBC Connector - Environment Setup"
 echo "============================================="
 echo
 
@@ -33,7 +33,7 @@ prompt_optional() {
     fi
 }
 
-echo "Setting up environment variables for Aurora DSQL JDBC Wrapper..."
+echo "Setting up environment variables for Aurora DSQL JDBC Connector..."
 echo
 
 # Required variables

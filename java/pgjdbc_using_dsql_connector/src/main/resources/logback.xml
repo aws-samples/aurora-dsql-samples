@@ -7,7 +7,7 @@
         </encoder>
     </appender>
 
-    <!-- Show Aurora DSQL JDBC Wrapper INFO level logs -->
+    <!-- Show Aurora DSQL JDBC Connector INFO level logs -->
     <logger name="software.amazon.dsql" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
     </logger>

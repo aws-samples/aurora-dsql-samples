@@ -17,9 +17,6 @@ repositories {
 }
 
 dependencies {
-    // Note: Aurora DSQL JDBC Wrapper would be added when available
-    // implementation 'software.amazon.dsql:aurora-dsql-jdbc-wrapper:1.0.0'
-    
     // PostgreSQL JDBC Driver
     //implementation 'org.postgresql:postgresql:42.7.3'
     
@@ -29,8 +26,8 @@ dependencies {
     implementation 'software.amazon.awssdk:regions:2.31.46'
     implementation 'software.amazon.awssdk:sts:2.31.46'
 
-    //dsql wrapper dependency
-    implementation 'software.amazon.dsql:aurora-dsql-jdbc-wrapper:1.0.0'
+    //dsql connector dependency
+    implementation 'software.amazon.dsql:aurora-dsql-jdbc-connector:1.0.0'
     
     // Logging
     implementation 'org.slf4j:slf4j-api:2.0.7'
