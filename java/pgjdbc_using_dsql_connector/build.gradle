@@ -1,0 +1,81 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.amazon.dsql.samples'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal() // For local Aurora DSQL JDBC Wrapper
+}
+
+dependencies {
+    // Note: Aurora DSQL JDBC Wrapper would be added when available
+    // implementation 'software.amazon.dsql:aurora-dsql-jdbc-wrapper:1.0.0'
+    
+    // PostgreSQL JDBC Driver
+    //implementation 'org.postgresql:postgresql:42.7.3'
+    
+    // AWS SDK dependencies
+    implementation 'software.amazon.awssdk:dsql:2.31.46'
+    implementation 'software.amazon.awssdk:auth:2.31.45'
+    implementation 'software.amazon.awssdk:regions:2.31.46'
+    implementation 'software.amazon.awssdk:sts:2.31.46'
+
+    //dsql wrapper dependency
+    implementation 'software.amazon.dsql:aurora-dsql-jdbc-wrapper:1.0.0'
+    
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.7'
+    implementation 'ch.qos.logback:logback-classic:1.4.8'
+    
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+}
+
+application {
+    mainClass = 'com.amazon.dsql.samples.BasicConnectionExample'
+    applicationDefaultJvmArgs = ['-ea'] // Enable assertions
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+// Tasks to run different examples
+task runBasicExample(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.amazon.dsql.samples.BasicConnectionExample'
+    systemProperty 'java.util.logging.config.file', 'src/main/resources/logging.properties'
+    jvmArgs '-ea' // Enable assertions
+}
+
+task runCredentialsProviderExample(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.amazon.dsql.samples.CustomCredentialsProviderExample'
+    systemProperty 'java.util.logging.config.file', 'src/main/resources/logging.properties'
+    jvmArgs '-ea' // Enable assertions
+}
+
+// Task to run all examples sequentially
+task runAllExamples {
+    dependsOn runBasicExample, runCredentialsProviderExample
+    
+    // Ensure tasks run in sequence, not in parallel
+    runBasicExample.mustRunAfter()
+    runCredentialsProviderExample.mustRunAfter runBasicExample
+    
+    doLast {
+        println "\n=== All examples completed successfully ==="
+    }
+}
+
+// Make the default 'run' task execute all examples
+run.dependsOn runAllExamples
