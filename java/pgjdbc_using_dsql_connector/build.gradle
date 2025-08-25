@@ -13,7 +13,7 @@ java {
 
 repositories {
     mavenCentral()
-    mavenLocal() // For local Aurora DSQL JDBC Wrapper
+    mavenLocal() // For local Aurora DSQL JDBC Connector
 }
 
 dependencies {
