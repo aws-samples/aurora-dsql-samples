@@ -96,15 +96,6 @@ export ROLE_ARN="<your-role-arn>"
 
 ### Run the code
 
-You can use the provided setup script to configure environment variables:
-
-```bash
-# Set up environment variables interactively
-./setup-env.sh
-```
-
-Or set them manually and run the examples:
-
 ```bash
 # Build the project
 ./gradlew build

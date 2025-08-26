@@ -147,7 +147,7 @@ These settings provide a production-ready configuration that handles Aurora DSQL
 
 ## Additional resources
 
-- [Aurora DSQL JDBC Connector Documentation](../../README.md)
+- [Aurora DSQL JDBC Connector Documentation](https://github.com/awslabs/aurora-dsql-jdbc-connector/blob/main/README.md)
 - [HikariCP](https://github.com/brettwooldridge/HikariCP)
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
 - [pgJDBC Documentation](https://jdbc.postgresql.org/documentation/)

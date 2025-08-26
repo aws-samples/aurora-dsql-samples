@@ -105,9 +105,6 @@ public class Example {
             throw new SQLException("Connection cannot be null");
         }
         
-        //cleanup
-        //dropSampleTable(conn);
-
         // Create a new table named owner (Aurora DSQL compatible)
         Statement create = conn.createStatement();
         if (create != null) {
@@ -218,24 +215,5 @@ public class Example {
 
         System.out.println();
         System.out.println("Aurora DSQL Connection Manager with HikariCP and Aurora DSQL JDBC Connector example completed successfully!");
-    }
-
-    /**
-     * Clean up the sample table
-     */
-    private static void dropSampleTable(Connection connection) throws SQLException {
-        if (connection == null) {
-            System.err.println("Connection is null, cannot drop table");
-            return;
-        }
-        
-        System.out.println("\n=== Cleaning Up ===");
-
-        try (Statement stmt = connection.createStatement()) {
-            if (stmt != null) {
-                stmt.execute("DROP TABLE IF EXISTS owner");
-                System.out.println("✓ Sample table dropped");
-            }
-        }
     }
 }
