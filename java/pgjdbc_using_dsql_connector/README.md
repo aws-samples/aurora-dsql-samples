@@ -180,7 +180,7 @@ To adjust logging levels, modify the configuration files:
 
 ## Additional resources
 
-- [Aurora DSQL JDBC Connector Documentation](https://github.com/awslabs/aurora-dsql-jdbc-connector/README.md)
+- [Aurora DSQL JDBC Connector Documentation](https://github.com/awslabs/aurora-dsql-jdbc-connector/blob/main/README.md)
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
 - [pgJDBC Documentation](https://jdbc.postgresql.org/documentation/)
 - [AWS SDK for Java Documentation](https://docs.aws.amazon.com/sdk-for-java/)
