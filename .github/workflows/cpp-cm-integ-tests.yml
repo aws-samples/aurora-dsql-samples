@@ -1,5 +1,7 @@
 name: C++ SDK cluster management integration tests
 
+permissions: {}
+
 on:
   push:
     branches: [ main ]
@@ -25,12 +27,7 @@ jobs:
   cpp-cm-integ-test:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
-      contents: read
-      # Explicitly set permissions, following the principle of least privilege
-      actions: read
-      checks: write
-      pull-requests: write
+      id-token: write # required by aws-actions/configure-aws-credentials
     concurrency:
       # Ensure only 1 job mutates clusters in this account at a time.
       group: ${{ github.workflow }}
@@ -93,8 +90,7 @@ jobs:
     secrets:
       AWS_IAM_ROLE: ${{ secrets.CPP_IAM_ROLE }}
     permissions:
-      id-token: write
-      contents: read
+      id-token: write # required by aws-actions/configure-aws-credentials
     concurrency:
       # Ensure only 1 job mutates clusters in this account at a time.
       group: ${{ github.workflow }}

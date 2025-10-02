@@ -1,5 +1,7 @@
 name: Rust SQLx integration Tests
 
+permissions: {}
+
 on:
   push:
     branches: [ main ]
@@ -24,12 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      id-token: write
-      contents: read
-      # Explicitly set permissions, following the principle of least privilege
-      actions: read
-      checks: write
-      pull-requests: write
+      id-token: write # required by aws-actions/configure-aws-credentials
     concurrency:
       # Ensure only 1 job uses the workflow cluster at a time.
       group: ${{ github.workflow }}

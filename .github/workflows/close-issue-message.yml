@@ -1,8 +1,11 @@
 name: Closed Issue Message
+
+permissions: {}
+
 on:
     issues:
        types: [closed]
-permissions: {}
+
 jobs:
     auto_comment:
         permissions:

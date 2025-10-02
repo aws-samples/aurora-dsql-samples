@@ -1,11 +1,12 @@
 name: "Close stale issues"
 
+permissions: {}
+
 # Controls when the action will run.
 on:
   schedule:
   - cron: "0 0 * * *"
 
-permissions: {}
 jobs:
   cleanup:
     permissions:
