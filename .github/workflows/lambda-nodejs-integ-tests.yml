@@ -1,5 +1,7 @@
 name: CDK Lambda DSQL Sample Test
 
+permissions: {}
+
 on:
   push:
     branches: [ main ]
@@ -23,11 +25,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
-      contents: read
-      actions: read
-      checks: write
-      pull-requests: write
+      id-token: write # required by aws-actions/configure-aws-credentials
     concurrency:
       # Ensure only 1 job uses the workflow cluster at a time.
       group: ${{ github.workflow }}
@@ -71,8 +69,7 @@ jobs:
         working-directory: ./lambda
 
     permissions:
-      id-token: write
-      contents: read
+      id-token: write # required by aws-actions/configure-aws-credentials
 
     concurrency:
       # Ensure only 1 job uses the workflow cluster at a time.
