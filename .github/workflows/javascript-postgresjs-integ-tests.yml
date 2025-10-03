@@ -52,5 +52,5 @@ jobs:
           REGION: ${{ secrets.JAVASCRIPT_POSTGRESJS_CLUSTER_REGION }}
           CLUSTER_USER: 'admin'
         run: |
-          npm install
+          npm ci
           npm test
