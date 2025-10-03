@@ -52,7 +52,7 @@ jobs:
       - name: Configure and run integration for cluster management
         working-directory: ./javascript/cluster_management
         run: |
-          npm install
+          npm ci
           npm test
 
   cleanup:

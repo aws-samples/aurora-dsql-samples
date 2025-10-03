@@ -54,5 +54,5 @@ jobs:
         REGION: ${{ secrets.TYPESCRIPT_SEQUELIZE_CLUSTER_REGION}}
         CLUSTER_USER: 'admin'
       run: |
-        npm install
+        npm ci
         npm run test

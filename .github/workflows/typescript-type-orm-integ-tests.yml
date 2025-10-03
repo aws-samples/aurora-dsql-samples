@@ -52,7 +52,7 @@ jobs:
           CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_TYPE_ORM_CLUSTER_ENDPOINT }}
           REGION: ${{ secrets.TYPESCRIPT_TYPE_ORM_CLUSTER_REGION }}
         run: |
-          npm install
+          npm ci
           npm run build
           npm run migrations-drop-table
           npm run migrations-create-table
