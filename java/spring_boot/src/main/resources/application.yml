@@ -1,0 +1,25 @@
+cluster:
+  user: ${CLUSTER_USER}
+  endpoint: ${CLUSTER_ENDPOINT}
+  region: ${REGION}
+
+app:
+  exit-after-test: ${EXIT_AFTER_TEST:false}
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${cluster.endpoint}:5432/postgres
+    username: ${cluster.user}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      max-lifetime: 1800000        # 30 minutes (shorter than Aurora DSQL's 60-minute limit)
+      minimum-idle: 2
+      maximum-pool-size: 10
+      idle-timeout: 300000         # 5 minutes
+      connection-timeout: 30000    # 30 seconds
+      validation-timeout: 5000     # 5 seconds
+      connection-test-query: "SELECT 1"
+      data-source-properties:
+        sslmode: verify-full
+        sslfactory: org.postgresql.ssl.DefaultJavaSSLFactory
+        sslNegotiation: direct
