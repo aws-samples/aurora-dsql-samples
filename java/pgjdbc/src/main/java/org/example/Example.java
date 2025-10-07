@@ -1,53 +1,27 @@
 package org.example;
 
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.services.dsql.DsqlUtilities;
-import software.amazon.awssdk.services.dsql.model.GenerateAuthTokenRequest;
-import software.amazon.awssdk.regions.Region;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.Duration;
 import java.util.Properties;
-import java.util.UUID;
 
 public class Example {
 
     // Get a connection to Aurora DSQL.
-    public static Connection getConnection(String endpoint, String user, String region) throws SQLException {
-        DsqlUtilities utilities = DsqlUtilities.builder()
-                .region(Region.of(region))
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .build();
-
-        // The token expiration time is optional, and the default value is 900 seconds
-        GenerateAuthTokenRequest tokenGenerator = GenerateAuthTokenRequest.builder()
-                .hostname(endpoint)
-                .region(Region.of(region))
-                .build();
-
-        // Generate a fresh password token for each connection, to ensure the token is
-        // not expired when the connection is established
-        String password;
-        if (user.equals("admin")) {
-            password = utilities.generateDbConnectAdminAuthToken(tokenGenerator);
-        } else {
-            password = utilities.generateDbConnectAuthToken(tokenGenerator);
-        }
-
+    public static Connection getConnection(String endpoint, String user) throws SQLException {
         Properties props = new Properties();
         props.setProperty("user", user);
-        props.setProperty("password", password);
+
         // Use the DefaultJavaSSLFactory so that Java's default trust store can be used
         // to verify the server's root cert.
         props.setProperty("sslmode", "verify-full");
         props.setProperty("sslfactory", "org.postgresql.ssl.DefaultJavaSSLFactory");
         props.setProperty("sslNegotiation", "direct");
 
-        String url = "jdbc:postgresql://" + endpoint + ":5432/postgres";
+        String url = "jdbc:aws-dsql:postgresql://" + endpoint;
 
         return DriverManager.getConnection(url, props);
     }
@@ -59,10 +33,7 @@ public class Example {
         String clusterUser = System.getenv("CLUSTER_USER");
         assert clusterUser != null : "CLUSTER_USER environment variable is not set";
 
-        String region = System.getenv("REGION");
-        assert region != null : "REGION environment variable is not set";
-
-        try (Connection conn = Example.getConnection(clusterEndpoint, clusterUser, region)) {
+        try (Connection conn = Example.getConnection(clusterEndpoint, clusterUser)) {
             if (!clusterUser.equals("admin")) {
                 Statement setSchema = conn.createStatement();
                 setSchema.execute("SET search_path=myschema");

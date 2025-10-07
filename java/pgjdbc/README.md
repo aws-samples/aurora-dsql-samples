@@ -91,9 +91,6 @@ export CLUSTER_USER="<your user>"
   
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your endpoint>"
-
-# e.g. "us-east-1"
-export REGION="<your region>"
 ```
 
 Run the example:
@@ -101,8 +98,8 @@ Run the example:
   - _Maven_:
 
       ```bash
-      mvn compile assembly:single
-      java -ea -jar target/AuroraDSQLExample-1.0-SNAPSHOT-jar-with-dependencies.jar
+      mvn compile
+      mvn test
       ```
 
   - _Gradle_:
