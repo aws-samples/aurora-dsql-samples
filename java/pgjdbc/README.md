@@ -98,8 +98,8 @@ Run the example:
   - _Maven_:
 
       ```bash
-      mvn compile assembly:single
-      java -ea -jar target/AuroraDSQLExample-1.0-SNAPSHOT-jar-with-dependencies.jar
+      mvn compile
+      mvn test
       ```
 
   - _Gradle_:
