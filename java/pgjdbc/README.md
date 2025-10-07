@@ -91,9 +91,6 @@ export CLUSTER_USER="<your user>"
   
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your endpoint>"
-
-# e.g. "us-east-1"
-export REGION="<your region>"
 ```
 
 Run the example:
