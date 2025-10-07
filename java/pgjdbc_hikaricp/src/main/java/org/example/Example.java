@@ -42,6 +42,10 @@ public class Example {
         config.addDataSourceProperty("sslmode", "verify-full");
         config.addDataSourceProperty("sslnegotiation", "direct");
 
+        // Verify the server's root cert against those in the default trust store
+        config.addDataSourceProperty("sslfactory", "org.postgresql.ssl.DefaultJavaSSLFactory");
+
+
         // HikariCP pool configuration optimized for Aurora DSQL
         config.setPoolName("AuroraDSQLPool");
         config.setMaximumPoolSize(20);                    // Production pool size
