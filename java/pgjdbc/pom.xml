@@ -14,7 +14,7 @@
         <mainClass>org.example.Example</mainClass>
         <connector.version>1.2.0</connector.version>
         <junit.version>5.10.0</junit.version>
-        <postgresql.version>42.7.4</postgresql.version>
+        <postgresql.version>42.7.8</postgresql.version>
         <slf4j.version>2.0.17</slf4j.version>
         <trimStackTrace>false</trimStackTrace>
     </properties>
