@@ -18,9 +18,6 @@ repositories {
 
 dependencies {
     implementation("com.zaxxer:HikariCP:5.1.0")
-    implementation("org.postgresql:postgresql:42.7.7")
-    implementation("org.slf4j:slf4j-api:2.0.17")
-    implementation("org.slf4j:slf4j-simple:2.0.17")
     implementation("software.amazon.dsql:aurora-dsql-jdbc-connector:1.2.0")
 
     testImplementation(platform("org.junit:junit-bom:5.10.0"))

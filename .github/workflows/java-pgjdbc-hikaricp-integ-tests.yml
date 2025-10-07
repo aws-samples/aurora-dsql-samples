@@ -57,5 +57,5 @@ jobs:
         run: |
           mvn validate
           mvn initialize
-          mvn clean compile assembly:single
+          mvn compile
           mvn test

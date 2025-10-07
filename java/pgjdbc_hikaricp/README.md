@@ -75,8 +75,8 @@ export CLUSTER_ENDPOINT="<your endpoint>"
 _Maven_:
 
 ```bash
-mvn clean compile
-mvn exec:java -Dexec.mainClass="org.example.Example"
+mvn compile
+mvn test
 ```
 
 _Gradle_:
