@@ -1,16 +1,15 @@
 cluster:
   user: ${CLUSTER_USER}
   endpoint: ${CLUSTER_ENDPOINT}
-  region: ${REGION}
 
 app:
   exit-after-test: ${EXIT_AFTER_TEST:false}
 
 spring:
   datasource:
-    url: jdbc:postgresql://${cluster.endpoint}:5432/postgres
+    url: jdbc:aws-dsql:postgresql://${cluster.endpoint}
     username: ${cluster.user}
-    driver-class-name: org.postgresql.Driver
+    driver-class-name: software.amazon.dsql.jdbc.DSQLConnector
     hikari:
       max-lifetime: 1800000        # 30 minutes (shorter than Aurora DSQL's 60-minute limit)
       minimum-idle: 2
@@ -22,4 +21,4 @@ spring:
       data-source-properties:
         sslmode: verify-full
         sslfactory: org.postgresql.ssl.DefaultJavaSSLFactory
-        sslNegotiation: direct
+        sslnegotiation: direct
