@@ -9,13 +9,15 @@ This example demonstrates how to connect to Aurora DSQL using HikariCP connectio
 - **Monitoring**: Built-in metrics and leak detection
 - **Configuration**: tuning options to align with token refresh
 
+This example uses the Aurora DSQL JDBC Connector to handle IAM authentication automatically.
+
 ## About the code example
 
-The example maintains the flexible connection approach as maintained in the standalone `pgJDBC` and Amazon Aurora DSQL example and continues to work for both admin and non-admin users. It introduces connection pooling via the HikariCP library and supports DSQL's dynamic IAM token generation and token refresh.
+The example maintains the flexible connection approach as maintained in the standalone `pgJDBC` and Amazon Aurora DSQL example and continues to work for both admin and non-admin users. It introduces connection pooling via the HikariCP library.
 
-### Token Refresh Architecture
+### IAM Authentication
 
-Aurora DSQL uses IAM-based authentication with short-lived tokens (15 minutes by default). This example implements a custom `CustomPGDataSource` that extends PostgreSQL's `PGSimpleDataSource` to automatically generate fresh tokens for each connection request. The token generation process uses AWS SDK's `DsqlUtilities` to create admin or non-admin tokens based on the user type.
+Aurora DSQL uses IAM-based authentication with short-lived tokens (15 minutes by default). The Aurora DSQL JDBC Connector handles token generation and refresh automatically, creating admin or non-admin tokens based on the user type.
 
 ## ⚠️ Important
 
@@ -138,8 +140,9 @@ These settings provide a production-ready configuration that handles Aurora DSQL
 
 ## Additional resources
 
-- [HikariCP](https://github.com/brettwooldridge/HikariCP)
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+- [Amazon Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-jdbc-connector)
+- [HikariCP](https://github.com/brettwooldridge/HikariCP)
 - [pgJDBC Documentation](https://jdbc.postgresql.org/documentation/)
 - [AWS SDK for Java Documentation](https://docs.aws.amazon.com/sdk-for-java/)
 

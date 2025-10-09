@@ -8,14 +8,14 @@ shows you how to connect to an Aurora DSQL cluster and perform basic database op
 Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
 your PostgreSQL-compatible applications.
 
+This example uses the Aurora DSQL JDBC Connector to handle IAM authentication automatically.
+
 ## About the code example
 
 The example demonstrates a flexible connection approach that works for both admin and non-admin users:
 
-* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication
-  token.
-* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard
-  authentication token.
+* When connecting as an **admin user**, the example uses the `public` schema.
+* When connecting as a **non-admin user**, the example uses a custom `myschema` schema.
 
 The code automatically detects the user type and adjusts its behavior accordingly.
 
@@ -120,10 +120,11 @@ mvn spring-boot:run
 
 ## Additional resources
 
+- [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+- [Amazon Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-jdbc-connector)
 - [Spring Boot Documentation](https://spring.io/projects/spring-boot)
 - [Spring Data JDBC](https://spring.io/projects/spring-data-jdbc)
 - [HikariCP](https://github.com/brettwooldridge/HikariCP)
-- [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
 - [AWS SDK for Java Documentation](https://docs.aws.amazon.com/sdk-for-java/)
 
 ---
