@@ -67,17 +67,16 @@ Set the following environment variables or update the hardcoded values in the co
 ```bash
 # e.g. "admin"
 export CLUSTER_USER="<your user>"
+
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your endpoint>"
-# e.g. "us-east-1"
-export REGION="<your region>"
 ```
 
 _Maven_:
 
 ```bash
-mvn clean compile
-mvn exec:java -Dexec.mainClass="org.example.Example"
+mvn compile
+mvn test
 ```
 
 _Gradle_:
