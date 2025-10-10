@@ -9,14 +9,14 @@ Aurora DSQL is a distributed SQL database service that provides high availabilit
 your PostgreSQL-compatible applications. `pgJDBC` is a popular PostgreSQL adapter for Java that allows
 you to interact with PostgreSQL databases using Java code.
 
+This example uses the Aurora DSQL JDBC Connector to handle IAM authentication automatically.
+
 ## About the code example
 
 The example demonstrates a flexible connection approach that works for both admin and non-admin users:
 
-* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication
-  token.
-* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard
-  authentication token.
+* When connecting as an **admin user**, the example uses the `public` schema.
+* When connecting as a **non-admin user**, the example uses a custom `myschema` schema.
 
 The code automatically detects the user type and adjusts its behavior accordingly.
 
@@ -114,6 +114,7 @@ The example contains comments explaining the code and the operations being perfo
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+* [Amazon Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-jdbc-connector)
 * [pgJDBC Documentation](https://jdbc.postgresql.org/documentation/)
 * [AWS SDK for Java Documentation](https://docs.aws.amazon.com/sdk-for-java/)
 
