@@ -107,7 +107,7 @@ When using Liquibase with Aurora DSQL, be aware of the following considerations 
 ### Transactions
 - Running multiple DDL statements in a single transaction will result in an error
   - Use `runInTransaction:false` when running multiple DDL statements
-  - Or separate DDL statements into different transactions
+  - Or separate DDL statements into different changesets
 
 ### Index Creation
 - Use `CREATE INDEX ASYNC` instead of `CREATE INDEX` for DSQL compatibility
