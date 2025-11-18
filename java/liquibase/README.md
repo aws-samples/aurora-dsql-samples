@@ -23,7 +23,7 @@ The example includes both SQL and JSON changelog formats demonstrating:
 Liquibase can be configured using Maven, Gradle, a liquibase.properties file, Docker, Spring Boot, or Java classes, and 
 can be incorporated into a larger application or AWS Lambda. The Liquibase options available are similar in all.
 
-A dependency manager is strongly recommended to use the Aurora DSQL Connector for JDBC with Liquibase in order to include the connector's
+A dependency manager like Maven or Gradle is strongly recommended to use the Aurora DSQL Connector for JDBC with Liquibase in order to include the connector's
 dependencies.
 
 This example includes a `pom.xml` file that configures the Liquibase Maven plugin with all connection details embedded directly in the configuration:
