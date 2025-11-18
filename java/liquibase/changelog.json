@@ -1,0 +1,408 @@
+{
+  "databaseChangeLog": [
+    {
+      "changeSet": {
+        "id": "1",
+        "author": "developer",
+        "changes": [
+          {
+            "createTable": {
+              "tableName": "owner_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "id",
+                    "type": "UUID",
+                    "constraints": {
+                      "primaryKey": true
+                    },
+                    "defaultValueComputed": "gen_random_uuid()"
+                  }
+                },
+                {
+                  "column": {
+                    "name": "name",
+                    "type": "VARCHAR(30)",
+                    "constraints": {
+                      "nullable": false
+                    }
+                  }
+                },
+                {
+                  "column": {
+                    "name": "city",
+                    "type": "VARCHAR(80)",
+                    "constraints": {
+                      "nullable": false
+                    }
+                  }
+                },
+                {
+                  "column": {
+                    "name": "telephone",
+                    "type": "VARCHAR(20)"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "rollback": [
+          {
+            "dropTable": {
+              "tableName": "owner_json"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "changeSet": {
+        "id": "2",
+        "author": "developer",
+        "runInTransaction": false,
+        "changes": [
+          {
+            "createTable": {
+              "tableName": "pet_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "id",
+                    "type": "UUID",
+                    "constraints": {
+                      "primaryKey": true
+                    },
+                    "defaultValueComputed": "gen_random_uuid()"
+                  }
+                },
+                {
+                  "column": {
+                    "name": "name",
+                    "type": "VARCHAR(30)",
+                    "constraints": {
+                      "nullable": false
+                    }
+                  }
+                },
+                {
+                  "column": {
+                    "name": "birthDate",
+                    "type": "DATE",
+                    "constraints": {
+                      "nullable": false
+                    }
+                  }
+                },
+                {
+                  "column": {
+                    "name": "ownerId",
+                    "type": "UUID"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "createTable": {
+              "tableName": "specialty_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "name",
+                    "type": "VARCHAR(80)",
+                    "constraints": {
+                      "primaryKey": true
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "rollback": [
+          {
+            "dropTable": {
+              "tableName": "pet_json"
+            }
+          },
+          {
+            "dropTable": {
+              "tableName": "specialty_json"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "changeSet": {
+        "id": "3",
+        "author": "developer",
+        "changes": [
+          {
+            "createTable": {
+              "tableName": "vet_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "id",
+                    "type": "UUID",
+                    "constraints": {
+                      "primaryKey": true
+                    },
+                    "defaultValueComputed": "gen_random_uuid()"
+                  }
+                },
+                {
+                  "column": {
+                    "name": "name",
+                    "type": "VARCHAR(30)",
+                    "constraints": {
+                      "nullable": false
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "rollback": [
+          {
+            "dropTable": {
+              "tableName": "vet_json"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "changeSet": {
+        "id": "4",
+        "author": "developer",
+        "changes": [
+          {
+            "createTable": {
+              "tableName": "specialtyToVet_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "specialty",
+                    "type": "VARCHAR(80)",
+                    "constraints": {
+                      "nullable": false,
+                      "primaryKey": true
+                    }
+                  }
+                },
+                {
+                  "column": {
+                    "name": "vet",
+                    "type": "UUID",
+                    "constraints": {
+                      "nullable": false,
+                      "primaryKey": true
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "rollback": [
+          {
+            "dropTable": {
+              "tableName": "specialtyToVet_json"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "changeSet": {
+        "id": "5",
+        "author": "developer",
+        "runInTransaction": false,
+        "changes": [
+          {
+            "sql": {
+              "sql": "CREATE INDEX ASYNC pet_owner_city_idx_json ON owner_json(\"city\")"
+            }
+          },
+          {
+            "sql": {
+              "sql": "CREATE INDEX ASYNC specialtyToVet_index_json ON \"specialtyToVet_json\"(\"vet\")"
+            }
+          }
+        ],
+        "rollback": [
+          {
+            "sql": {
+              "sql": "DROP INDEX pet_owner_city_idx_json"
+            }
+          },
+          {
+            "sql": {
+              "sql": "DROP INDEX specialtyToVet_index_json"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "changeSet": {
+        "id": "6",
+        "author": "developer",
+        "runInTransaction": false,
+        "changes": [
+          {
+            "insert": {
+              "tableName": "owner_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "name",
+                    "value": "John Doe"
+                  }
+                },
+                {
+                  "column": {
+                    "name": "city",
+                    "value": "New York"
+                  }
+                },
+                {
+                  "column": {
+                    "name": "telephone",
+                    "value": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "insert": {
+              "tableName": "owner_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "name",
+                    "value": "Mary Major"
+                  }
+                },
+                {
+                  "column": {
+                    "name": "city",
+                    "value": "Anytown"
+                  }
+                },
+                {
+                  "column": {
+                    "name": "telephone",
+                    "value": "555-555-0123"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "insert": {
+              "tableName": "specialty_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "name",
+                    "value": "Exotic"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "insert": {
+              "tableName": "specialty_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "name",
+                    "value": "Dogs"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "insert": {
+              "tableName": "specialty_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "name",
+                    "value": "Cats"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "insert": {
+              "tableName": "vet_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "name",
+                    "value": "Akua Mansa"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "insert": {
+              "tableName": "vet_json",
+              "columns": [
+                {
+                  "column": {
+                    "name": "name",
+                    "value": "Carlos Salazar"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "sql": {
+              "sql": "INSERT INTO pet_json (name, \"birthDate\", \"ownerId\") VALUES ('Pet1', '2006-10-25', (SELECT id FROM owner_json WHERE name = 'John Doe'))"
+            }
+          },
+          {
+            "sql": {
+              "sql": "INSERT INTO pet_json (name, \"birthDate\", \"ownerId\") VALUES ('Pet2', '2021-07-23', (SELECT id FROM owner_json WHERE name = 'John Doe'))"
+            }
+          },
+          {
+            "sql": {
+              "sql": "INSERT INTO \"specialtyToVet_json\"(specialty, vet) VALUES ((SELECT name FROM specialty_json WHERE name = 'Exotic'), (SELECT id FROM vet_json WHERE name = 'Akua Mansa'))"
+            }
+          },
+          {
+            "sql": {
+              "sql": "INSERT INTO \"specialtyToVet_json\" (specialty, vet) VALUES ((SELECT name FROM specialty_json WHERE name = 'Cats'), (SELECT id FROM vet_json WHERE name = 'Carlos Salazar'))"
+            }
+          },
+          {
+            "sql": {
+              "sql": "INSERT INTO \"specialtyToVet_json\" (specialty, vet) VALUES ((SELECT name FROM specialty_json WHERE name = 'Dogs'), (SELECT id FROM vet_json WHERE name = 'Carlos Salazar'))"
+            }
+          }
+        ],
+        "rollback": [
+          {
+            "sql": {
+              "sql": "DELETE FROM \"specialtyToVet_json\"; DELETE FROM pet_json; DELETE FROM vet_json; DELETE FROM specialty_json; DELETE FROM owner_json;"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
