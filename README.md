@@ -15,9 +15,10 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |     Go      |               [pgx](go/pgx/)               |
 |    Java     | [HikariCP + pgJDBC](java/pgjdbc_hikaricp)  |
 |    Java     |           [pgJDBC](java/pgjdbc)            |
-| JavaScript  | [AWS Lambda + node-postgres](lambda/) |
+| JavaScript  |    [AWS Lambda + node-postgres](lambda/)   |
 | JavaScript  | [node-postgres (standalone)](javascript/node-postgres/) |
 | JavaScript  |   [Postgres.js](javascript/postgres-js/)   |
+|   Python    |        [Jupyter](python/jupyter)           |
 |   Python    |         [psycopg](python/psycopg/)         |
 |   Python    |        [psycopg2](python/psycopg2/)        |
 |   Python    |      [SQLAlchemy](python/sqlalchemy)       |

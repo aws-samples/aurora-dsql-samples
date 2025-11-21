@@ -16,7 +16,9 @@ The instructions below will cover the basics of Aurora DSQL usage in both a loca
 
 To get started with JupyterLab, users must first install the application using Python’s `pip`:
 
-`pip install jupyterlab`
+```bash
+pip install jupyterlab
+```
 
 JupyterLab can then be opened by running `jupyter lab`. This will open the JupyterLab application at localhost:8888, accessible in a browser. Ensure you have AWS credentials configured in your local environment before proceeding.
 
@@ -32,21 +34,28 @@ Once the SageMaker instance becomes active, you can open it from the ‘Notebook
 
 ### Connecting to Aurora DSQL using JupyterLab
 
-Once you’ve set up a JupyterLab instance, the steps to connect to Aurora DSQL are the same locally and in SageMaker AI. Create a notebook using the new file button on the left, then select Python 3 under Notebook. From here you will now have an empty notebook, in which you can add cells with Python code.
+Once you’ve set up a JupyterLab instance, the steps to connect to Aurora DSQL are the same locally and in SageMaker AI. Create an empty Python 3 notebook, in which you can add cells with Python code.
 
-To connect to Aurora DSQL, first install the [Aurora DSQL Connector for Python](https://github.com/awslabs/aurora-dsql-python-connector) and the Psycopg2 driver in a Python cell, and then import it:
+In a Python cell, Download the Amazon root certificate from the official trust store:
 
-```
-pip install aurora_dsql_python_connector psycopg2
+```python
+import urllib.request
+urllib.request.urlretrieve('https://www.amazontrust.com/repository/AmazonRootCA1.pem', 'root.pem')
 ```
 
+To connect to Aurora DSQL, first install the [Aurora DSQL Connector for Python](https://github.com/awslabs/aurora-dsql-python-connector) and the psycopg driver in a Python cell, and then import it:
+
+```bash
+pip install aurora_dsql_python_connector psycopg
 ```
+
+```python
 import aurora_dsql_psycopg2 as dsql
 ```
 
 With the connector imported, you can then create a DSQL configuration and connect. The Aurora DSQL Python Connector will automatically handle creation of an authentication token on each connection.
 
-```
+```python
 config = {
     'host': "your-cluster.dsql.us-east-1.on.aws",
     'region': "us-east-1",
@@ -58,20 +67,22 @@ config = {
 conn = dsql.connect(**config)
 ```
 
-Upon running your code you should now have a Psycopg2 connection to Aurora DSQL. You can then run queries using the Psycopg2 cursor and providing your SQL query. See the [Psycopg2 documentation](https://www.psycopg.org/docs/index.html) for more information on using Psycopg2 with a Postgres-compatible database. This query will result in a list of tuples in `results_list`.
+Upon running your code you should now have a Psycopg connection to Aurora DSQL. You can then run queries using the Psycopg cursor and providing your SQL query. See the [Psycopg documentation](https://www.psycopg.org/psycopg3/docs/) for more information on using Psycopg with a Postgres-compatible database. This query will result in a list of tuples in `results_list`.
 
-```
+```python
 with conn:
-   with conn.cursor() as cur:
+    with conn.cursor() as cur:
         cur.execute("SELECT * FROM table")
         results_list = cur.fetchall()
 ```
 
 You can then use Python frameworks like [Pandas](https://pandas.pydata.org/) to analyze or visualize your query results, for example:
 
-```
+```bash
 pip install pandas
+```
 
+```python
 import pandas as pd
 
 df = pd.DataFrame(results_list)
