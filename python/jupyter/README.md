@@ -36,7 +36,7 @@ Once the SageMaker instance becomes active, you can open it from the ‘Notebook
 
 Once you’ve set up a JupyterLab instance, the steps to connect to Aurora DSQL are the same locally and in SageMaker AI. Create an empty Python 3 notebook, in which you can add cells with Python code.
 
-In a Python cell, Download the Amazon root certificate from the official trust store:
+In a Python cell, download the Amazon root certificate from the official trust store:
 
 ```python
 import urllib.request
