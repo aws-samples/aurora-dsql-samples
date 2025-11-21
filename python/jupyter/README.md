@@ -10,7 +10,7 @@ The instructions below will cover the basics of Aurora DSQL usage in both a loca
 
 * An Aurora DSQL cluster
 * AWS credentials configured (local installation only)
-* Python version 3.9 or greater (local installation only)
+* Python version 3.10 or greater (local installation only)
 
 ### Using local JupyterLab
 
