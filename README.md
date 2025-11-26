@@ -8,30 +8,31 @@ To get started with Aurora DSQL, create clusters and more information, please re
 
 The subdirectories contain code examples for connecting and using Aurora DSQL in each programming language and ORM framework. The examples demonstrate the most common uses, such as installing clients, handling authentication, performing CRUD operations, and more. Please refer to the [documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/known-issues.html) for a full list of differences and limitations.
 
-|  Language   |                Client / ORM                |
-| :---------: | :----------------------------------------: |
-|     C++     |             [libpq](cpp/libpq)             |
-| C# (dotnet) |          [Npgsql](dotnet/npgsql)           |
-|     Go      |               [pgx](go/pgx/)               |
-|    Java     | [HikariCP + pgJDBC](java/pgjdbc_hikaricp)  |
-|    Java     |           [pgJDBC](java/pgjdbc)            |
-| JavaScript  |    [AWS Lambda + node-postgres](lambda/)   |
+|  Language   |                      Client / ORM                       |
+|:-----------:|:-------------------------------------------------------:|
+|     C++     |                   [libpq](cpp/libpq)                    |
+| C# (dotnet) |                 [Npgsql](dotnet/npgsql)                 |
+|     Go      |                     [pgx](go/pgx/)                      |
+|    Java     |        [HikariCP + pgJDBC](java/pgjdbc_hikaricp)        |
+|    Java     |               [Liquibase](java/liquibase)               |
+|    Java     |                  [pgJDBC](java/pgjdbc)                  |
+| JavaScript  |          [AWS Lambda + node-postgres](lambda/)          |
 | JavaScript  | [node-postgres (standalone)](javascript/node-postgres/) |
-| JavaScript  |   [Postgres.js](javascript/postgres-js/)   |
-|   Python    |        [Jupyter](python/jupyter)           |
-|   Python    |         [psycopg](python/psycopg/)         |
-|   Python    |        [psycopg2](python/psycopg2/)        |
-|   Python    |      [SQLAlchemy](python/sqlalchemy)       |
-|    Ruby     |            [Rails](ruby/rails)             |
-|    Ruby     |             [pg](ruby/ruby-pg)             |
-|    Rust     |             [sqlx](rust/sqlx)              |
-| Typescript  |         [Prisma](typescript/prisma)        |
-| Typescript  |     [Sequelize](typescript/sequelize)      |
-| Typescript  |      [TypeORM](typescript/type-orm)        |
+| JavaScript  |         [Postgres.js](javascript/postgres-js/)          |
+|   Python    |                [Jupyter](python/jupyter)                |
+|   Python    |               [psycopg](python/psycopg/)                |
+|   Python    |              [psycopg2](python/psycopg2/)               |
+|   Python    |             [SQLAlchemy](python/sqlalchemy)             |
+|    Ruby     |                   [Rails](ruby/rails)                   |
+|    Ruby     |                   [pg](ruby/ruby-pg)                    |
+|    Rust     |                    [sqlx](rust/sqlx)                    |
+| Typescript  |               [Prisma](typescript/prisma)               |
+| Typescript  |            [Sequelize](typescript/sequelize)            |
+| Typescript  |             [TypeORM](typescript/type-orm)              |
 
 
 |  Language   |                 Cluster Management                  |
-| :---------: | :-------------------------------------------------: |
+|:-----------:|:---------------------------------------------------:|
 |     C++     |    [cluster_management](cpp/cluster_management)     |
 | C# (dotnet) |   [cluster_management](dotnet/cluster_management)   |
 |     Go      |     [cluster_management](go/cluster_management)     |
