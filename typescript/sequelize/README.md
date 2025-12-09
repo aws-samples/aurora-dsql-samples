@@ -75,9 +75,6 @@ export CLUSTER_USER="<your user>"
 
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your endpoint>"
-
-# e.g. "us-east-1"
-export REGION="<your region>"
 ```
 
 Run the example:
@@ -94,18 +91,17 @@ The example contains comments explaining the code and the operations being perfo
 
 ### Connect to an Aurora DSQL cluster
 
-The example below shows how to create a Sequelize instance and connect to a DSQL cluster. It handles token generation,
-creating a new token for each connection to DSQL. This ensures that the token is always valid. This is done using Sequelize hooks
-to modify the password before each connection is created. It also has a hook after connecting to set the search path
-to the correct schema if we are using the non-admin user. When using Sequelize with the Postgres dialect option Sequelize
-uses [node-postgres](https://node-postgres.com/) to connect.
+The example below shows how to create a `Sequelize` instance and connect to a DSQL cluster. It uses the `AuroraDSQLClient` from the [Aurora DSQL Connector for node-postgres](https://github.com/awslabs/aurora-dsql-nodejs-connector/blob/main/packages/node-postgres/README.md), which automatically handles IAM token generation for each connection. The `dialectModule` option allows us to inject a custom `pg` module with the DSQL-aware client. When using Sequelize with the Postgres dialect option, Sequelize uses [node-postgres](https://node-postgres.com/) to connect.
+
+It also uses a hook after connecting to set the search path to the correct schema if we are using the non-admin user. 
 
 > **Note**
 >
 > In the dialect options you must set `clientMinMessages` to ignore, or an error will occur.
 
 ```ts
-import { DsqlSigner } from "@aws-sdk/dsql-signer";
+import { AuroraDSQLClient } from "@aws/aurora-dsql-node-postgres-connector";
+import * as pg from 'pg';
 import { Sequelize, DataTypes, Model } from 'sequelize';
 
 const ADMIN = "admin";
@@ -115,23 +111,22 @@ async function getSequelizeConnection(): Promise<Sequelize> {
 
   const clusterEndpoint: string = process.env.CLUSTER_ENDPOINT!;
   const user: string = process.env.CLUSTER_USER!;
-  const region: string = process.env.REGION!;
 
-  return new Sequelize("postgres", user, "", {
+  return new Sequelize({
     host: clusterEndpoint,
-    port: 5432,
+    username: user,
+    database: 'postgres',
     dialect: 'postgres', // Indicates to use node-postgres and Postgres Sequelize configuration
-    logging: console.log, // Set to console.log to see SQL queries
-    define: {
-      timestamps: false
+    dialectModule: { // Establish connections using the node-postgres connector
+      ...pg,
+      Client: AuroraDSQLClient
     },
     dialectOptions: {
-      user: user,
       clientMinMessages: 'ignore', // This is essential
       skipIndexes: true,
-      ssl: {
-        mode: 'verify-full'
-      },
+    },
+    define: {
+      timestamps: false
     },
     pool: { // Connection pool configuration options
       max: 5,
@@ -140,32 +135,14 @@ async function getSequelizeConnection(): Promise<Sequelize> {
       idle: 10000
     },
     hooks: {
-      beforeConnect: async (config) => {
-        // This runs before a connection is established, creating a fresh token.
-        const token = await getPasswordToken(clusterEndpoint, user, region);
-        config.password = token;
-      },
       afterConnect: async (connection, config) => {
         if (user !== ADMIN) {
           await (connection as any).query(`SET search_path TO ${NON_ADMIN_SCHEMA}`);
         }
       }
-    }
+    },
+    logging: console.log, // Set to console.log to see SQL queries
   })
-}
-
-async function getPasswordToken(endpoint: string, user: string, region: string): Promise<string> {
-  const signer = new DsqlSigner({
-    hostname: endpoint,
-    region,
-  });
-  if (user === ADMIN) {
-    return await signer.getDbConnectAdminAuthToken();
-  } else {
-    (signer as any).user = user;
-    let token = await signer.getDbConnectAuthToken();
-    return token;
-  }
 }
 ```
 
