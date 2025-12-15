@@ -1,12 +1,10 @@
-# Aurora DSQL with Psycopg
+# Aurora DSQL with asyncpg
 
-## Overview
-
-This code example demonstrates how to use Psycopg (version 3) with Amazon Aurora SQL (DSQL). The example shows you how
-to connect to an Aurora DSQL cluster and perform basic database operations.
+This example demonstrates how to use the Aurora DSQL Python Connector with asyncpg to connect to Amazon Aurora DSQL clusters and perform basic database operations.
 
 Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
-your PostgreSQL-compatible applications. Psycopg is a popular PostgreSQL adapter for Python that allows
+your PostgreSQL-compatible applications.
+Asyncpg is a popular PostgreSQL database library for Python that allows
 you to interact with PostgreSQL databases using Python code.
 
 ## About the code example
@@ -20,13 +18,6 @@ The example demonstrates a flexible connection approach that works for both admi
 
 The code automatically detects the user type and adjusts its behavior accordingly.
 
-### Recommended vs. Alternative
-
-The default examples uses the preferred method leveraging the
-[DSQL Python Connector](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_program-with-dsql-connector-for-python.html), 
-but an [alternative example](src/alternatives/example_boto.py) that connects by creating boto3 client (not recommended) 
-is provided.
-
 ## ⚠️ Important
 
 * Running this code might result in charges to your AWS account.
@@ -35,6 +26,7 @@ is provided.
   [Grant least privilege](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege).
 * This code is not tested in every AWS Region. For more information, see
   [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
+
 
 ## TLS connection configuration
 
@@ -49,7 +41,6 @@ connections should be used where possible to ensure data security during transmi
   the one used in this sample
 * If your driver doesn't support direct TLS connections, you may need to use the traditional preamble connection instead
 
-## Run the example
 
 ### Prerequisites
 
@@ -108,11 +99,12 @@ The example is designed to work with both admin and non-admin users:
 
 **Note:** running the example will use actual resources in your AWS account and may incur charges.
 
-The extended examples demonstrate:
+The connection pool examples demonstrate:
 - Creating a connection pool for Aurora DSQL
 - Using async context managers for connection management
 - Performing database operations through the pool
 - Running multiple concurrent database operations
+- Using asyncio.gather() for parallel execution
 - Proper resource management with connection pools
 
 #### Environment Cluster Details
@@ -149,7 +141,7 @@ The examples contain comments explaining the code and the operations being perfo
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
 * [Amazon Aurora DSQL Python Connector Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_program-with-dsql-connector-for-python.html)
-* [Psycopg Documentation](https://www.psycopg.org/psycopg3/docs/)
+* [Asyncpg Documentation](https://magicstack.github.io/asyncpg/current/)
 * [AWS SDK for Python (Boto3) Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
 
 ---

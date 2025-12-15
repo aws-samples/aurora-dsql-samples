@@ -81,11 +81,12 @@ source .venv/bin/activate  # Linux, macOS
 2. Install the required packages for running the examples:
 
 ```bash
-pip install "boto3>=1.35.74"
-pip install --prefer-binary "psycopg2-binary>=2.9"
+pip install -r requirements.txt
 ```
 
 ### Run the code
+
+#### What the Examples Do
 
 The example demonstrates the following operations:
 
@@ -100,6 +101,15 @@ The example is designed to work with both admin and non-admin users:
 
 **Note:** running the example will use actual resources in your AWS account and may incur charges.
 
+The extended examples demonstrate:
+- Creating a connection pool for Aurora DSQL
+- Using async context managers for connection management
+- Performing database operations through the pool
+- Running multiple concurrent database operations
+- Proper resource management with connection pools
+
+#### Environment Cluster Details
+
 Set environment variables for your cluster details:
 
 ```bash
@@ -113,17 +123,25 @@ export CLUSTER_ENDPOINT="<your endpoint>"
 export REGION="<your region>"
 ```
 
-Run the example:
+#### Run the example:
 
 ```bash
+# Run example directly
 python src/example.py
+
+# Run example using pytest
+pytest ./test/test_example.py
+
+# Run all using pytest
+pytest ./test
 ```
 
-The example contains comments explaining the code and the operations being performed.
+The examples contain comments explaining the code and the operations being performed.
 
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+* [Amazon Aurora DSQL Python Connector Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_program-with-dsql-connector-for-python.html)
 * [Psycopg2 Documentation](https://www.psycopg.org/docs/)
 * [AWS SDK for Python (Boto3) Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
 

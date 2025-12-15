@@ -8,8 +8,9 @@ from example import main
 
 
 # Smoke tests that our example works fine
-def test_example():
+@pytest.mark.asyncio
+async def test_example():
     try:
-        main()
+        await main()
     except Exception as e:
         pytest.fail(f"Unexpected exception: {e}")

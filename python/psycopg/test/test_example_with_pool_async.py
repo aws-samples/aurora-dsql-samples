@@ -4,12 +4,13 @@ SPDX-License-Identifier: MIT-0
 """
 
 import pytest
-from example import main
+from example_with_connection_pool_async import main
 
 
-# Smoke tests that our example works fine
-def test_example():
+# Smoke tests that our async example works fine
+@pytest.mark.asyncio
+async def test_example_with_pool_async():
     try:
-        main()
+        await main()
     except Exception as e:
         pytest.fail(f"Unexpected exception: {e}")

@@ -3,8 +3,9 @@ Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 SPDX-License-Identifier: MIT-0
 """
 
+from alternatives.example_boto import main
+
 import pytest
-from example import main
 
 
 # Smoke tests that our example works fine

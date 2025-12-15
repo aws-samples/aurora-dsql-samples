@@ -4,11 +4,11 @@ SPDX-License-Identifier: MIT-0
 """
 
 import pytest
-from example import main
+from example_with_connection_pool_concurrent import main
 
 
 # Smoke tests that our example works fine
-def test_example():
+def test_example_with_pool_concurrent():
     try:
         main()
     except Exception as e:

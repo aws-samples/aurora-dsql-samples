@@ -3,33 +3,29 @@ Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 SPDX-License-Identifier: MIT-0
 """
 
+import asyncio
 import os
-from psycopg import pq
-import aurora_dsql_psycopg as dsql
+
+import aurora_dsql_asyncpg as dsql
 
 
-def create_connection(cluster_user, cluster_endpoint, region):
-
+async def create_connection(cluster_user, cluster_endpoint, region):
     ssl_cert_path = "./root.pem"
     if not os.path.isfile(ssl_cert_path):
         raise FileNotFoundError(f"SSL certificate file not found: {ssl_cert_path}")
 
     conn_params = {
-        "dbname": "postgres",
+        "database": "postgres",
         "user": cluster_user,
         "host": cluster_endpoint,
-        "port": "5432",
+        "port": 5432,
         "region": region,
-        "sslmode": "verify-full",
+        "ssl": "verify-full",
         "sslrootcert": ssl_cert_path,
     }
 
-    # Use the more efficient connection method if it's supported.
-    if pq.version() >= 170000:
-        conn_params["sslnegotiation"] = "direct"
-
     # Make a connection to the cluster
-    conn = dsql.connect(**conn_params)
+    conn = await dsql.connect(**conn_params)
 
     if cluster_user == "admin":
         schema = "public"
@@ -37,22 +33,16 @@ def create_connection(cluster_user, cluster_endpoint, region):
         schema = "myschema"
 
     try:
-        with conn.cursor() as cur:
-            cur.execute(f"SET search_path = {schema};")
-            conn.commit()
+        await conn.execute(f"SET search_path = {schema};")
     except Exception as e:
-        conn.close()
+        await conn.close()
         raise e
 
     return conn
 
 
-def exercise_connection(conn):
-    conn.set_autocommit(True)
-
-    cur = conn.cursor()
-
-    cur.execute(
+async def exercise_connection(conn):
+    await conn.execute(
         """
         CREATE TABLE IF NOT EXISTS owner(
             id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -64,12 +54,14 @@ def exercise_connection(conn):
     )
 
     # Insert some rows
-    cur.execute(
-        "INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')"
+    await conn.execute(
+        "INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)",
+        "John Doe",
+        "Anytown",
+        "555-555-1999",
     )
 
-    cur.execute("SELECT * FROM owner WHERE name='John Doe'")
-    row = cur.fetchone()
+    row = await conn.fetchrow("SELECT * FROM owner WHERE name=$1", "John Doe")
 
     # Verify the result we got is what we inserted before
     assert row[0] is not None
@@ -79,10 +71,10 @@ def exercise_connection(conn):
 
     # Clean up the table after the example. If we run the example again
     # we do not have to worry about data inserted by previous runs
-    cur.execute("DELETE FROM owner where name = 'John Doe'")
+    await conn.execute("DELETE FROM owner WHERE name = $1", "John Doe")
 
 
-def main():
+async def main():
     conn = None
     try:
         cluster_user = os.environ.get("CLUSTER_USER", None)
@@ -96,14 +88,14 @@ def main():
         region = os.environ.get("REGION", None)
         assert region is not None, "REGION environment variable is not set"
 
-        conn = create_connection(cluster_user, cluster_endpoint, region)
-        exercise_connection(conn)
+        conn = await create_connection(cluster_user, cluster_endpoint, region)
+        await exercise_connection(conn)
     finally:
         if conn is not None:
-            conn.close()
+            await conn.close()
 
     print("Connection exercised successfully")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

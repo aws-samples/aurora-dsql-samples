@@ -1,35 +1,48 @@
 """
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 SPDX-License-Identifier: MIT-0
+
+---
+
+boto3 client alternative to using the aurora-dsql-python-connector
+
+this method is NOT recommended, but should be used when custom drivers or infrastructure are 
+incompatible with the dsql connector 
 """
 
+import boto3
+import psycopg2
+import psycopg2.extensions
 import os
-from psycopg import pq
-import aurora_dsql_psycopg as dsql
+import sys
 
 
 def create_connection(cluster_user, cluster_endpoint, region):
+    # Generate a fresh password token for each connection, to ensure the token is not expired
+    # when the connection is established
+    client = boto3.client("dsql", region_name=region)
 
-    ssl_cert_path = "./root.pem"
-    if not os.path.isfile(ssl_cert_path):
-        raise FileNotFoundError(f"SSL certificate file not found: {ssl_cert_path}")
+    if cluster_user == "admin":
+        password_token = client.generate_db_connect_admin_auth_token(cluster_endpoint, region)
+    else:
+        password_token = client.generate_db_connect_auth_token(cluster_endpoint, region)
 
     conn_params = {
         "dbname": "postgres",
         "user": cluster_user,
         "host": cluster_endpoint,
         "port": "5432",
-        "region": region,
         "sslmode": "verify-full",
-        "sslrootcert": ssl_cert_path,
+        "sslrootcert": "./root.pem",
+        "password": password_token
     }
 
     # Use the more efficient connection method if it's supported.
-    if pq.version() >= 170000:
+    if psycopg2.extensions.libpq_version() >= 170000:
         conn_params["sslnegotiation"] = "direct"
 
     # Make a connection to the cluster
-    conn = dsql.connect(**conn_params)
+    conn = psycopg2.connect(**conn_params)
 
     if cluster_user == "admin":
         schema = "public"
@@ -48,31 +61,27 @@ def create_connection(cluster_user, cluster_endpoint, region):
 
 
 def exercise_connection(conn):
-    conn.set_autocommit(True)
+    conn.set_session(autocommit=True)
 
     cur = conn.cursor()
 
-    cur.execute(
-        """
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS owner(
             id uuid NOT NULL DEFAULT gen_random_uuid(),
             name varchar(30) NOT NULL,
             city varchar(80) NOT NULL,
             telephone varchar(20) DEFAULT NULL,
             PRIMARY KEY (id))
-            """
-    )
+            """)
 
     # Insert some rows
-    cur.execute(
-        "INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')"
-    )
+    cur.execute("INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')")
 
     cur.execute("SELECT * FROM owner WHERE name='John Doe'")
     row = cur.fetchone()
 
     # Verify the result we got is what we inserted before
-    assert row[0] is not None
+    assert row[0] != None
     assert row[1] == "John Doe"
     assert row[2] == "Anytown"
     assert row[3] == "555-555-1999"
@@ -89,9 +98,7 @@ def main():
         assert cluster_user is not None, "CLUSTER_USER environment variable is not set"
 
         cluster_endpoint = os.environ.get("CLUSTER_ENDPOINT", None)
-        assert (
-            cluster_endpoint is not None
-        ), "CLUSTER_ENDPOINT environment variable is not set"
+        assert cluster_endpoint is not None, "CLUSTER_ENDPOINT environment variable is not set"
 
         region = os.environ.get("REGION", None)
         assert region is not None, "REGION environment variable is not set"
