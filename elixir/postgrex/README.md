@@ -69,7 +69,6 @@ export REGION="<your region>"
 Install dependencies and run the example:
 
 ```bash
-mix deps.get
 mix run -e "AuroraDsqlExample.run()"
 ```
 
