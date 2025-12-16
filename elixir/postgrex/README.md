@@ -31,7 +31,9 @@ The code automatically detects the user type and adjusts its behavior accordingl
 ```bash
 elixir --version
 ```
+* Install required Elixir dependencies.
 
+mix deps.get
 * AWS CLI installed and configured for token generation.
 * You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html) guide.
 * If connecting as a non-admin user, ensure the user is linked to an IAM role and is granted access to the `myschema` schema. See the [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html) guide.
