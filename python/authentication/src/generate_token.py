@@ -1,4 +1,6 @@
 # Python SDK examples for generating Aurora DSQL authentication tokens
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 # --8<-- [start:python-generate-token]
 def generate_token(your_cluster_endpoint, region):
