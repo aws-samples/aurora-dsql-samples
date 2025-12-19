@@ -19,6 +19,7 @@ async function getSequelizeConnection(): Promise<Sequelize> {
   return new Sequelize({
     host: clusterEndpoint,
     username: user,
+    database: 'postgres',
     dialect: 'postgres',
     dialectModule: {
       ...pg,

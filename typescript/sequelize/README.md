@@ -100,6 +100,7 @@ import * as pg from 'pg';
 const sequelize = new Sequelize({
   host: clusterEndpoint,
   username: user,
+  database: 'postgres',
   dialect: 'postgres',
   dialectModule: { ...pg, Client: AuroraDSQLClient },
   // ...
