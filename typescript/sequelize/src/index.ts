@@ -27,7 +27,6 @@ async function getSequelizeConnection(): Promise<Sequelize> {
     },
     dialectOptions: {
       clientMinMessages: 'ignore',
-      skipIndexes: true,
     },
     define: {
       timestamps: false
