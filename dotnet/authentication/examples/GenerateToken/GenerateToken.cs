@@ -9,6 +9,7 @@ var yourClusterEndpoint = "insert-dsql-cluster-endpoint";
 
 AWSCredentials credentials = FallbackCredentialsFactory.GetCredentials();
 
+// Use `DSQLAuthTokenGenerator.GenerateDbConnectAuthToken` if you are _not_ logging in as `admin` user
 var token = DSQLAuthTokenGenerator.GenerateDbConnectAdminAuthToken(credentials, RegionEndpoint.USEast1, yourClusterEndpoint);
 
 Console.WriteLine(token);
