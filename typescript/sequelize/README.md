@@ -106,7 +106,7 @@ a connection pool configuration in the constructor, as seen in the `pool` parame
 for each connection opened in the connection pool. Note that DSQL connections will automatically close after one hour. The 
 connection pool will open new connections as needed.
 
-#### Using UUID as primary Key
+#### Using UUID as primary key
 
 DSQL does not support serialized primary keys or identity columns (auto-incrementing integers) that are commonly used in traditional relational databases. Instead, it is recommended to use UUID (Universally Unique Identifier) as the primary key for your entities.
 
