@@ -1,4 +1,5 @@
-import { DsqlSigner } from "@aws-sdk/dsql-signer";
+import { AuroraDSQLClient } from "@aws/aurora-dsql-node-postgres-connector";
+import * as pg from 'pg';
 import { Sequelize, DataTypes, Model } from 'sequelize';
 
 const ADMIN = "admin";
@@ -14,26 +15,22 @@ async function getSequelizeConnection(): Promise<Sequelize> {
   if (!user) {
     throw new Error("Missing required environment variable CLUSTER_USER")
   }
-  const region: string = process.env.REGION!;
-  if (!region) {
-    throw new Error("Missing required environment variable REGION")
-  }
 
-  return new Sequelize("postgres", user, "", {
+  return new Sequelize({
     host: clusterEndpoint,
-    port: 5432,
+    username: user,
+    database: 'postgres',
     dialect: 'postgres',
-    logging: console.log, // Set to console.log to see SQL queries
-    define: {
-      timestamps: false
+    dialectModule: {
+      ...pg,
+      Client: AuroraDSQLClient
     },
     dialectOptions: {
-      user: user,
-      clientMinMessages: 'ignore', // This is essential
+      clientMinMessages: 'ignore',
       skipIndexes: true,
-      ssl: {
-        rejectUnauthorized: true,
-      }
+    },
+    define: {
+      timestamps: false
     },
     pool: {
       max: 5,
@@ -42,33 +39,15 @@ async function getSequelizeConnection(): Promise<Sequelize> {
       idle: 10000
     },
     hooks: {
-      beforeConnect: async (config) => {
-        // This runs before each connection is established, creating a fresh token.
-        const token = await getPasswordToken(clusterEndpoint, user, region);
-        config.password = token;
-      },
       afterConnect: async (connection, config) => {
         console.log("Successfully opened connection")
         if (user !== ADMIN) {
           await (connection as any).query(`SET search_path TO ${NON_ADMIN_SCHEMA}`);
         }
       }
-    }
+    },
+    logging: console.log, // Set to console.log to see SQL queries
   })
-}
-
-async function getPasswordToken(endpoint: string, user: string, region: string): Promise<string> {
-  const signer = new DsqlSigner({
-    hostname: endpoint,
-    region,
-  });
-  if (user === ADMIN) {
-    return await signer.getDbConnectAdminAuthToken();
-  } else {
-    (signer as any).user = user;
-    let token = await signer.getDbConnectAuthToken();
-    return token;
-  }
 }
 
 class Owner extends Model {

@@ -98,3 +98,6 @@ Icon?
 .TemporaryItems
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
+
+# TypeScript build outputs
+dist/
