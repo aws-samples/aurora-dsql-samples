@@ -91,7 +91,7 @@ The example contains comments explaining the code and the operations being perfo
 
 ### Connect to an Aurora DSQL cluster
 
-The example below shows how to create a `Sequelize` instance and connect to a DSQL cluster. It uses the `AuroraDSQLClient` from the [Aurora DSQL Connector for node-postgres](https://github.com/awslabs/aurora-dsql-nodejs-connector/blob/main/packages/node-postgres/README.md), which automatically handles IAM token generation for each connection. The `dialectModule` option allows us to inject a custom `pg` module with the DSQL-aware client. When using Sequelize with the Postgres dialect option, Sequelize uses [node-postgres](https://node-postgres.com/) to connect.
+The example uses the `AuroraDSQLClient` from the [Aurora DSQL Connector for node-postgres](https://github.com/awslabs/aurora-dsql-nodejs-connector/blob/main/packages/node-postgres/README.md), which automatically handles IAM token generation for each connection. The `dialectModule` option allows us to inject a custom `pg` module with the DSQL-aware client. When using Sequelize with the Postgres dialect option, Sequelize uses [node-postgres](https://node-postgres.com/) to connect.
 
 It also uses a hook after connecting to set the search path to the correct schema if we are using the non-admin user. 
 
@@ -99,175 +99,32 @@ It also uses a hook after connecting to set the search path to the correct schem
 >
 > In the dialect options you must set `clientMinMessages` to ignore, or an error will occur.
 
-```ts
-import { AuroraDSQLClient } from "@aws/aurora-dsql-node-postgres-connector";
-import * as pg from 'pg';
-import { Sequelize, DataTypes, Model } from 'sequelize';
+#### Connection pooling
 
-const ADMIN = "admin";
-const NON_ADMIN_SCHEMA = "myschema";
-
-async function getSequelizeConnection(): Promise<Sequelize> {
-
-  const clusterEndpoint: string = process.env.CLUSTER_ENDPOINT!;
-  const user: string = process.env.CLUSTER_USER!;
-
-  return new Sequelize({
-    host: clusterEndpoint,
-    username: user,
-    database: 'postgres',
-    dialect: 'postgres', // Indicates to use node-postgres and Postgres Sequelize configuration
-    dialectModule: { // Establish connections using the node-postgres connector
-      ...pg,
-      Client: AuroraDSQLClient
-    },
-    dialectOptions: {
-      clientMinMessages: 'ignore', // This is essential
-      skipIndexes: true,
-    },
-    define: {
-      timestamps: false
-    },
-    pool: { // Connection pool configuration options
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    },
-    hooks: {
-      afterConnect: async (connection, config) => {
-        if (user !== ADMIN) {
-          await (connection as any).query(`SET search_path TO ${NON_ADMIN_SCHEMA}`);
-        }
-      }
-    },
-    logging: console.log, // Set to console.log to see SQL queries
-  })
-}
-```
-
-#### Connection Pooling
 In Sequelize, [connection pooling](https://sequelize.org/docs/v6/other-topics/connection-pool/) can be used by specifying
-a connection pool configuration in the constructor, as seen in the `pool` parameter. In the example above, a new token is created
+a connection pool configuration in the constructor, as seen in the `pool` parameter. In the example, a new token is created
 for each connection opened in the connection pool. Note that DSQL connections will automatically close after one hour. The 
 connection pool will open new connections as needed.
 
-### Create models
-
-#### Using UUID as Primary Key
+#### Using UUID as primary Key
 
 DSQL does not support serialized primary keys or identity columns (auto-incrementing integers) that are commonly used in traditional relational databases. Instead, it is recommended to use UUID (Universally Unique Identifier) as the primary key for your entities.
 
 Here's how to define a UUID primary key in your entity class:
 ```ts
-    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
 ```
 
-#### Sequelize.sync() does not work with DSQL
+#### Sequelize.sync() does not work
 
-Attempting to create or modify tables using `Sequelize.sync()` will result in an error. This can be worked around by creating tables in advance separately using the `QueryInterface`. The `QueryInterface.createTable()` function allows table creation, and `QueryInterface.query()` allows arbitrary SQL statements to be executed, including schema modification or index creation. Note that if you create tables directly using the Query Interface, you still need to initialize the model, as shown in the example below. This initializes the model in memory for Sequelize execution, whereas the Query Interface interacts with the database.
+Attempting to create or modify tables using `Sequelize.sync()` will result in an error. This can be worked around by creating tables in advance separately using the `QueryInterface`. The `QueryInterface.createTable()` function allows table creation, and `QueryInterface.query()` allows arbitrary SQL statements to be executed, including schema modification or index creation. Note that if you create tables directly using the Query Interface, you still need to initialize the model. This initializes the model in memory for Sequelize execution, whereas the Query Interface interacts with the database.
 
-#### Model definitions
+#### Relationships
+
+When creating relationships between models, note that `constraints` must be set to `false`:
 
 ```ts
-class Owner extends Model {
-  declare id: string;
-  declare name: string;
-  declare city: string;
-  declare telephone: string | null;
-}
-
-class Pet extends Model {
-  declare id: string;
-  declare name: string;
-  declare birthDate: Date;
-  declare ownerId: string | null;
-}
-
-class VetSpecialties extends Model {
-  declare id: string;
-  declare vetId: string | null;
-  declare specialtyId: string | null;
-}
-
-class Specialty extends Model {
-  declare id: string;
-}
-
-class Vet extends Model {
-  declare id: string;
-  declare name: string;
-  declare Specialties?: Specialty[];
-  declare setSpecialties: (specialties: Specialty[]) => Promise<void>;
-}
-
-async function createTables(sequelize: Sequelize) {
-  // Create tables in DB - workaround for Sequelize.sync()
-  await queryInterface.createTable('owner', {
-    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    name: { type: DataTypes.STRING(30), allowNull: false },
-    city: { type: DataTypes.STRING(80), allowNull: false },
-    telephone: { type: DataTypes.STRING(20), allowNull: true, defaultValue: null }
-  });
-
-  await queryInterface.createTable('pet', {
-    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    name: { type: DataTypes.STRING(30), allowNull: false },
-    birthDate: { type: DataTypes.DATEONLY, allowNull: false },
-    ownerId: { type: DataTypes.UUID, allowNull: true }
-  });
-
-  await queryInterface.createTable('specialty', {
-    id: { type: DataTypes.STRING(80), primaryKey: true, field: 'name' }
-  });
-
-  await queryInterface.createTable('vet', {
-    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    name: { type: DataTypes.STRING(30), allowNull: false }
-  });
-
-  await queryInterface.createTable('vetSpecialties', {
-    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    vetId: { type: DataTypes.UUID, allowNull: true },
-    specialtyId: { type: DataTypes.STRING(80), allowNull: true }
-  });
-
-  // Initialize Sequelize models in memory
-  Owner.init({
-    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    name: { type: DataTypes.STRING(30), allowNull: false },
-    city: { type: DataTypes.STRING(80), allowNull: false },
-    telephone: { type: DataTypes.STRING(20), allowNull: true, defaultValue: null }
-  }, { sequelize, tableName: 'owner' });
-
-  Pet.init({
-    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    name: { type: DataTypes.STRING(30), allowNull: false },
-    birthDate: { type: DataTypes.DATEONLY, allowNull: false },
-    ownerId: { type: DataTypes.UUID, allowNull: true }
-  }, { sequelize, tableName: 'pet', });
-
-  VetSpecialties.init({
-    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    vetId: { type: DataTypes.UUID, allowNull: true },
-    specialtyId: { type: DataTypes.STRING(80), allowNull: true }
-  }, { sequelize, tableName: 'vetSpecialties', });
-
-  Specialty.init({
-    id: { type: DataTypes.STRING(80), primaryKey: true, field: 'name' }
-  }, { sequelize, tableName: 'specialty', });
-
-  Vet.init({
-    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    name: { type: DataTypes.STRING(30), allowNull: false }
-  }, { sequelize, tableName: 'vet', });
-
-  // Create relationships, note that constraints must be set to false.
-  Pet.belongsTo(Owner, { foreignKey: 'ownerId', constraints: false });
-  Owner.hasMany(Pet, { foreignKey: 'ownerId', constraints: false });
-  Vet.belongsToMany(Specialty, { through: VetSpecialties, foreignKey: 'vetId', otherKey: 'specialtyId', constraints: false });
-  Specialty.belongsToMany(Vet, { through: VetSpecialties, foreignKey: 'specialtyId', otherKey: 'vetId', constraints: false, as: 'Specialties' });
-}
+Pet.belongsTo(Owner, { foreignKey: 'ownerId', constraints: false });
 ```
 
 ## Additional resources
