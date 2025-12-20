@@ -10,9 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/dsql-signer": "^3.705.0",
+    "@aws/aurora-dsql-node-postgres-connector": "^0.1.5",
     "assert": "2.1.0",
-    "pg": "^8.13.1",
     "uuid": "^11.0.2"
   },
   "devDependencies": {
