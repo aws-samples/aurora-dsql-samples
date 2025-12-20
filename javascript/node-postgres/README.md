@@ -11,12 +11,12 @@ you to interact with PostgreSQL databases using JavaScript code.
 
 ## About the code example
 
+This example uses the [Aurora DSQL Node.js Connector](https://github.com/awslabs/aurora-dsql-nodejs-connector) which automatically handles IAM token generation for authentication.
+
 The example demonstrates a flexible connection approach that works for both admin and non-admin users:
 
-* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication
-  token.
-* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard
-  authentication token.
+* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication token.
+* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard authentication token.
 
 The code automatically detects the user type and adjusts its behavior accordingly.
 
@@ -76,9 +76,6 @@ export CLUSTER_USER="<your user>"
   
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your endpoint>"
-
-# e.g. "us-east-1"
-export REGION="<your region>"
 ```
 
 Run the example:
@@ -93,8 +90,10 @@ The example contains comments explaining the code and the operations being perfo
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+* [Aurora DSQL Node.js Connector](https://github.com/awslabs/aurora-dsql-nodejs-connector/tree/main/packages/node-postgres)
 * [node-postgres Documentation](https://node-postgres.com/)
-* [AWS SDK for JavaScript Documentation](https://docs.aws.amazon.com/sdk-for-javascript/)
+
+**Note:** The connector automatically extracts the region from the cluster endpoint and defaults to the `postgres` database.
 
 ---
 

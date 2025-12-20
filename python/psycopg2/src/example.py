@@ -1,36 +1,12 @@
-import boto3
-import psycopg2
-import psycopg2.extensions
+import aurora_dsql_psycopg2 as dsql
 import os
-import sys
 
 
-def create_connection(cluster_user, cluster_endpoint, region):
-    # Generate a fresh password token for each connection, to ensure the token is not expired
-    # when the connection is established
-    client = boto3.client("dsql", region_name=region)
-
-    if cluster_user == "admin":
-        password_token = client.generate_db_connect_admin_auth_token(cluster_endpoint, region)
-    else:
-        password_token = client.generate_db_connect_auth_token(cluster_endpoint, region)
-
-    conn_params = {
-        "dbname": "postgres",
-        "user": cluster_user,
-        "host": cluster_endpoint,
-        "port": "5432",
-        "sslmode": "verify-full",
-        "sslrootcert": "./root.pem",
-        "password": password_token
-    }
-
-    # Use the more efficient connection method if it's supported.
-    if psycopg2.extensions.libpq_version() >= 170000:
-        conn_params["sslnegotiation"] = "direct"
-
-    # Make a connection to the cluster
-    conn = psycopg2.connect(**conn_params)
+def create_connection(cluster_user, cluster_endpoint):
+    conn = dsql.connect(
+        host=cluster_endpoint,
+        user=cluster_user,
+    )
 
     if cluster_user == "admin":
         schema = "public"
@@ -88,10 +64,7 @@ def main():
         cluster_endpoint = os.environ.get("CLUSTER_ENDPOINT", None)
         assert cluster_endpoint is not None, "CLUSTER_ENDPOINT environment variable is not set"
 
-        region = os.environ.get("REGION", None)
-        assert region is not None, "REGION environment variable is not set"
-
-        conn = create_connection(cluster_user, cluster_endpoint, region)
+        conn = create_connection(cluster_user, cluster_endpoint)
         exercise_connection(conn)
     finally:
         if conn is not None:
