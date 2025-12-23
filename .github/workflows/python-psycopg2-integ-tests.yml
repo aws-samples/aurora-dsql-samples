@@ -68,4 +68,4 @@ jobs:
         pip list
         echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
         wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
-        python src/example.py
+        pytest

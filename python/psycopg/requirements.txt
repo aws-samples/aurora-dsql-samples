@@ -1,3 +1,4 @@
 aurora-dsql-python-connector
 psycopg[binary]>=3
+psycopg-pool>=3
 pytest>=8

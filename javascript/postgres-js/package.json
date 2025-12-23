@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/.bin/jest --testPathPattern='test/smoke.test.js' --runInBand --detectOpenHandles --forceExit"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --runInBand --detectOpenHandles --forceExit"
   },
   "author": "",
   "license": "ISC",
