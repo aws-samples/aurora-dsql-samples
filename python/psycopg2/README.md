@@ -91,7 +91,7 @@ export CLUSTER_ENDPOINT="<your endpoint>"
 Run the example:
 
 ```bash
-python src/example.py
+python src/example_preferred.py
 ```
 
 The example contains comments explaining the code and the operations being performed.
