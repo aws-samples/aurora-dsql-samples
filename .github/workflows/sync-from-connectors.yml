@@ -1,0 +1,51 @@
+name: Sync Examples from Connectors
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone connectors
+        run: |
+          git clone --depth 1 https://github.com/awslabs/aurora-dsql-python-connector.git /tmp/python
+          git clone --depth 1 https://github.com/awslabs/aurora-dsql-nodejs-connector.git /tmp/nodejs
+          git clone --depth 1 https://github.com/awslabs/aurora-dsql-jdbc-connector.git /tmp/jdbc
+
+      - name: Sync Python examples
+        run: |
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/python/examples/psycopg/src/ python/psycopg/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/python/examples/psycopg/test/ python/psycopg/test/
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/python/examples/psycopg2/src/ python/psycopg2/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/python/examples/psycopg2/test/ python/psycopg2/test/
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/python/examples/asyncpg/src/ python/asyncpg/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/python/examples/asyncpg/test/ python/asyncpg/test/
+
+      - name: Sync Node.js examples
+        run: |
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/nodejs/packages/node-postgres/example/src/ javascript/node-postgres/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/nodejs/packages/node-postgres/example/test/ javascript/node-postgres/test/
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/nodejs/packages/postgres-js/example/src/ javascript/postgres-js/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/nodejs/packages/postgres-js/example/test/ javascript/postgres-js/test/
+
+      - name: Sync Java examples
+        run: |
+          rsync -av --delete --exclude='*NoConnector*' --exclude='README.md' /tmp/jdbc/examples/pgjdbc/src/ java/pgjdbc/src/
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Sync examples from connectors"
+          title: "Sync examples from connectors"
+          body: "Automated sync from connector repos"
+          branch: sync/connectors
+          delete-branch: true
