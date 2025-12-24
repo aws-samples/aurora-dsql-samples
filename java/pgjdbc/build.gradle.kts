@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
@@ -6,10 +9,10 @@ plugins {
 }
 
 application {
-    mainClass = "org.example.Example"
+    mainClass = "software.amazon.dsql.examples.ExamplePreferred"
 }
 
-group = "org.example"
+group = "software.amazon.dsql.examples"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -17,7 +20,11 @@ repositories {
 }
 
 dependencies {
+    implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("software.amazon.dsql:aurora-dsql-jdbc-connector:1.2.0")
+    // AWS SDK dependencies for SDK-only example (ExampleWithNoConnector)
+    implementation("software.amazon.awssdk:dsql:2.31.32")
+    implementation("org.postgresql:postgresql:42.7.7")
 
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
