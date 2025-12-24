@@ -1,6 +1,6 @@
 # Alternative Examples
 
-The recommended approach is `ExamplePreferred.java` in the parent directory, which uses HikariCP connection pool with the Aurora DSQL JDBC Connector.
+The recommended approach is `example_preferred.py` in the parent directory, which uses asyncpg connection pool with the Aurora DSQL Python Connector.
 
 ## Why Connection Pooling with the Connector?
 
@@ -11,12 +11,17 @@ Aurora DSQL has specific connection characteristics:
 
 The connector + pool combination handles this automatically:
 - Generates fresh IAM tokens per connection
-- Recycles connections before the 60-minute limit (via `maxLifetime < 3600000`)
+- Recycles connections before the 60-minute limit
 - Reuses warmed connections for better performance
 
 ## Alternatives
 
+### `pool/`
+Other pool configurations:
+- `example_with_async_connection_pool.py` - Async pool usage
+- `example_with_nonconcurrent_connection_pool.py` - Sequential pool usage
+
 ### `no_connection_pool/`
 Examples without pooling:
-- `ExampleWithNoConnectionPool.java` - Single connection with connector
-- `ExampleWithNoConnector.java` - SDK-only, for environments where the connector cannot be used (requires manual token management)
+- `example_with_no_connection_pool.py` - Single connection with connector
+- `example_async_with_no_connection_pool.py` - Async single connection with connector

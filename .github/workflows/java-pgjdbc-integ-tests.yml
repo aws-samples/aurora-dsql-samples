@@ -40,7 +40,7 @@ jobs:
         java-version: '17'
         distribution: 'corretto'
         architecture: x64
-        cache: maven
+        cache: gradle
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -54,8 +54,4 @@ jobs:
         CLUSTER_ENDPOINT: ${{ secrets.JAVA_PGJDBC_CLUSTER_ENDPOINT }}
         CLUSTER_USER: admin
         REGION: ${{ secrets.JAVA_PGJDBC_CLUSTER_REGION }}
-      run: |
-        mvn validate
-        mvn initialize
-        mvn compile
-        mvn test
+      run: ./gradlew test

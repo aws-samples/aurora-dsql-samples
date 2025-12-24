@@ -1,0 +1,4 @@
+aurora-dsql-python-connector
+asyncpg>=0.30.0
+pytest>=8
+pytest-asyncio>=1.2.0

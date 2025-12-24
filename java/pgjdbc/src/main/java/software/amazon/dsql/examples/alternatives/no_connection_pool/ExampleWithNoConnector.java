@@ -1,4 +1,9 @@
-package org.example.alternatives.no_connection_pool;
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package software.amazon.dsql.examples.alternatives.no_connection_pool;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.dsql.DsqlUtilities;
