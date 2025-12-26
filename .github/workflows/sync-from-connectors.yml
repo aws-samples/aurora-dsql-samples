@@ -42,6 +42,7 @@ jobs:
           rsync -av --delete --exclude='*NoConnector*' --exclude='README.md' /tmp/jdbc/examples/pgjdbc/src/ java/pgjdbc/src/
 
       - name: Create Pull Request
+        id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
           commit-message: "Sync examples from connectors"
@@ -49,3 +50,9 @@ jobs:
           body: "Automated sync from connector repos"
           branch: sync/connectors
           delete-branch: true
+
+      - name: Enable auto-merge
+        if: steps.cpr.outputs.pull-request-number
+        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
