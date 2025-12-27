@@ -11,14 +11,11 @@ import psycopg2.extensions
 import aurora_dsql_psycopg2 as dsql
 
 
-def create_connection(cluster_user, cluster_endpoint, region):
+def create_connection(cluster_user, cluster_endpoint):
 
     conn_params = {
-        "dbname": "postgres",
         "user": cluster_user,
         "host": cluster_endpoint,
-        "port": "5432",
-        "region": region,
         "sslmode": "verify-full",
         "sslrootcert": "./root.pem",
     }
@@ -94,10 +91,7 @@ def main():
             cluster_endpoint is not None
         ), "CLUSTER_ENDPOINT environment variable is not set"
 
-        region = os.environ.get("REGION", None)
-        assert region is not None, "REGION environment variable is not set"
-
-        conn = create_connection(cluster_user, cluster_endpoint, region)
+        conn = create_connection(cluster_user, cluster_endpoint)
         exercise_connection(conn)
     finally:
         if conn is not None:
