@@ -10,18 +10,15 @@ from psycopg_pool import ConnectionPool as PsycopgPool
 import aurora_dsql_psycopg as dsql
 
 
-def connect_with_pool(cluster_user, cluster_endpoint, region):
+def connect_with_pool(cluster_user, cluster_endpoint):
 
     ssl_cert_path = "./root.pem"
     if not os.path.isfile(ssl_cert_path):
         raise FileNotFoundError(f"SSL certificate file not found: {ssl_cert_path}")
 
     conn_params = {
-        "dbname": "postgres",
         "user": cluster_user,
         "host": cluster_endpoint,
-        "port": "5432",
-        "region": region,
         "sslmode": "verify-full",
         "sslrootcert": ssl_cert_path,
     }
@@ -57,9 +54,7 @@ def main():
             cluster_endpoint is not None
         ), "CLUSTER_ENDPOINT environment variable is not set"
 
-        region = os.environ.get("REGION", None)
-        assert region is not None, "REGION environment variable is not set"
-        connect_with_pool(cluster_user, cluster_endpoint, region)
+        connect_with_pool(cluster_user, cluster_endpoint)
     finally:
         pass
 

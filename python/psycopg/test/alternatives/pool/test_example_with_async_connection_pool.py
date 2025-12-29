@@ -1,17 +1,16 @@
-import sys
-import os
-import asyncio
-
-# Add src directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src', 'alternatives', 'pool'))
-
-from example_with_async_connection_pool import main
+"""
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: Apache-2.0
+"""
 
 import pytest
+from alternatives.pool.example_with_async_connection_pool import main
 
 
-def test_example_with_async_connection_pool():
+# Smoke tests that our async example works fine
+@pytest.mark.asyncio
+async def test_example_with_async_connection_pool():
     try:
-        asyncio.run(main())
+        await main()
     except Exception as e:
         pytest.fail(f"Unexpected exception: {e}")
