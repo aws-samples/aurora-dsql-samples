@@ -91,7 +91,7 @@ The example contains comments explaining the code and the operations being perfo
 
 ### Connecting to DSQL
 
-DSQL is PostgreSQL-compatible, so use the `postgres` dialect. The [Aurora DSQL Connector for node-postgres](https://github.com/awslabs/aurora-dsql-nodejs-connector/blob/main/packages/node-postgres/README.md) handles IAM token generation automatically. Inject it via the `dialectModule` option.
+DSQL is PostgreSQL-compatible, so use the `postgres` dialect. The [Aurora DSQL Connector for node-postgres](https://github.com/awslabs/aurora-dsql-nodejs-connector/blob/main/packages/node-postgres/README.md) handles IAM token generation automatically. Inject the connector into Sequelize via the `dialectModule` option.
 
 ```ts
 import { AuroraDSQLClient } from '@aws/aurora-dsql-node-postgres-connector';
@@ -149,7 +149,7 @@ new Sequelize({
 
 ### Table creation
 
-`Sequelize.sync()` and `Model.sync()` are not supported due to index introspection incompatibilities. Use `QueryInterface.createTable()` to create tables, then initialize models in memory with `Model.init()`.
+`Sequelize.sync()` and `Model.sync()` are not supported because DSQL returns index metadata in a format that Sequelize v6 cannot parse (the `INCLUDE` clause in index definitions causes parsing failures). Use `QueryInterface.createTable()` to create tables, then initialize models in memory with `Model.init()`.
 
 ```ts
 // Instead of: await Model.sync();
@@ -230,7 +230,9 @@ await Model.destroy({ where: {} });
 
 ### Locking
 
-`FOR UPDATE` is only supported with equality predicates on the primary key. Queries that lock by non-key columns will fail.
+Aurora DSQL uses optimistic concurrency control (OCC), meaning transactions proceed without locks and conflicts are detected at commit time. The `SELECT FOR UPDATE` clause modifies this behavior by flagging read rows for concurrency checks, which is useful for managing write skew scenarios.
+
+In Sequelize, only `Transaction.LOCK.UPDATE` is supported. The query must include an equality predicate on the primary key. Queries that lock by non-key columns will fail.
 
 ```ts
 // Works: lock by primary key
@@ -239,6 +241,8 @@ await Model.findByPk(id, { lock: Transaction.LOCK.UPDATE, transaction });
 // Does not work: lock by non-key column
 await Model.findOne({ where: { status: 'pending' }, lock: Transaction.LOCK.UPDATE, transaction });
 ```
+
+For more details on concurrency control in Aurora DSQL, see [Concurrency control in Amazon Aurora DSQL](https://aws.amazon.com/blogs/database/concurrency-control-in-amazon-aurora-dsql/).
 
 ## Additional resources
 
