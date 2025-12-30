@@ -79,6 +79,11 @@ jobs:
         run: |
           npm run build
 
+      - name: Run validator unit tests
+        working-directory: ./typescript/prisma
+        run: |
+          npm run test -- --testPathPatterns=validate
+
       - name: Create auth helper
         run: |
           cat > /tmp/generate-prisma-url.sh << 'EOF'
@@ -120,13 +125,13 @@ jobs:
 
           npm run prisma:migrate-up
 
-      - name: Run tests as admin
+      - name: Run integration tests as admin
         working-directory: ./typescript/prisma
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
         run: |
-          npm run test
+          npm run test -- --testPathPatterns=dsql-client
 
       - name: Run sample as admin
         working-directory: ./typescript/prisma
