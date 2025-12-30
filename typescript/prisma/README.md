@@ -11,15 +11,14 @@ automated migrations, and an intuitive data model for TypeScript and JavaScript 
 
 ## About the code example
 
-The example demonstrates a flexible connection approach that works for both admin and non-admin users:
+The example uses the [Aurora DSQL Connector](https://github.com/awslabs/aurora-dsql-nodejs-connector) for automatic
+IAM authentication and connection pooling. It demonstrates a flexible connection approach that works for both admin
+and non-admin users:
 
-- When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication
-  token.
-- When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard
-  authentication token.
+- When connecting as an **admin user**, the example uses the `public` schema.
+- When connecting as a **non-admin user**, the example uses a custom `myschema` schema.
 
-The code automatically detects the user type and adjusts its behavior accordingly using a custom Prisma client that
-integrates with Aurora DSQL's IAM-based authentication system.
+The code automatically detects the user type and adjusts its behavior accordingly.
 
 ## ⚠️ Important
 
@@ -51,7 +50,7 @@ integrates with Aurora DSQL's IAM-based authentication system.
 
 Install all required packages for the Prisma example:
 
-```
+```bash
 npm install
 ```
 
@@ -65,15 +64,12 @@ export CLUSTER_USER="<your user>"
 
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your endpoint>"
-
-# e.g. "us-east-1"
-export REGION="<your region>"
 ```
 
 ### Database migrations
 
-Before running the example, you need to apply database migrations to create the required tables. Prisma requires a
-properly formatted `DATABASE_URL` environment variable that includes authentication credentials.
+Before running the example, you need to apply database migrations to create the required tables. Prisma's migration
+tool requires a `DATABASE_URL` environment variable with authentication credentials.
 
 Generate an authentication token following the instructions in
 the [Aurora DSQL authentication token guide](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_authentication-token.html)
@@ -90,7 +86,7 @@ fi
 # URL-encode password for consumption by Prisma.
 export ENCODED_PASSWORD=$(python -c "from urllib.parse import quote; print(quote('$CLUSTER_PASSWORD', safe=''))")
 
-# Set up DATABASE_URL to allow Prisma to connect.
+# Set up DATABASE_URL for Prisma migrations.
 export DATABASE_URL="postgresql://$CLUSTER_USER:$ENCODED_PASSWORD@$CLUSTER_ENDPOINT:5432/postgres?sslmode=verify-full&schema=$SCHEMA"
 ```
 
@@ -125,32 +121,21 @@ The example is designed to work with both admin and non-admin users:
 
 Run the example:
 
-```
+```bash
 npm run sample
 ```
 
-### Run unit tests
+### Run tests
 
-The example includes unit tests that verify the DSQL Prisma client functionality.
+The example includes integration tests that verify the Prisma client functionality with DSQL.
 
 **Note:** running the tests will use actual resources in your AWS account and may incur charges.
 
 Run the tests:
 
-```
+```bash
 npm test
 ```
-
-## Token Generation
-
-The implementation includes an automatic token generation mechanism for new connections. This ensures continuous
-database connectivity for the pool. Lazily created connections will generate a new authentication token before
-connecting. Similarly, replacement connections for those exceeding the pool connection lifetime will generate their own
-fresh authentication token.
-
-The custom Prisma client uses `@prisma/adapter-pg` with the `driverAdapters` preview feature to integrate with the
-PostgreSQL driver, enabling custom connection pooling that handles Aurora DSQL's token-based authentication system
-automatically.
 
 ## Prisma considerations with Aurora DSQL
 
@@ -172,9 +157,9 @@ When using Prisma with Aurora DSQL, be aware of the following considerations and
 ## Additional resources
 
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+- [Aurora DSQL Node.js Connector](https://github.com/awslabs/aurora-dsql-nodejs-connector)
 - [Prisma Documentation](https://www.prisma.io/docs)
 - [Prisma Driver Adapters](https://www.prisma.io/docs/orm/overview/databases/database-drivers)
-- [AWS SDK for JavaScript Documentation](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
 
 ---
 
