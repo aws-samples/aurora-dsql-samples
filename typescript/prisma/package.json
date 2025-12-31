@@ -1,11 +1,7 @@
 {
-    "name": "aurora-dsql-prisma",
+    "name": "prisma-example",
     "version": "1.0.0",
-    "description": "Aurora DSQL tools for Prisma ORM",
     "main": "dist/index.js",
-    "bin": {
-        "aurora-dsql-prisma": "./helpers/cli/index.ts"
-    },
     "scripts": {
         "prisma:generate": "npx prisma generate --schema=prisma/veterinary-schema.prisma",
         "prisma:migrate-up": "PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy --schema=prisma/veterinary-schema.prisma",

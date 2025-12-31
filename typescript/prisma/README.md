@@ -68,6 +68,8 @@ Aurora DSQL has [specific PostgreSQL compatibility limitations](https://docs.aws
 | `BigInt @id`                           | Warning | Typically requires sequences    |
 | `gen_random_uuid()` without `@db.Uuid` | Warning | Should use proper UUID type     |
 
+> **Note:** This table reflects DSQL limitations as of December 2025. Check the linked docs for the latest.
+
 ### Example Output
 
 ```

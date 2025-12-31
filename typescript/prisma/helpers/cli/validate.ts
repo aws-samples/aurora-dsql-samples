@@ -2,6 +2,11 @@
  * Aurora DSQL Schema Validator for Prisma
  *
  * Validates Prisma schemas for DSQL compatibility and reports issues.
+ *
+ * MAINTENANCE NOTE: These checks are based on DSQL limitations documented at:
+ * https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-unsupported-features.html
+ *
+ * If DSQL adds support for any of these features, update this validator and the README table.
  */
 import * as fs from "fs";
 import * as path from "path";
