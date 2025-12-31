@@ -7,16 +7,16 @@
 import { validateSchema, formatValidationResult } from "./validate";
 
 const HELP = `
-Aurora DSQL Prisma CLI
+Aurora DSQL Prisma Schema Validator
 
 Usage:
-  npx aurora-dsql-prisma <command> [options]
+  npm run validate <schema>
 
 Commands:
   validate <schema>   Validate a Prisma schema for DSQL compatibility
 
 Examples:
-  npx aurora-dsql-prisma validate prisma/schema.prisma
+  npm run validate prisma/schema.prisma
 `;
 
 async function main(): Promise<void> {
@@ -34,9 +34,7 @@ async function main(): Promise<void> {
             const schemaPath = args[1];
             if (!schemaPath) {
                 console.error("Error: Schema path required");
-                console.error(
-                    "Usage: npx aurora-dsql-prisma validate <schema>",
-                );
+                console.error("Usage: npm run validate <schema>");
                 process.exit(1);
             }
 
