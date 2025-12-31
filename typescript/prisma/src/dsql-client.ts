@@ -23,6 +23,8 @@ export class DsqlPrismaClient extends PrismaClient {
         const pool = new AuroraDSQLPool({
             host,
             user,
+            // Set search_path on connection to ensure proper schema access in DSQL
+            options: `-c search_path=${schema}`,
         });
 
         const adapter = new PrismaPg(pool, { schema });
