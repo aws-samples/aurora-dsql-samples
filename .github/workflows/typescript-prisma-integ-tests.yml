@@ -84,6 +84,21 @@ jobs:
         run: |
           npm run test -- --testPathPatterns=validate
 
+      - name: Run transformer unit tests
+        working-directory: ./typescript/prisma
+        run: |
+          npm run test -- --testPathPatterns=transform
+
+      - name: Run workflow unit tests
+        working-directory: ./typescript/prisma
+        run: |
+          npm run test -- --testPathPatterns=workflow
+
+      - name: Run CLI integration tests
+        working-directory: ./typescript/prisma
+        run: |
+          npm run test -- --testPathPatterns=cli-integration
+
       - name: Create auth helper
         run: |
           cat > /tmp/generate-prisma-url.sh << 'EOF'

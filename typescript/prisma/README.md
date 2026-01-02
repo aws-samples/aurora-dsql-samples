@@ -5,7 +5,8 @@
 This package provides tools for using Prisma ORM with Amazon Aurora DSQL:
 
 1. **Schema Validator** - Validates Prisma schemas for DSQL compatibility
-2. **DSQL Prisma Client** - Prisma client with automatic IAM authentication
+2. **Migration Transformer** - Converts Prisma migrations to DSQL-compatible SQL
+3. **DSQL Prisma Client** - Prisma client with automatic IAM authentication
 
 Aurora DSQL is a distributed SQL database service that provides high availability and scalability for your
 PostgreSQL-compatible applications. Prisma is a modern database toolkit that provides type-safe database access,
@@ -14,7 +15,7 @@ automated migrations, and an intuitive data model for TypeScript and JavaScript 
 ## Project Structure
 
 - **`src/`** - Sample code that you can copy into your own project
-- **`helpers/`** - Optional tooling (schema validator) - useful during development but not required in your final project
+- **`helpers/`** - Optional tooling (schema validator, migration transformer) - useful during development but not required in your final project
 
 ## Recommended Workflow
 
@@ -34,7 +35,15 @@ When using Prisma with Aurora DSQL, follow this workflow:
     npx prisma generate
     ```
 
-4. **Create migrations manually** - Write DSQL-compatible SQL (see [Migration Requirements](#migration-requirements))
+4. **Generate DSQL-compatible migrations** - Use Prisma's diff tool with the transformer:
+
+    ```bash
+    # Generate and transform in one step
+    npx prisma migrate diff \
+        --from-empty \
+        --to-schema-datamodel prisma/schema.prisma \
+        --script | npm run dsql-transform > prisma/migrations/001_init/migration.sql
+    ```
 
 5. **Apply migrations** - Deploy your schema:
 
@@ -81,6 +90,68 @@ Aurora DSQL has [specific PostgreSQL compatibility limitations](https://docs.aws
 
 ✗ Validation failed: 2 error(s), 0 warning(s)
 ```
+
+## Migration Transformer
+
+Transform Prisma-generated migrations to be DSQL-compatible:
+
+```bash
+# Transform from file
+npm run dsql-transform raw.sql -o migration.sql
+
+# Transform using pipes (recommended)
+npx prisma migrate diff \
+    --from-empty \
+    --to-schema-datamodel prisma/schema.prisma \
+    --script | npm run dsql-transform > migration.sql
+```
+
+### What the Transformer Does
+
+The transformer automatically applies DSQL-required changes to Prisma's migration output:
+
+| Transformation                                  | Reason                                                              |
+| ----------------------------------------------- | ------------------------------------------------------------------- |
+| Wraps each statement in `BEGIN/COMMIT`          | DSQL requires one DDL statement per transaction                     |
+| Converts `CREATE INDEX` to `CREATE INDEX ASYNC` | DSQL requires asynchronous index creation                           |
+| Removes foreign key constraints                 | DSQL requires application-layer referential integrity (see warning) |
+
+> **Note:** When foreign keys are removed, you'll see a warning reminding you to use `relationMode = "prisma"` in your schema. This tells Prisma to handle referential integrity in your application code rather than the database. See [Prisma's relation mode documentation](https://www.prisma.io/docs/orm/prisma-schema/data-model/relations/relation-mode) for details.
+
+### Example
+
+**Input (Prisma output):**
+
+```sql
+CREATE TABLE "user" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "name" VARCHAR(100),
+    PRIMARY KEY ("id")
+);
+
+CREATE INDEX "user_name_idx" ON "user"("name");
+
+ALTER TABLE "post" ADD CONSTRAINT "post_authorId_fkey"
+    FOREIGN KEY ("authorId") REFERENCES "user"("id");
+```
+
+**Output (DSQL-compatible):**
+
+```sql
+BEGIN;
+CREATE TABLE "user" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "name" VARCHAR(100),
+    PRIMARY KEY ("id")
+);
+COMMIT;
+
+BEGIN;
+CREATE INDEX ASYNC "user_name_idx" ON "user"("name");
+COMMIT;
+```
+
+Note: The foreign key constraint is automatically removed since DSQL doesn't support them.
 
 ## About the Example
 
@@ -228,9 +299,7 @@ For full details on DSQL limitations, see [Unsupported PostgreSQL features in Au
 
 - **Advisory Locks**: Disable Prisma's default advisory locks behavior by setting
   `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1`.
-- **Manual transaction wrapping**: Add transactions around individual generated migration statements to prevent multiple
-  DDL statements in the same transaction.
-- **Manual index syntax change**: Replace `CREATE INDEX` with `CREATE INDEX ASYNC` to match expected DSQL syntax.
+- **Use the transformer**: Run `npm run dsql-transform` on Prisma's migration output to automatically apply DSQL-required changes (transaction wrapping, async indexes, foreign key removal).
 
 ## Additional Resources
 
