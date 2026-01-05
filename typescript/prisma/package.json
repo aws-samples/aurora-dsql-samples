@@ -15,7 +15,8 @@
         "pretest": "npm run build",
         "test": "jest",
         "validate": "tsx helpers/cli/index.ts validate",
-        "dsql-transform": "tsx helpers/cli/index.ts transform"
+        "dsql-transform": "tsx helpers/cli/index.ts transform",
+        "dsql-migrate": "tsx helpers/cli/index.ts migrate"
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",

@@ -122,5 +122,74 @@ CREATE INDEX "user_idx" ON "user"("id");`;
             expect(output).toContain("BEGIN;");
             expect(output).toContain("CREATE INDEX ASYNC");
         });
+
+        test("dsql-migrate command works end-to-end", () => {
+            const outputPath = path.join(tempDir, "migration.sql");
+
+            // Run the all-in-one migrate command
+            const result = execSync(
+                `npm run dsql-migrate -- prisma/veterinary-schema.prisma -o ${outputPath}`,
+                {
+                    cwd: path.join(__dirname, ".."),
+                    encoding: "utf-8",
+                },
+            );
+
+            // Verify it ran all steps
+            expect(result).toContain("Validating");
+            expect(result).toContain("Generating migration");
+            expect(result).toContain("Transforming");
+            expect(result).toContain("Migration written to");
+
+            // Verify output file
+            const output = fs.readFileSync(outputPath, "utf-8");
+            expect(output).toContain("BEGIN;");
+            expect(output).toContain("CREATE INDEX ASYNC");
+            expect(output).not.toContain("FOREIGN KEY");
+        });
+
+        test("dsql-migrate fails on invalid schema", () => {
+            const invalidSchema = `
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+`;
+            const schemaPath = path.join(tempDir, "invalid-migrate.prisma");
+            const outputPath = path.join(tempDir, "should-not-exist.sql");
+            fs.writeFileSync(schemaPath, invalidSchema);
+
+            // Run migrate - should fail
+            try {
+                execSync(
+                    `npm run dsql-migrate -- ${schemaPath} -o ${outputPath}`,
+                    {
+                        cwd: path.join(__dirname, ".."),
+                        encoding: "utf-8",
+                        stdio: "pipe",
+                    },
+                );
+                fail("Expected dsql-migrate to fail on invalid schema");
+            } catch (error: unknown) {
+                const execError = error as {
+                    stdout?: string;
+                    stderr?: string;
+                    status?: number;
+                };
+                const output =
+                    (execError.stdout || "") + (execError.stderr || "");
+                expect(output).toContain("autoincrement");
+                expect(output).toContain("Fix the schema errors");
+                expect(execError.status).toBe(1);
+            }
+
+            // Output file should not exist
+            expect(fs.existsSync(outputPath)).toBe(false);
+        });
     });
 });

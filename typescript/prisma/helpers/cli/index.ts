@@ -5,6 +5,8 @@
  * Tools for working with Prisma and Aurora DSQL.
  */
 import * as fs from "fs";
+import * as path from "path";
+import { execSync } from "child_process";
 import { validateSchema, formatValidationResult } from "./validate";
 import { transformMigration, formatTransformStats } from "./transform";
 
@@ -12,10 +14,15 @@ const HELP = `
 Aurora DSQL Prisma Tools
 
 Usage:
-  npm run validate <schema>              Validate schema for DSQL compatibility
+  npm run dsql-migrate <schema> -o <output>    Validate, generate, and transform migration
+  npm run validate <schema>                    Validate schema for DSQL compatibility
   npm run dsql-transform [input] [-o output]   Transform migration for DSQL
 
 Commands:
+  migrate <schema> -o <output>
+    All-in-one command: validates schema, generates migration, and transforms for DSQL.
+    Exits on validation failure so you can fix and re-run.
+
   validate <schema>
     Validates a Prisma schema file for DSQL compatibility.
     Reports errors for unsupported features like autoincrement, foreign keys, etc.
@@ -30,12 +37,11 @@ Commands:
     If no output file is specified, writes to stdout.
 
 Examples:
+  # All-in-one migration (recommended)
+  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+
+  # Manual workflow
   npm run validate prisma/schema.prisma
-
-  # Transform from file to file
-  npm run dsql-transform raw.sql -o migration.sql
-
-  # Transform using pipes
   npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script | npm run dsql-transform > migration.sql
 `;
 
@@ -50,6 +56,11 @@ async function main(): Promise<void> {
     const command = args[0];
 
     switch (command) {
+        case "migrate": {
+            await handleMigrate(args.slice(1));
+            break;
+        }
+
         case "validate": {
             const schemaPath = args[1];
             if (!schemaPath) {
@@ -73,6 +84,118 @@ async function main(): Promise<void> {
             console.log(HELP);
             process.exit(1);
     }
+}
+
+async function handleMigrate(args: string[]): Promise<void> {
+    // Check for help flag
+    if (args.includes("--help") || args.includes("-h")) {
+        console.log(`
+DSQL Migration Generator - All-in-one migration workflow
+
+Usage:
+  npm run dsql-migrate <schema.prisma> -o <output.sql>
+
+Options:
+  -o, --output <file>   Output file for the migration (required)
+  --no-header           Omit the generated header comment
+  -h, --help            Show this help message
+
+This command:
+  1. Validates your schema for DSQL compatibility
+  2. Generates migration SQL using Prisma
+  3. Transforms the SQL for DSQL (wraps in transactions, async indexes, removes FKs)
+
+If validation fails, the command exits so you can fix your schema and re-run.
+
+Examples:
+  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+`);
+        process.exit(0);
+    }
+
+    let schemaPath: string | null = null;
+    let outputFile: string | null = null;
+    let includeHeader = true;
+
+    // Parse arguments
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === "-o" || args[i] === "--output") {
+            outputFile = args[++i];
+        } else if (args[i] === "--no-header") {
+            includeHeader = false;
+        } else if (!args[i].startsWith("-")) {
+            schemaPath = args[i];
+        }
+    }
+
+    if (!schemaPath) {
+        console.error("Error: Schema path required");
+        console.error(
+            "Usage: npm run dsql-migrate <schema.prisma> -o <output.sql>",
+        );
+        process.exit(1);
+    }
+
+    if (!outputFile) {
+        console.error("Error: Output file required");
+        console.error(
+            "Usage: npm run dsql-migrate <schema.prisma> -o <output.sql>",
+        );
+        process.exit(1);
+    }
+
+    // Step 1: Validate schema
+    console.log(`Validating ${path.basename(schemaPath)}...`);
+    const validationResult = await validateSchema(schemaPath);
+
+    if (!validationResult.valid) {
+        console.log(formatValidationResult(validationResult, schemaPath));
+        console.error("\nFix the schema errors above and re-run.");
+        process.exit(1);
+    }
+
+    // Show warnings if any
+    const warnings = validationResult.issues.filter(
+        (i) => i.type === "warning",
+    );
+    if (warnings.length > 0) {
+        console.log(formatValidationResult(validationResult, schemaPath));
+    } else {
+        console.log(`✓ Schema is DSQL-compatible`);
+    }
+
+    // Step 2: Generate migration using Prisma
+    console.log("\nGenerating migration...");
+    let rawSql: string;
+    try {
+        rawSql = execSync(
+            `npx prisma migrate diff --from-empty --to-schema-datamodel "${schemaPath}" --script`,
+            { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+        );
+    } catch (error: unknown) {
+        const execError = error as { stderr?: string; message?: string };
+        console.error("Error generating migration:");
+        console.error(execError.stderr || execError.message);
+        process.exit(1);
+    }
+
+    // Step 3: Transform for DSQL
+    console.log("Transforming for DSQL compatibility...");
+    const transformResult = transformMigration(rawSql, { includeHeader });
+
+    // Ensure output directory exists
+    const outputDir = path.dirname(outputFile);
+    if (outputDir && !fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Write output
+    fs.writeFileSync(outputFile, transformResult.sql);
+
+    console.log(
+        formatTransformStats(transformResult.stats, transformResult.warnings),
+    );
+    console.log(`\n✓ Migration written to: ${outputFile}`);
 }
 
 async function handleTransform(args: string[]): Promise<void> {
