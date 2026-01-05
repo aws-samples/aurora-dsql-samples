@@ -12,6 +12,19 @@ Aurora DSQL is a distributed SQL database service that provides high availabilit
 PostgreSQL-compatible applications. Prisma is a modern database toolkit that provides type-safe database access,
 automated migrations, and an intuitive data model for TypeScript and JavaScript applications.
 
+## Quick Start
+
+The fastest way to generate a DSQL-compatible migration:
+
+```bash
+# One command: validates schema, generates migration, transforms for DSQL
+npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+```
+
+If validation fails, fix your schema and re-run. That's it!
+
+For more control, see the [manual workflow](#recommended-workflow) below.
+
 ## Project Structure
 
 - **`src/`** - Sample code that you can copy into your own project
@@ -19,7 +32,7 @@ automated migrations, and an intuitive data model for TypeScript and JavaScript 
 
 ## Recommended Workflow
 
-When using Prisma with Aurora DSQL, follow this workflow:
+For more control over each step, you can run the tools separately:
 
 1. **Write your Prisma schema** - Define your models in `prisma/schema.prisma`
 
