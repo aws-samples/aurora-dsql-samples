@@ -17,8 +17,11 @@ automated migrations, and an intuitive data model for TypeScript and JavaScript 
 The fastest way to generate a DSQL-compatible migration:
 
 ```bash
-# One command: validates schema, generates migration, transforms for DSQL
-npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+# Initial migration (from empty database)
+npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+
+# Incremental migration (after schema changes)
+npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/002_add_column/migration.sql --from-url "$DATABASE_URL"
 ```
 
 If validation fails, fix your schema and re-run. That's it!

@@ -14,13 +14,14 @@ const HELP = `
 Aurora DSQL Prisma Tools
 
 Usage:
-  npm run dsql-migrate <schema> -o <output>    Validate, generate, and transform migration
-  npm run validate <schema>                    Validate schema for DSQL compatibility
-  npm run dsql-transform [input] [-o output]   Transform migration for DSQL
+  npm run dsql-migrate -- <schema> -o <output> [--from-url <url>]   Generate DSQL migration
+  npm run validate <schema>                                         Validate schema for DSQL
+  npm run dsql-transform [input] [-o output]                        Transform migration for DSQL
 
 Commands:
-  migrate <schema> -o <output>
+  migrate <schema> -o <output> [--from-url <url>]
     All-in-one command: validates schema, generates migration, and transforms for DSQL.
+    Use --from-url for incremental migrations against an existing database.
     Exits on validation failure so you can fix and re-run.
 
   validate <schema>
@@ -37,8 +38,11 @@ Commands:
     If no output file is specified, writes to stdout.
 
 Examples:
-  # All-in-one migration (recommended)
-  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+  # Initial migration (from empty)
+  npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+
+  # Incremental migration (from existing database)
+  npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/002_changes/migration.sql --from-url "$DATABASE_URL"
 
   # Manual workflow
   npm run validate prisma/schema.prisma
@@ -93,34 +97,46 @@ async function handleMigrate(args: string[]): Promise<void> {
 DSQL Migration Generator - All-in-one migration workflow
 
 Usage:
-  npm run dsql-migrate <schema.prisma> -o <output.sql>
+  npm run dsql-migrate -- <schema.prisma> -o <output.sql> [options]
 
 Options:
   -o, --output <file>   Output file for the migration (required)
+  --from-url <url>      Compare against existing database (for incremental migrations)
+  --from-empty          Compare against empty database (default, for initial migration)
   --no-header           Omit the generated header comment
   -h, --help            Show this help message
 
 This command:
   1. Validates your schema for DSQL compatibility
-  2. Generates migration SQL using Prisma
+  2. Generates migration SQL using Prisma (comparing current DB state to schema)
   3. Transforms the SQL for DSQL (wraps in transactions, async indexes, removes FKs)
 
 If validation fails, the command exits so you can fix your schema and re-run.
 
 Examples:
-  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+  # Initial migration (from empty database)
+  npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+
+  # Incremental migration (compare against live database)
+  npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/002_add_column/migration.sql --from-url "$DATABASE_URL"
 `);
         process.exit(0);
     }
 
     let schemaPath: string | null = null;
     let outputFile: string | null = null;
+    let fromUrl: string | null = null;
+    let fromEmpty = false;
     let includeHeader = true;
 
     // Parse arguments
     for (let i = 0; i < args.length; i++) {
         if (args[i] === "-o" || args[i] === "--output") {
             outputFile = args[++i];
+        } else if (args[i] === "--from-url") {
+            fromUrl = args[++i];
+        } else if (args[i] === "--from-empty") {
+            fromEmpty = true;
         } else if (args[i] === "--no-header") {
             includeHeader = false;
         } else if (!args[i].startsWith("-")) {
@@ -131,7 +147,7 @@ Examples:
     if (!schemaPath) {
         console.error("Error: Schema path required");
         console.error(
-            "Usage: npm run dsql-migrate <schema.prisma> -o <output.sql>",
+            "Usage: npm run dsql-migrate -- <schema.prisma> -o <output.sql>",
         );
         process.exit(1);
     }
@@ -139,9 +155,14 @@ Examples:
     if (!outputFile) {
         console.error("Error: Output file required");
         console.error(
-            "Usage: npm run dsql-migrate <schema.prisma> -o <output.sql>",
+            "Usage: npm run dsql-migrate -- <schema.prisma> -o <output.sql>",
         );
         process.exit(1);
+    }
+
+    // Default to --from-empty if no --from-* option specified
+    if (!fromUrl && !fromEmpty) {
+        fromEmpty = true;
     }
 
     // Step 1: Validate schema
@@ -165,18 +186,33 @@ Examples:
     }
 
     // Step 2: Generate migration using Prisma
-    console.log("\nGenerating migration...");
+    const fromSource = fromUrl ? "database" : "empty";
+    console.log(`\nGenerating migration (from ${fromSource})...`);
+
+    let prismaCmd: string;
+    if (fromUrl) {
+        prismaCmd = `npx prisma migrate diff --from-url "${fromUrl}" --to-schema-datamodel "${schemaPath}" --script`;
+    } else {
+        prismaCmd = `npx prisma migrate diff --from-empty --to-schema-datamodel "${schemaPath}" --script`;
+    }
+
     let rawSql: string;
     try {
-        rawSql = execSync(
-            `npx prisma migrate diff --from-empty --to-schema-datamodel "${schemaPath}" --script`,
-            { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
-        );
+        rawSql = execSync(prismaCmd, {
+            encoding: "utf-8",
+            stdio: ["pipe", "pipe", "pipe"],
+        });
     } catch (error: unknown) {
         const execError = error as { stderr?: string; message?: string };
         console.error("Error generating migration:");
         console.error(execError.stderr || execError.message);
         process.exit(1);
+    }
+
+    // Check if migration is empty
+    if (!rawSql.trim() || rawSql.trim() === "-- This is an empty migration.") {
+        console.log("\n✓ No changes detected - schema is up to date");
+        process.exit(0);
     }
 
     // Step 3: Transform for DSQL
