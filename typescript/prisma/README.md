@@ -23,6 +23,8 @@ npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migratio
 
 If validation fails, fix your schema and re-run. That's it!
 
+For incremental migrations (after your initial deployment), see [Incremental Migrations](#incremental-migrations) below.
+
 For more control, see the [manual workflow](#recommended-workflow) below.
 
 ## Project Structure
@@ -165,6 +167,61 @@ COMMIT;
 ```
 
 Note: The foreign key constraint is automatically removed since DSQL doesn't support them.
+
+## Incremental Migrations
+
+After your initial deployment, when you need to make schema changes (add columns, tables, indexes), use the `--from-url` option to generate a migration that only includes the differences:
+
+```bash
+npm run dsql-migrate prisma/schema.prisma \
+    -o prisma/migrations/002_add_email/migration.sql \
+    --from-url "$DATABASE_URL"
+```
+
+This compares your updated schema against the live database and generates only the necessary changes.
+
+### Migration Ordering
+
+Migrations must be applied in order. Use numbered prefixes to ensure correct ordering:
+
+```
+prisma/migrations/
+├── 001_init/
+│   └── migration.sql
+├── 002_add_email/
+│   └── migration.sql
+└── 003_add_index/
+    └── migration.sql
+```
+
+If no changes are detected, the command will exit with a success message:
+
+```
+✓ No changes detected - schema is up to date
+```
+
+### Handling Unsupported Statements
+
+Sometimes Prisma generates `DROP CONSTRAINT` statements when comparing against a live database (e.g., to recreate primary keys). DSQL doesn't support `DROP CONSTRAINT`, so the tool will fail by default:
+
+```
+✗ Migration contains unsupported DSQL statements:
+
+  ALTER TABLE "vet" DROP CONSTRAINT "vet_pkey"
+
+DSQL doesn't support ALTER TABLE DROP CONSTRAINT.
+```
+
+If the primary key isn't actually changing (Prisma is just being cautious), use `--force` to skip these statements:
+
+```bash
+npm run dsql-migrate prisma/schema.prisma \
+    -o prisma/migrations/002_add_email/migration.sql \
+    --from-url "$DATABASE_URL" \
+    --force
+```
+
+> **Warning:** Only use `--force` if you're certain the constraint changes are safe to skip. If you're actually changing a primary key, you'll need to recreate the table instead.
 
 ## About the Example
 

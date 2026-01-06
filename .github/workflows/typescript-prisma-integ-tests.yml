@@ -140,6 +140,42 @@ jobs:
 
           npm run prisma:migrate-up
 
+      - name: Test incremental migration workflow
+        working-directory: ./typescript/prisma
+        env:
+          CLUSTER_USER: "admin"
+          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+        run: |
+          source /tmp/generate-prisma-url.sh
+          configure_credentials $CLUSTER_USER
+
+          # Add a new column to the vet model (after the name field)
+          sed -i '/model vet/,/^}/s/name        String      @db.VarChar(30)/name        String      @db.VarChar(30)\n  phone       String?     @db.VarChar(20)/' prisma/veterinary-schema.prisma
+
+          # Show the change
+          grep -A3 "model vet" prisma/veterinary-schema.prisma
+
+          # Validate the modified schema first
+          npm run validate prisma/veterinary-schema.prisma
+
+          # Generate incremental migration using --from-url
+          # Use --force because Prisma may generate DROP CONSTRAINT for PKs
+          npm run dsql-migrate -- prisma/veterinary-schema.prisma -o prisma/migrations/incremental/migration.sql --from-url "$DATABASE_URL" --force
+
+          # Show what was generated
+          cat prisma/migrations/incremental/migration.sql
+
+          # Apply the incremental migration
+          PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 psql -f prisma/migrations/incremental/migration.sql
+
+          # Verify the column was added
+          psql -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'vet' AND column_name = 'phone'" | grep -q phone
+
+          # Clean up: revert schema and remove incremental migration folder
+          git checkout prisma/veterinary-schema.prisma
+          rm -rf prisma/migrations/incremental
+
       - name: Run integration tests as admin
         working-directory: ./typescript/prisma
         env:

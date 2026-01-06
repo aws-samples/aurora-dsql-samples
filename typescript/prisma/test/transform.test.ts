@@ -362,6 +362,74 @@ CREATE INDEX "idx2" ON "user"("name");`;
             expect(result.stats.foreignKeysRemoved).toBe(0);
         });
 
+        test("handles compound ALTER TABLE with DROP/ADD CONSTRAINT for pkey", () => {
+            // Prisma generates this when comparing against live database
+            const input = `ALTER TABLE "vet" DROP CONSTRAINT "vet_pkey",
+ADD COLUMN     "phone" VARCHAR(20),
+ADD CONSTRAINT "vet_pkey" PRIMARY KEY ("id");`;
+
+            // Without --force, should report unsupported statements
+            // ADD CONSTRAINT for same PK is also skipped (paired with DROP)
+            const result = transformMigration(input, { includeHeader: false });
+
+            expect(result.unsupportedStatements).toHaveLength(1);
+            expect(result.unsupportedStatements[0]).toContain(
+                "DROP CONSTRAINT",
+            );
+            // Only ADD COLUMN should be in output (ADD CONSTRAINT skipped since paired with DROP)
+            expect(result.sql).toContain("ADD COLUMN");
+            expect(result.sql).not.toContain("ADD CONSTRAINT");
+            expect(result.sql).not.toContain("PRIMARY KEY");
+        });
+
+        test("with --force, removes DROP/ADD CONSTRAINT and keeps ADD COLUMN", () => {
+            const input = `ALTER TABLE "vet" DROP CONSTRAINT "vet_pkey",
+ADD COLUMN     "phone" VARCHAR(20),
+ADD CONSTRAINT "vet_pkey" PRIMARY KEY ("id");`;
+
+            const result = transformMigration(input, {
+                includeHeader: false,
+                force: true,
+            });
+
+            // Should keep ADD COLUMN but remove DROP/ADD CONSTRAINT
+            expect(result.sql).toContain("ADD COLUMN");
+            expect(result.sql).toContain("phone");
+            expect(result.sql).not.toContain("DROP CONSTRAINT");
+            expect(result.sql).not.toContain("PRIMARY KEY");
+            expect(result.stats.statementsProcessed).toBe(1);
+            expect(result.unsupportedStatements).toHaveLength(1); // Still tracked
+        });
+
+        test("removes empty ALTER TABLE after filtering with --force", () => {
+            // If only DROP/ADD CONSTRAINT, statement should be removed entirely
+            const input = `ALTER TABLE "vet" DROP CONSTRAINT "vet_pkey",
+ADD CONSTRAINT "vet_pkey" PRIMARY KEY ("id");`;
+
+            const result = transformMigration(input, {
+                includeHeader: false,
+                force: true,
+            });
+
+            expect(result.sql.trim()).toBe("");
+            expect(result.stats.statementsProcessed).toBe(0);
+        });
+
+        test("without --force, skips paired ADD CONSTRAINT", () => {
+            // Without force, we skip ADD CONSTRAINT that's paired with DROP
+            // This avoids outputting partial SQL that would fail anyway
+            const input = `ALTER TABLE "vet" DROP CONSTRAINT "vet_pkey",
+ADD CONSTRAINT "vet_pkey" PRIMARY KEY ("id");`;
+
+            const result = transformMigration(input, { includeHeader: false });
+
+            // DROP is tracked as unsupported
+            expect(result.unsupportedStatements).toHaveLength(1);
+            // Statement is empty after filtering, so nothing in output
+            expect(result.sql.trim()).toBe("");
+            expect(result.stats.statementsProcessed).toBe(0);
+        });
+
         test("handles table/column names containing reserved words", () => {
             const input = `CREATE TABLE "references" ("foreign_key" VARCHAR(100));`;
 
