@@ -19,9 +19,10 @@ Usage:
   npm run dsql-transform [input] [-o output]   Transform migration for DSQL
 
 Commands:
-  migrate <schema> -o <output>
+  migrate <schema> -o <output> [--from-url <url>]
     All-in-one command: validates schema, generates migration, and transforms for DSQL.
     Exits on validation failure so you can fix and re-run.
+    Use --from-url for incremental migrations against an existing database.
 
   validate <schema>
     Validates a Prisma schema file for DSQL compatibility.
@@ -39,6 +40,9 @@ Commands:
 Examples:
   # All-in-one migration (recommended)
   npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+
+  # Incremental migration (after schema changes)
+  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/002_changes/migration.sql --from-url "$DATABASE_URL"
 
   # Manual workflow
   npm run validate prisma/schema.prisma
@@ -93,10 +97,12 @@ async function handleMigrate(args: string[]): Promise<void> {
 DSQL Migration Generator - All-in-one migration workflow
 
 Usage:
-  npm run dsql-migrate <schema.prisma> -o <output.sql>
+  npm run dsql-migrate <schema.prisma> -o <output.sql> [--from-url <url>]
 
 Options:
   -o, --output <file>   Output file for the migration (required)
+  --from-url <url>      Compare against existing database (for incremental migrations)
+  --force               Force transformation even with unsupported statements
   --no-header           Omit the generated header comment
   -h, --help            Show this help message
 
@@ -108,21 +114,38 @@ This command:
 If validation fails, the command exits so you can fix your schema and re-run.
 
 Examples:
+  # Initial migration
   npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
+
+  # Incremental migration (after schema changes)
+  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/002_changes/migration.sql --from-url "$DATABASE_URL"
 `);
         process.exit(0);
     }
 
     let schemaPath: string | null = null;
     let outputFile: string | null = null;
+    let fromUrl: string | null = null;
+    let fromEmpty = false;
     let includeHeader = true;
+    let force = false;
 
     // Parse arguments
     for (let i = 0; i < args.length; i++) {
         if (args[i] === "-o" || args[i] === "--output") {
             outputFile = args[++i];
+        } else if (args[i] === "--from-url") {
+            fromUrl = args[++i];
+            if (!fromUrl || fromUrl.startsWith("-")) {
+                console.error("Error: --from-url requires a URL argument");
+                process.exit(1);
+            }
+        } else if (args[i] === "--from-empty") {
+            fromEmpty = true;
         } else if (args[i] === "--no-header") {
             includeHeader = false;
+        } else if (args[i] === "--force") {
+            force = true;
         } else if (!args[i].startsWith("-")) {
             schemaPath = args[i];
         }
@@ -142,6 +165,11 @@ Examples:
             "Usage: npm run dsql-migrate <schema.prisma> -o <output.sql>",
         );
         process.exit(1);
+    }
+
+    // Default to --from-empty if no --from-* option specified
+    if (!fromUrl && !fromEmpty) {
+        fromEmpty = true;
     }
 
     // Step 1: Validate schema
@@ -165,13 +193,18 @@ Examples:
     }
 
     // Step 2: Generate migration using Prisma
-    console.log("\nGenerating migration...");
+    const fromSource = fromUrl ? "database" : "empty";
+    console.log(`\nGenerating migration (from ${fromSource})...`);
+
+    const fromArg = fromUrl ? `--from-url "${fromUrl}"` : "--from-empty";
+    const prismaCmd = `npx prisma migrate diff ${fromArg} --to-schema-datamodel "${schemaPath}" --script`;
+
     let rawSql: string;
     try {
-        rawSql = execSync(
-            `npx prisma migrate diff --from-empty --to-schema-datamodel "${schemaPath}" --script`,
-            { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
-        );
+        rawSql = execSync(prismaCmd, {
+            encoding: "utf-8",
+            stdio: ["pipe", "pipe", "pipe"],
+        });
     } catch (error: unknown) {
         const execError = error as { stderr?: string; message?: string };
         console.error("Error generating migration:");
@@ -179,9 +212,39 @@ Examples:
         process.exit(1);
     }
 
+    // Check if migration is empty
+    if (!rawSql.trim() || rawSql.trim() === "-- This is an empty migration.") {
+        console.log("\n✓ No changes detected - schema is up to date");
+        process.exit(0);
+    }
+
     // Step 3: Transform for DSQL
     console.log("Transforming for DSQL compatibility...");
-    const transformResult = transformMigration(rawSql, { includeHeader });
+    const transformResult = transformMigration(rawSql, {
+        includeHeader,
+        force,
+    });
+
+    // Check for unsupported statements
+    if (transformResult.unsupportedStatements.length > 0 && !force) {
+        console.error("\n✗ Migration contains unsupported DSQL statements:\n");
+        for (const stmt of transformResult.unsupportedStatements) {
+            console.error(`  ${stmt}`);
+        }
+        console.error("\nDSQL doesn't support ALTER TABLE DROP CONSTRAINT.");
+        console.error(
+            "This typically happens when Prisma regenerates primary key constraints",
+        );
+        console.error("even though they haven't changed.\n");
+        console.error("Check your schema:");
+        console.error(
+            "  - If the primary key columns are the same, use --force to skip these",
+        );
+        console.error(
+            "  - If you're actually changing the primary key, recreate the table instead",
+        );
+        process.exit(1);
+    }
 
     // Ensure output directory exists
     const outputDir = path.dirname(outputFile);
@@ -210,6 +273,7 @@ Usage:
 
 Options:
   -o, --output <file>   Write output to file instead of stdout
+  --force               Force transformation even with unsupported statements
   --no-header           Omit the generated header comment
   -h, --help            Show this help message
 
@@ -229,6 +293,7 @@ Examples:
     let inputFile: string | null = null;
     let outputFile: string | null = null;
     let includeHeader = true;
+    let force = false;
 
     // Parse arguments
     for (let i = 0; i < args.length; i++) {
@@ -236,6 +301,8 @@ Examples:
             outputFile = args[++i];
         } else if (args[i] === "--no-header") {
             includeHeader = false;
+        } else if (args[i] === "--force") {
+            force = true;
         } else if (!args[i].startsWith("-")) {
             inputFile = args[i];
         }
@@ -265,7 +332,18 @@ Examples:
     }
 
     // Transform
-    const result = transformMigration(sql, { includeHeader });
+    const result = transformMigration(sql, { includeHeader, force });
+
+    // Check for unsupported statements
+    if (result.unsupportedStatements.length > 0 && !force) {
+        console.error("\n✗ Migration contains unsupported DSQL statements:\n");
+        for (const stmt of result.unsupportedStatements) {
+            console.error(`  ${stmt}`);
+        }
+        console.error("\nDSQL doesn't support ALTER TABLE DROP CONSTRAINT.");
+        console.error("Use --force to skip these statements.");
+        process.exit(1);
+    }
 
     // Write output
     if (outputFile) {

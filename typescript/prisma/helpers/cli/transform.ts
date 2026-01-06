@@ -17,6 +17,8 @@
 export interface TransformOptions {
     /** Add header comment to output */
     includeHeader?: boolean;
+    /** Force transformation even with unsupported statements */
+    force?: boolean;
 }
 
 export interface TransformResult {
@@ -27,6 +29,8 @@ export interface TransformResult {
         foreignKeysRemoved: number;
     };
     warnings: string[];
+    /** Unsupported statements that were encountered */
+    unsupportedStatements: string[];
 }
 
 const HEADER_COMMENT = `-- Transformed for Aurora DSQL compatibility
@@ -46,7 +50,7 @@ export function transformMigration(
     sql: string,
     options: TransformOptions = {},
 ): TransformResult {
-    const { includeHeader = true } = options;
+    const { includeHeader = true, force = false } = options;
 
     const stats = {
         statementsProcessed: 0,
@@ -54,6 +58,7 @@ export function transformMigration(
         foreignKeysRemoved: 0,
     };
     const warnings: string[] = [];
+    const unsupportedStatements: string[] = [];
 
     // Parse SQL into statements
     const statements = parseSqlStatements(sql);
@@ -62,7 +67,12 @@ export function transformMigration(
     const transformedStatements: string[] = [];
 
     for (const stmt of statements) {
-        const transformed = transformStatement(stmt, stats);
+        const transformed = transformStatement(
+            stmt,
+            stats,
+            unsupportedStatements,
+            force,
+        );
         if (transformed) {
             transformedStatements.push(transformed);
             stats.statementsProcessed++;
@@ -86,7 +96,7 @@ export function transformMigration(
         );
     }
 
-    return { sql: output, stats, warnings };
+    return { sql: output, stats, warnings, unsupportedStatements };
 }
 
 /**
@@ -174,6 +184,8 @@ function parseSqlStatements(sql: string): string[] {
 function transformStatement(
     statement: string,
     stats: TransformResult["stats"],
+    unsupportedStatements: string[],
+    force: boolean,
 ): string | null {
     // Skip if already wrapped in BEGIN/COMMIT
     if (/^\s*BEGIN\s*;/im.test(statement)) {
@@ -189,17 +201,27 @@ function transformStatement(
         return null;
     }
 
+    // Transform compound ALTER TABLE statements to remove unsupported clauses
+    let transformedSql = transformAlterTable(sql, unsupportedStatements, force);
+
+    // If ALTER TABLE was completely emptied, skip it
+    if (!transformedSql) {
+        return null;
+    }
+
     // Transform CREATE INDEX to CREATE INDEX ASYNC
-    let transformedSql = sql;
-    if (isCreateIndexStatement(sql) && !sql.toUpperCase().includes("ASYNC")) {
+    if (
+        isCreateIndexStatement(transformedSql) &&
+        !transformedSql.toUpperCase().includes("ASYNC")
+    ) {
         // Handle both CREATE INDEX and CREATE UNIQUE INDEX
-        if (/CREATE\s+UNIQUE\s+INDEX/i.test(sql)) {
-            transformedSql = sql.replace(
+        if (/CREATE\s+UNIQUE\s+INDEX/i.test(transformedSql)) {
+            transformedSql = transformedSql.replace(
                 /CREATE\s+UNIQUE\s+INDEX/gi,
                 "CREATE UNIQUE INDEX ASYNC",
             );
         } else {
-            transformedSql = sql.replace(
+            transformedSql = transformedSql.replace(
                 /CREATE\s+INDEX/gi,
                 "CREATE INDEX ASYNC",
             );
@@ -212,6 +234,122 @@ function transformStatement(
 
     // Re-add comment if present
     return comment ? `${comment}\n${wrapped}` : wrapped;
+}
+
+/**
+ * Transforms ALTER TABLE statements to remove DSQL-unsupported clauses.
+ * DSQL doesn't support DROP CONSTRAINT, so we track those and optionally remove them.
+ * Returns null if the statement becomes empty after transformation.
+ */
+function transformAlterTable(
+    sql: string,
+    unsupportedStatements: string[],
+    force: boolean,
+): string | null {
+    const normalized = sql.toUpperCase();
+
+    // Only process ALTER TABLE statements with DROP CONSTRAINT
+    if (
+        !normalized.includes("ALTER TABLE") ||
+        !normalized.includes("DROP CONSTRAINT")
+    ) {
+        return sql;
+    }
+
+    // Parse the ALTER TABLE statement to extract clauses
+    // Format: ALTER TABLE "table" clause1, clause2, ...;
+    // Note: Prisma always generates double-quoted identifiers for PostgreSQL
+    const match = sql.match(/^(ALTER\s+TABLE\s+"[^"]+"\s+)(.+);?\s*$/is);
+    if (!match) {
+        return sql;
+    }
+
+    const prefix = match[1];
+    const clausesPart = match[2].replace(/;$/, "");
+
+    // Split clauses by comma, but be careful with nested parentheses
+    const clauses = splitClauses(clausesPart);
+
+    // Track unsupported clauses and filter them
+    const filteredClauses: string[] = [];
+    const droppedConstraints: string[] = [];
+
+    for (const clause of clauses) {
+        const upperClause = clause.toUpperCase().trim();
+
+        // DROP CONSTRAINT is not supported by DSQL
+        if (upperClause.startsWith("DROP CONSTRAINT")) {
+            const fullStatement = `${prefix.trim()} ${clause.trim()}`;
+            unsupportedStatements.push(fullStatement);
+            // Extract constraint name for matching with ADD CONSTRAINT
+            const constraintMatch = clause.match(
+                /DROP\s+CONSTRAINT\s+"([^"]+)"/i,
+            );
+            if (constraintMatch) {
+                droppedConstraints.push(constraintMatch[1].toUpperCase());
+            }
+            continue; // Always skip DROP CONSTRAINT
+        }
+
+        // ADD CONSTRAINT for primary keys - skip if paired with a DROP we're skipping
+        if (
+            upperClause.startsWith("ADD CONSTRAINT") &&
+            upperClause.includes("PRIMARY KEY")
+        ) {
+            const constraintMatch = clause.match(
+                /ADD\s+CONSTRAINT\s+"([^"]+)"/i,
+            );
+            const constraintName = constraintMatch
+                ? constraintMatch[1].toUpperCase()
+                : "";
+
+            // If we're dropping and re-adding the same constraint, skip the ADD too
+            // (avoids partial SQL that would fail anyway)
+            if (droppedConstraints.includes(constraintName)) {
+                continue;
+            }
+        }
+
+        filteredClauses.push(clause);
+    }
+
+    // If no clauses left, return null to skip this statement
+    if (filteredClauses.length === 0) {
+        return null;
+    }
+
+    // Rebuild the statement
+    return `${prefix}${filteredClauses.join(",\n")};`;
+}
+
+/**
+ * Splits ALTER TABLE clauses by comma, respecting parentheses.
+ */
+function splitClauses(clausesPart: string): string[] {
+    const clauses: string[] = [];
+    let current = "";
+    let depth = 0;
+
+    for (const char of clausesPart) {
+        if (char === "(") {
+            depth++;
+            current += char;
+        } else if (char === ")") {
+            depth--;
+            current += char;
+        } else if (char === "," && depth === 0) {
+            clauses.push(current.trim());
+            current = "";
+        } else {
+            current += char;
+        }
+    }
+
+    if (current.trim()) {
+        clauses.push(current.trim());
+    }
+
+    return clauses;
 }
 
 /**
