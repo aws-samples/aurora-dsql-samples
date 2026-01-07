@@ -57,7 +57,7 @@ jobs:
       working-directory: ./python/asyncpg
       env:
         CLUSTER_USER: "admin"
-        CLUSTER_ENDPOINT: ${{ secrets.PYTHON_PSYCOPG3_CLUSTER_ENDPOINT }}
+        CLUSTER_ENDPOINT: ${{ secrets.PYTHON_ASYNCPG_CLUSTER_ENDPOINT }}
       run: |
         python3 -m venv .venv
         source .venv/bin/activate
