@@ -5,8 +5,266 @@
 
 version: 2
 updates:
-  - package-ecosystem: "github-actions" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
 
+  # JavaScript/TypeScript - npm
+  - package-ecosystem: "npm"
+    directory: "/lambda"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/lambda/sample"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/javascript/postgres-js"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/javascript/node-postgres"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/javascript/cluster_management"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/typescript/type-orm"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/typescript/prisma"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/typescript/sequelize"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+
+  # Python - pip
+  - package-ecosystem: "pip"
+    directory: "/python/asyncpg"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      pip-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "pip"
+    directory: "/python/cluster_management"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      pip-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "pip"
+    directory: "/python/psycopg"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      pip-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "pip"
+    directory: "/python/psycopg2"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      pip-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "pip"
+    directory: "/python/sqlalchemy"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      pip-dependencies:
+        patterns:
+          - "*"
+
+  # Java - maven
+  - package-ecosystem: "maven"
+    directory: "/java/liquibase"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      maven-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "maven"
+    directory: "/java/spring_boot"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      maven-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "maven"
+    directory: "/java/cluster_management"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      maven-dependencies:
+        patterns:
+          - "*"
+
+  # Rust - cargo
+  - package-ecosystem: "cargo"
+    directory: "/rust/sqlx"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      cargo-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "cargo"
+    directory: "/rust/cluster_management"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      cargo-dependencies:
+        patterns:
+          - "*"
+
+  # Go - gomod
+  - package-ecosystem: "gomod"
+    directory: "/go/pgx"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "gomod"
+    directory: "/go/cluster_management"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+
+  # Ruby - bundler
+  - package-ecosystem: "bundler"
+    directory: "/ruby/rails/petclinic"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      bundler-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "bundler"
+    directory: "/ruby/ruby-pg"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      bundler-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "bundler"
+    directory: "/ruby/cluster_management"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      bundler-dependencies:
+        patterns:
+          - "*"
+
+  # .NET - nuget
+  - package-ecosystem: "nuget"
+    directory: "/dotnet/cluster_management"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      nuget-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "nuget"
+    directory: "/dotnet/npgsql"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    groups:
+      nuget-dependencies:
+        patterns:
+          - "*"
