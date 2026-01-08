@@ -56,8 +56,8 @@ public class ExamplePreferred {
         config.setMaximumPoolSize(20);                    // Production pool size
         config.setMinimumIdle(5);                         // Keep connections ready
         config.setConnectionTimeout(30000);               // 30 seconds
-        config.setIdleTimeout(300000);                    // 5 minutes (shorter than token expiry)
-        config.setMaxLifetime(600000);                    // 10 minutes (shorter than token expiry)
+        config.setIdleTimeout(600000);                    // 10 minutes
+        config.setMaxLifetime(3300000);                   // 55 minutes (connector handles token refresh)
         config.setLeakDetectionThreshold(60000);          // 60 seconds
 
         // Connection validation
