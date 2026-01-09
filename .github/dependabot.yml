@@ -1,5 +1,15 @@
 version: 2
 updates:
+  - package-ecosystem: "dotnet-sdk"
+    directory: "/dotnet/cluster_management"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "dotnet-sdk"
+    directory: "/dotnet/npgsql"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
   - package-ecosystem: "gomod"
     directory: "/go/cluster_management"
     schedule:
