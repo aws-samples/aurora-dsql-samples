@@ -11,10 +11,10 @@ spring:
     username: ${cluster.user}
     driver-class-name: software.amazon.dsql.jdbc.DSQLConnector
     hikari:
-      max-lifetime: 1800000        # 30 minutes (shorter than Aurora DSQL's 60-minute limit)
+      max-lifetime: 3300000        # 55 minutes (connector handles token refresh)
       minimum-idle: 2
       maximum-pool-size: 10
-      idle-timeout: 300000         # 5 minutes
+      idle-timeout: 600000         # 10 minutes
       connection-timeout: 30000    # 30 seconds
       validation-timeout: 5000     # 5 seconds
       connection-test-query: "SELECT 1"

@@ -43,9 +43,9 @@ const getDataSource = async () => {
       extra: {
         min: 0,
         max: 5,                      
-        idleTimeoutMillis: 10000,     
+        idleTimeoutMillis: 600000,     // 10 minutes
         connectionTimeoutMillis: 30000,   
-        maxLifetimeSeconds: 2700,  // 45 min
+        maxLifetimeSeconds: 3300,  // 55 minutes (connector handles token refresh)
       },
     });
 
