@@ -11,7 +11,7 @@ anyhow = { version = "1", features = ["backtrace"] }
 aws-config = "1.1"
 aws-sdk-dsql = "1.1"
 rand = "0.8"
-uuid = { version = "1.11", features = ["v4"] }
+uuid = { version = "1.19", features = ["v4"] }
 log = "0.4.27"
 
 
