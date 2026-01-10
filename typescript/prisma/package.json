@@ -30,7 +30,7 @@
     "dependencies": {
         "@aws/aurora-dsql-node-postgres-connector": "^0.1.6",
         "@prisma/adapter-pg": "^6.14.0",
-        "@prisma/client": "^6.12.0",
+        "@prisma/client": "^7.2.0",
         "@types/pg": "^8.15.6",
         "pg": "^8.16.3"
     }
