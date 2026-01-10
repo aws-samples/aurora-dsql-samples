@@ -43,13 +43,11 @@ public class ExamplePreferred {
         config.setJdbcUrl(jdbcUrl);
         config.setUsername(username);
 
-        // PostgreSQL SSL configuration for Aurora DSQL
-        config.addDataSourceProperty("sslmode", "verify-full");
-        config.addDataSourceProperty("sslnegotiation", "direct");
-
-        // Verify the server's root cert against those in the default trust store
-        config.addDataSourceProperty("sslfactory", "org.postgresql.ssl.DefaultJavaSSLFactory");
-
+        // Note: SSL is configured automatically by the connector with secure defaults:
+        // - sslmode=verify-full
+        // - sslNegotiation=direct
+        // - sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory
+        // You can override these if needed by setting the properties explicitly.
 
         // HikariCP pool configuration optimized for Aurora DSQL
         config.setPoolName("AuroraDSQLPool");

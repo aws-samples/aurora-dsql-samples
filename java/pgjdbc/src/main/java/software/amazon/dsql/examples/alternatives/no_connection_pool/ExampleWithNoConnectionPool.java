@@ -20,11 +20,8 @@ public class ExampleWithNoConnectionPool {
         Properties props = new Properties();
         props.setProperty("user", user);
 
-        // Use the DefaultJavaSSLFactory so that Java's default trust store can be used
-        // to verify the server's root cert.
-        props.setProperty("sslmode", "verify-full");
-        props.setProperty("sslfactory", "org.postgresql.ssl.DefaultJavaSSLFactory");
-        props.setProperty("sslNegotiation", "direct");
+        // Note: SSL is configured automatically by the connector with secure defaults.
+        // No explicit SSL configuration needed.
 
         String url = "jdbc:aws-dsql:postgresql://" + endpoint;
 
