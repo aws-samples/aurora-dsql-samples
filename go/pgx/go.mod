@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.0.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.5
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
