@@ -18,13 +18,21 @@ A Go connector for Amazon Aurora DSQL that wraps [pgx](https://github.com/jackc/
 ## Prerequisites
 
 - Go 1.24 or later
-- AWS credentials configured via:
-  - Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
-  - AWS credentials file (`~/.aws/credentials`)
-  - IAM role (for EC2/ECS/Lambda)
+- AWS credentials configured (see [Credentials Resolution](#credentials-resolution) below)
 - An Aurora DSQL cluster
 
 For information about creating an Aurora DSQL cluster, see the [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html) guide.
+
+### Credentials Resolution
+
+The connector uses the [AWS SDK for Go v2 default credential chain](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials), which resolves credentials in the following order:
+
+1. **Environment variables** (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optionally `AWS_SESSION_TOKEN`)
+2. **Shared credentials file** (`~/.aws/credentials`) with optional profile via `AWS_PROFILE` or `Config.Profile`
+3. **Shared config file** (`~/.aws/config`)
+4. **IAM role for Amazon EC2/ECS/Lambda** (instance metadata or task role)
+
+The first source that provides valid credentials is used. You can override this by specifying `Config.Profile` for a specific AWS profile or `Config.CustomCredentialsProvider` for complete control over credential resolution.
 
 ## Installation
 
