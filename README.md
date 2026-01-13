@@ -14,7 +14,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |:-----------:|:-------------------------------------------------------:|
 |     C++     |                   [libpq](cpp/libpq)                    |
 | C# (dotnet) |                 [Npgsql](dotnet/npgsql)                 |
-|     Go      |                     [pgx](go/pgx/)                      |
+|     Go      |              [pgx](go/dsql-pgx-connector/)              |
 |    Java     |        [HikariCP + pgJDBC](java/pgjdbc)        |
 |    Java     |               [Liquibase](java/liquibase)               |
 |    Java     |                  [pgJDBC](java/pgjdbc)                  |
