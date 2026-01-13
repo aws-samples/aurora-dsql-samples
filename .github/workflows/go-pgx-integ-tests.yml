@@ -6,12 +6,12 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'go/pgx/**'
+      - 'go/dsql-pgx-connector/**'
       - '.github/workflows/go-pgx-integ-tests.yml'
   pull_request:
     branches: [ "main" ]
     paths:
-      - 'go/pgx/**'
+      - 'go/dsql-pgx-connector/**'
       - '.github/workflows/go-pgx-integ-tests.yml'
   # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
@@ -39,7 +39,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.23.2'
+        go-version: '1.24'
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -47,11 +47,16 @@ jobs:
         role-to-assume: ${{ secrets.GO_IAM_ROLE }}
         aws-region: us-east-1
 
-    - name: Build & Run
-      working-directory: ./go/pgx
+    - name: Run connector unit tests
+      working-directory: ./go/dsql-pgx-connector
+      run: |
+        go test -v ./dsql/...
+
+    - name: Run integration tests
+      working-directory: ./go/dsql-pgx-connector/example
       env:
         CLUSTER_USER: "admin"
         CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
       run: |
-        go test -v
+        go test -v ./test/...

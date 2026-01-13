@@ -1,20 +1,28 @@
-package main
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+// Package manual_token demonstrates manual IAM token generation for Aurora DSQL.
+// Use this approach when you need custom token generation logic, non-standard
+// authentication flows, or want to understand the underlying mechanism.
+package manual_token
 
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/dsql/auth"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dsql/auth"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Owner represents a pet owner entity.
 type Owner struct {
 	Id        string `json:"id"`
 	Name      string `json:"name"`
@@ -22,7 +30,7 @@ type Owner struct {
 	Telephone string `json:"telephone"`
 }
 
-// Config holds database connection parameters
+// Config holds database connection parameters.
 type Config struct {
 	Host     string
 	Port     string
@@ -32,7 +40,7 @@ type Config struct {
 	Region   string
 }
 
-// GenerateDbConnectAuthToken generates an authentication token for database connection
+// GenerateDbConnectAuthToken generates an IAM authentication token for database connection.
 func GenerateDbConnectAuthToken(
 	ctx context.Context, clusterEndpoint, region, user string, expiry time.Duration,
 ) (string, error) {
@@ -62,6 +70,7 @@ func GenerateDbConnectAuthToken(
 	return token, nil
 }
 
+// CreateConnectionURL builds a PostgreSQL connection URL from configuration.
 func CreateConnectionURL(dbConfig Config) string {
 	var sb strings.Builder
 	sb.WriteString("postgres://")
@@ -74,8 +83,7 @@ func CreateConnectionURL(dbConfig Config) string {
 	sb.WriteString(dbConfig.Database)
 	sb.WriteString("?sslmode=verify-full")
 	sb.WriteString("&sslnegotiation=direct")
-	url := sb.String()
-	return url
+	return sb.String()
 }
 
 func getEnv(key, defaultValue string) string {
@@ -106,7 +114,8 @@ func getEnvInt(key string, defaultValue int) int {
 	return intValue
 }
 
-// NewPool creates a new database connection pool with token refresh capability
+// NewPool creates a new database connection pool with IAM token refresh capability.
+// The pool automatically generates a fresh IAM token before each connection.
 func NewPool(
 	ctx context.Context, poolOptFns ...func(options *pgxpool.Config),
 ) (*pgxpool.Pool, context.CancelFunc, error) {
@@ -134,9 +143,10 @@ func NewPool(
 	poolConfig, err := pgxpool.ParseConfig(url)
 	if err != nil {
 		cancel()
-		return nil, nil, fmt.Errorf("unable to parse pool config: %v", err)
+		return nil, nil, fmt.Errorf("unable to parse pool config: %w", err)
 	}
 
+	// Generate a fresh IAM token before each connection
 	poolConfig.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
 		token, err := GenerateDbConnectAuthToken(ctx, dbConfig.Host, dbConfig.Region, dbConfig.User, expiry)
 		if err != nil {
@@ -157,7 +167,7 @@ func NewPool(
 			schema = "myschema"
 		}
 
-		_, err := conn.Exec(ctx, fmt.Sprintf("SET search_path = %s", schema))
+		_, err := conn.Exec(ctx, fmt.Sprintf("SET search_path = %s", pgx.Identifier{schema}.Sanitize()))
 		if err != nil {
 			return fmt.Errorf("failed to set search_path to %s: %w", schema, err)
 		}
@@ -171,7 +181,7 @@ func NewPool(
 	poolConfig.MaxConnIdleTime = 30 * time.Minute
 	poolConfig.HealthCheckPeriod = 1 * time.Minute
 
-	// Allow  the pool settings to be overridden.
+	// Allow the pool settings to be overridden
 	for _, fn := range poolOptFns {
 		fn(poolConfig)
 	}
@@ -180,16 +190,17 @@ func NewPool(
 	pgxPool, err := pgxpool.NewWithConfig(poolCtx, poolConfig)
 	if err != nil {
 		cancel()
-		return nil, nil, fmt.Errorf("unable to create connection pool: %v", err)
+		return nil, nil, fmt.Errorf("unable to create connection pool: %w", err)
 	}
 
 	return pgxPool, cancel, nil
 }
 
-func example() error {
+// Example demonstrates manual IAM token generation and CRUD operations with Aurora DSQL.
+func Example() error {
 	ctx := context.Background()
 
-	// Establish connection pool
+	// Establish connection pool with manual token generation
 	pool, cancel, err := NewPool(ctx)
 	if err != nil {
 		return err
@@ -202,31 +213,34 @@ func example() error {
 	// Ping the database to verify connection
 	err = pool.Ping(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to ping database: %v", err)
+		return fmt.Errorf("unable to ping database: %w", err)
 	}
 
+	// Create table
 	_, err = pool.Exec(ctx, `
-                CREATE TABLE IF NOT EXISTS owner (
-                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        name VARCHAR(255),
-                        city VARCHAR(255),
-                        telephone VARCHAR(255)
-                )
-        `)
+		CREATE TABLE IF NOT EXISTS owner (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name VARCHAR(255),
+			city VARCHAR(255),
+			telephone VARCHAR(255)
+		)
+	`)
 	if err != nil {
-		return fmt.Errorf("unable to create table: %v", err)
+		return fmt.Errorf("unable to create table: %w", err)
 	}
 
-	query := `INSERT INTO owner (id, name, city, telephone) VALUES ($1, $2, $3, $4)`
-	_, err = pool.Exec(ctx, query, uuid.New(), "John Doe", "Anytown", "555-555-0150")
+	// Insert data (let database generate UUID via gen_random_uuid() default)
+	query := `INSERT INTO owner (name, city, telephone) VALUES ($1, $2, $3)`
+	_, err = pool.Exec(ctx, query, "John Doe", "Anytown", "555-555-0150")
 	if err != nil {
-		return fmt.Errorf("unable to insert data: %v", err)
+		return fmt.Errorf("unable to insert data: %w", err)
 	}
 
+	// Read data
 	query = `SELECT id, name, city, telephone FROM owner where name='John Doe'`
 	rows, err := pool.Query(ctx, query)
 	if err != nil {
-		return fmt.Errorf("unable to read data: %v", err)
+		return fmt.Errorf("unable to read data: %w", err)
 	}
 	defer rows.Close()
 
@@ -242,20 +256,11 @@ func example() error {
 			owners[0].Name, owners[0].City)
 	}
 
+	// Delete data
 	_, err = pool.Exec(ctx, `DELETE FROM owner where name='John Doe'`)
 	if err != nil {
-		return fmt.Errorf("unable to clean table: %v", err)
+		return fmt.Errorf("unable to clean table: %w", err)
 	}
 
 	return nil
-}
-
-// Run example
-func main() {
-	err := example()
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-	}
-
-	fmt.Println("Connection exercised successfully")
 }
