@@ -76,6 +76,26 @@ type Config struct {
 	HealthCheckPeriod time.Duration
 }
 
+// Validate checks the configuration for errors that can be detected without
+// environment variables or network access. This enables early error detection
+// before attempting to connect.
+//
+// Validate checks:
+//   - Host is not empty
+//   - Port is within valid range (1-65535) if specified
+//
+// Note: Region is not validated here because it can be auto-detected from
+// the hostname or resolved from environment variables at connection time.
+func (c *Config) Validate() error {
+	if c.Host == "" {
+		return fmt.Errorf("host is required")
+	}
+	if c.Port != 0 && (c.Port < 1 || c.Port > 65535) {
+		return fmt.Errorf("port must be between 1 and 65535, got %d", c.Port)
+	}
+	return nil
+}
+
 // resolvedConfig holds the validated and resolved configuration.
 type resolvedConfig struct {
 	Host                      string
