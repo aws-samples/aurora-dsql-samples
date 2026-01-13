@@ -76,27 +76,8 @@ type Config struct {
 	HealthCheckPeriod time.Duration
 }
 
-// Validate checks the configuration for errors that can be detected without
-// environment variables or network access. This enables early error detection
-// before attempting to connect.
-//
-// Validate checks:
-//   - Host is not empty
-//   - Port is within valid range (1-65535) if specified
-//
-// Note: Region is not validated here because it can be auto-detected from
-// the hostname or resolved from environment variables at connection time.
-func (c *Config) Validate() error {
-	if c.Host == "" {
-		return fmt.Errorf("host is required")
-	}
-	if c.Port != 0 && (c.Port < 1 || c.Port > 65535) {
-		return fmt.Errorf("port must be between 1 and 65535, got %d", c.Port)
-	}
-	return nil
-}
-
-// resolvedConfig holds the validated and resolved configuration.
+// resolvedConfig holds the validated and resolved configuration with all
+// defaults applied and the full hostname constructed.
 type resolvedConfig struct {
 	Host                      string
 	Region                    string
@@ -113,7 +94,8 @@ type resolvedConfig struct {
 	HealthCheckPeriod         time.Duration
 }
 
-// resolve validates the configuration and applies defaults.
+// resolve validates the configuration, applies defaults, and resolves the
+// full hostname and region.
 func (c *Config) resolve() (*resolvedConfig, error) {
 	if c.Host == "" {
 		return nil, fmt.Errorf("host is required")
@@ -248,7 +230,6 @@ func ParseConnectionString(connStr string) (*Config, error) {
 }
 
 // configureConnConfig sets connection parameters on a pgx.ConnConfig.
-// This centralizes the common configuration used by both Pool and Conn.
 func (r *resolvedConfig) configureConnConfig(cfg *pgx.ConnConfig) {
 	cfg.Host = r.Host
 	cfg.Port = uint16(r.Port)
