@@ -126,21 +126,28 @@ func TestConfigMissingHost(t *testing.T) {
 	assert.Contains(t, err.Error(), "host")
 }
 
-func TestConfigValidate(t *testing.T) {
+func TestConfigResolve(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  Config
+		setup   func()    // Optional setup (e.g., set env vars)
+		cleanup func()    // Optional cleanup
 		wantErr bool
 		errMsg  string
 	}{
 		{
-			name:    "valid config with host",
+			name:    "valid config with full hostname",
 			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws"},
 			wantErr: false,
 		},
 		{
 			name:    "valid config with host and port",
 			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws", Port: 5433},
+			wantErr: false,
+		},
+		{
+			name:    "valid config with cluster ID and region",
+			config:  Config{Host: "ijsamhssbh36dopuigphknejb4", Region: "us-east-1"},
 			wantErr: false,
 		},
 		{
@@ -156,9 +163,9 @@ func TestConfigValidate(t *testing.T) {
 			errMsg:  "host is required",
 		},
 		{
-			name:    "port too low",
+			name:    "port zero uses default",
 			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws", Port: 0},
-			wantErr: false, // Port 0 means use default
+			wantErr: false,
 		},
 		{
 			name:    "port negative",
@@ -182,11 +189,45 @@ func TestConfigValidate(t *testing.T) {
 			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws", Port: 65535},
 			wantErr: false,
 		},
+		{
+			name:   "cluster ID without region fails",
+			config: Config{Host: "ijsamhssbh36dopuigphknejb4"},
+			setup: func() {
+				os.Unsetenv("AWS_REGION")
+				os.Unsetenv("AWS_DEFAULT_REGION")
+			},
+			cleanup: func() {},
+			wantErr: true,
+			errMsg:  "region is required when host is a cluster ID",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.Validate()
+			// Save and restore env vars if needed
+			oldRegion := os.Getenv("AWS_REGION")
+			oldDefaultRegion := os.Getenv("AWS_DEFAULT_REGION")
+			defer func() {
+				if oldRegion != "" {
+					os.Setenv("AWS_REGION", oldRegion)
+				} else {
+					os.Unsetenv("AWS_REGION")
+				}
+				if oldDefaultRegion != "" {
+					os.Setenv("AWS_DEFAULT_REGION", oldDefaultRegion)
+				} else {
+					os.Unsetenv("AWS_DEFAULT_REGION")
+				}
+			}()
+
+			if tt.setup != nil {
+				tt.setup()
+			}
+			if tt.cleanup != nil {
+				defer tt.cleanup()
+			}
+
+			_, err := tt.config.resolve()
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)

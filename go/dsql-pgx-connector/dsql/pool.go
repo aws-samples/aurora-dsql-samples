@@ -21,7 +21,7 @@ type Pool struct {
 }
 
 // NewPool creates a new connection pool to Aurora DSQL.
-// The config parameter can be either a Config struct or a connection string.
+// The config parameter can be a Config struct, *Config, or a connection string.
 func NewPool(ctx context.Context, config any) (*Pool, error) {
 	var cfg *Config
 

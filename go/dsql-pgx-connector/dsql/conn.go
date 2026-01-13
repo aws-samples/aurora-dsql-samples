@@ -19,7 +19,7 @@ type Conn struct {
 }
 
 // Connect creates a single connection to Aurora DSQL.
-// The config parameter can be either a Config struct or a connection string.
+// The config parameter can be a Config struct, *Config, or a connection string.
 func Connect(ctx context.Context, config any) (*Conn, error) {
 	var cfg *Config
 
