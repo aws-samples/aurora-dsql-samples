@@ -3,7 +3,7 @@ module github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/example
 go 1.24.0
 
 require (
-	github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector v0.0.0
+	github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector v0.1.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
 	github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.1.17
 	github.com/jackc/pgx/v5 v5.8.0
@@ -29,5 +29,3 @@ require (
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 )
-
-replace github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector => ../
