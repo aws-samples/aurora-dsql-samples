@@ -126,6 +126,77 @@ func TestConfigMissingHost(t *testing.T) {
 	assert.Contains(t, err.Error(), "host")
 }
 
+func TestConfigValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  Config
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "valid config with host",
+			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws"},
+			wantErr: false,
+		},
+		{
+			name:    "valid config with host and port",
+			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws", Port: 5433},
+			wantErr: false,
+		},
+		{
+			name:    "missing host",
+			config:  Config{},
+			wantErr: true,
+			errMsg:  "host is required",
+		},
+		{
+			name:    "empty host",
+			config:  Config{Host: ""},
+			wantErr: true,
+			errMsg:  "host is required",
+		},
+		{
+			name:    "port too low",
+			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws", Port: 0},
+			wantErr: false, // Port 0 means use default
+		},
+		{
+			name:    "port negative",
+			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws", Port: -1},
+			wantErr: true,
+			errMsg:  "port must be between 1 and 65535",
+		},
+		{
+			name:    "port too high",
+			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws", Port: 70000},
+			wantErr: true,
+			errMsg:  "port must be between 1 and 65535",
+		},
+		{
+			name:    "port at lower bound",
+			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws", Port: 1},
+			wantErr: false,
+		},
+		{
+			name:    "port at upper bound",
+			config:  Config{Host: "mycluster.dsql.us-east-1.on.aws", Port: 65535},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestConfigInvalidPort(t *testing.T) {
 	cfg := Config{
 		Host: "mycluster.dsql.us-east-1.on.aws",

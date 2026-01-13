@@ -45,6 +45,21 @@ func (ct *cachedToken) isExpiredOrExpiringSoon(bufferPercentage float64) bool {
 // TokenCache provides thread-safe caching of authentication tokens.
 // It caches tokens by (host, region, user, duration) and automatically
 // refreshes them when they approach expiration.
+//
+// # Concurrency Model
+//
+// TokenCache uses sync.RWMutex (not sync.Map) for explicit control over
+// critical sections. The GetToken method implements double-checked locking:
+//
+//  1. First, it acquires a read lock to check if a valid cached token exists
+//  2. If no valid token is found, it releases the read lock and acquires a write lock
+//  3. After acquiring the write lock, it re-checks the cache (another goroutine
+//     may have refreshed the token while waiting for the lock)
+//  4. Only if still needed, it generates a new token and caches it
+//
+// This pattern ensures that duplicate token generation is prevented even under
+// high concurrency, while allowing concurrent reads when tokens are cached.
+// The implementation is safe for use by multiple goroutines.
 type TokenCache struct {
 	mu                  sync.RWMutex
 	cache               map[tokenCacheKey]*cachedToken
