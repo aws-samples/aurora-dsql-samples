@@ -26,7 +26,7 @@ dependencies {
     implementation("software.amazon.awssdk:dsql:2.41.4")
     implementation("org.postgresql:postgresql:42.7.7")
 
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation(platform("org.junit:junit-bom:6.0.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
