@@ -8,6 +8,7 @@ package example_preferred
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -25,14 +26,20 @@ func createPool(ctx context.Context, clusterEndpoint string) (*dsql.Pool, error)
 	})
 }
 
-func worker(ctx context.Context, pool *dsql.Pool, workerID int, results chan<- string, errors chan<- error) {
+// workerResult holds either a successful result or an error from a worker.
+type workerResult struct {
+	workerID int
+	result   string
+	err      error
+}
+
+func worker(ctx context.Context, pool *dsql.Pool, workerID int) workerResult {
 	var result int
 	err := pool.QueryRow(ctx, "SELECT $1::int as worker_id", workerID).Scan(&result)
 	if err != nil {
-		errors <- fmt.Errorf("worker %d error: %w", workerID, err)
-		return
+		return workerResult{workerID: workerID, err: fmt.Errorf("worker %d error: %w", workerID, err)}
 	}
-	results <- fmt.Sprintf("Worker %d result: %d", workerID, result)
+	return workerResult{workerID: workerID, result: fmt.Sprintf("Worker %d result: %d", workerID, result)}
 }
 
 // Example demonstrates concurrent queries using the DSQL connector pool.
@@ -56,31 +63,34 @@ func Example() error {
 	}
 
 	// Run concurrent queries using the connection pool
-	results := make(chan string, numConcurrentQueries)
-	errors := make(chan error, numConcurrentQueries)
+	results := make(chan workerResult, numConcurrentQueries)
 
 	var wg sync.WaitGroup
 	for i := 1; i <= numConcurrentQueries; i++ {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
-			worker(ctx, pool, workerID, results, errors)
+			results <- worker(ctx, pool, workerID)
 		}(i)
 	}
 
-	// Wait for all workers to complete
+	// Wait for all workers to complete and close the channel
 	wg.Wait()
 	close(results)
-	close(errors)
 
-	// Check for errors
-	for err := range errors {
-		return err
+	// Collect results and errors
+	var errs []error
+	for res := range results {
+		if res.err != nil {
+			errs = append(errs, res.err)
+		} else {
+			fmt.Println(res.result)
+		}
 	}
 
-	// Print results
-	for result := range results {
-		fmt.Println(result)
+	// Return combined errors if any occurred
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	fmt.Println("Connection pool with concurrent connections exercised successfully")
