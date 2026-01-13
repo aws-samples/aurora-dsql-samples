@@ -18,6 +18,9 @@ const (
 
 var regionPattern = regexp.MustCompile(`\.dsql[^.]*\.([^.]+)\.on\.aws$`)
 
+// clusterIDPattern validates DSQL cluster IDs: 26 lowercase alphanumeric characters
+var clusterIDPattern = regexp.MustCompile(`^[a-z0-9]{26}$`)
+
 // ParseRegion extracts the AWS region from a DSQL hostname.
 // Returns an error if the hostname is empty or doesn't match the expected pattern.
 func ParseRegion(host string) (string, error) {
@@ -38,8 +41,10 @@ func BuildHostname(clusterID, region string) string {
 	return clusterID + preRegionHostPattern + region + postRegionHostPattern
 }
 
-// IsClusterID returns true if the host appears to be a cluster ID rather than a full hostname.
-// A cluster ID does not contain dots.
+// IsClusterID returns true if the host is a cluster ID rather than a full hostname.
 func IsClusterID(host string) bool {
-	return !strings.Contains(host, ".")
+	if host == "" || strings.Contains(host, ".") {
+		return false
+	}
+	return clusterIDPattern.MatchString(host)
 }

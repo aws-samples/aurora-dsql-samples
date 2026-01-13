@@ -21,7 +21,7 @@ func TestParseRegion(t *testing.T) {
 	}{
 		{
 			name:     "standard endpoint",
-			host:     "cluster123.dsql.us-east-1.on.aws",
+			host:     "mycluster.dsql.us-east-1.on.aws",
 			expected: "us-east-1",
 		},
 		{
@@ -31,12 +31,22 @@ func TestParseRegion(t *testing.T) {
 		},
 		{
 			name:     "ap-southeast-2 region",
-			host:     "test.dsql.ap-southeast-2.on.aws",
+			host:     "mycluster.dsql.ap-southeast-2.on.aws",
 			expected: "ap-southeast-2",
 		},
 		{
+			name:     "non-prod endpoint (dsqlqa)",
+			host:     "mycluster.dsqlqa.us-east-1.on.aws",
+			expected: "us-east-1",
+		},
+		{
+			name:     "beta endpoint (dsqlbeta)",
+			host:     "mycluster.dsqlbeta.eu-west-1.on.aws",
+			expected: "eu-west-1",
+		},
+		{
 			name:        "invalid hostname - no dsql",
-			host:        "cluster123.rds.us-east-1.amazonaws.com",
+			host:        "mycluster.rds.us-east-1.amazonaws.com",
 			expectError: true,
 		},
 		{
@@ -46,7 +56,7 @@ func TestParseRegion(t *testing.T) {
 		},
 		{
 			name:        "cluster ID only",
-			host:        "cluster123",
+			host:        "mycluster",
 			expectError: true,
 		},
 	}
@@ -100,19 +110,64 @@ func TestIsClusterID(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "cluster ID only",
-			host:     "mycluster123",
+			name:     "valid cluster ID - example 1",
+			host:     "ijsamhssbh36dopuigphknejb4",
 			expected: true,
 		},
 		{
-			name:     "full hostname",
+			name:     "valid cluster ID - example 2",
+			host:     "jbtgm4i7xmqphuo2mgamk7oeza",
+			expected: true,
+		},
+		{
+			name:     "valid cluster ID - all letters",
+			host:     "abcdefghijklmnopqrstuvwxyz",
+			expected: true,
+		},
+		{
+			name:     "valid cluster ID - all digits",
+			host:     "01234567890123456789012345",
+			expected: true,
+		},
+		{
+			name:     "valid cluster ID - mixed",
+			host:     "abc123def456ghi789jkl01234",
+			expected: true,
+		},
+		{
+			name:     "invalid - contains uppercase",
+			host:     "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+			expected: false,
+		},
+		{
+			name:     "invalid - too short",
+			host:     "abcdefghijklmnopqrstuvwxy",
+			expected: false,
+		},
+		{
+			name:     "invalid - too long",
+			host:     "abcdefghijklmnopqrstuvwxyz0",
+			expected: false,
+		},
+		{
+			name:     "invalid - arbitrary string",
+			host:     "mycluster",
+			expected: false,
+		},
+		{
+			name:     "invalid - contains hyphens",
+			host:     "my-cluster-1234567890abcde",
+			expected: false,
+		},
+		{
+			name:     "invalid - full hostname",
 			host:     "mycluster.dsql.us-east-1.on.aws",
 			expected: false,
 		},
 		{
-			name:     "empty string",
+			name:     "invalid - empty string",
 			host:     "",
-			expected: true,
+			expected: false,
 		},
 	}
 

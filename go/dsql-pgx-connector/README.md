@@ -6,8 +6,8 @@ A Go connector for Amazon Aurora DSQL that wraps [pgx](https://github.com/jackc/
 
 ## Features
 
-- Automatic IAM token generation for each new connection
-- Connection pooling via `pgxpool` with token refresh on connection creation
+- Automatic IAM token generation with smart caching (refreshes at 80% of token lifetime)
+- Connection pooling via `pgxpool` with token caching for efficient connection creation
 - Single connection support for simpler use cases
 - Flexible host configuration (full endpoint or cluster ID)
 - Region auto-detection from endpoint hostname
@@ -42,7 +42,7 @@ go get github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/dsql
 | `Database` | `string` | `"postgres"` | Database name |
 | `Port` | `int` | `5432` | Database port |
 | `Profile` | `string` | `""` | AWS profile name for credentials |
-| `TokenDurationSecs` | `int` | `0` | Token validity duration in seconds (0 = SDK default) |
+| `TokenDurationSecs` | `int` | `900` (15 min) | Token validity duration in seconds |
 | `CustomCredentialsProvider` | `aws.CredentialsProvider` | `nil` | Custom AWS credentials provider |
 | `MaxConns` | `int32` | `0` | Maximum pool connections (0 = pgxpool default) |
 | `MinConns` | `int32` | `0` | Minimum pool connections (0 = pgxpool default) |
@@ -197,14 +197,17 @@ pool, err := dsql.NewPool(ctx, dsql.Config{
 })
 ```
 
-## Token Generation
+## Token Generation and Caching
 
-The connector automatically generates fresh IAM authentication tokens:
+The connector automatically generates and caches IAM authentication tokens for optimal performance:
 
-- **Connection pools**: A new token is generated via the `BeforeConnect` hook each time a new connection is created in the pool. This ensures tokens remain valid even for long-running applications.
-- **Single connections**: A token is generated at connection time.
+- **Connection pools**: Tokens are cached and reused across connections. The `BeforeConnect` hook retrieves tokens from the cache, generating new ones only when the cached token has used 80% of its lifetime (similar to the Java connector's approach). This ensures tokens remain valid while minimizing credential calls.
+- **Single connections**: A token is generated at connection time using pre-resolved credentials.
+- **Credentials resolution**: AWS credentials are resolved once when the pool/connection is created and reused for all token generations, avoiding repeated credential chain resolution.
 
 For the `admin` user, the connector generates admin tokens using `GenerateDBConnectAdminAuthToken`. For other users, it generates standard tokens using `GenerateDbConnectAuthToken`.
+
+Token duration defaults to 15 minutes (the maximum allowed by Aurora DSQL).
 
 ## Development
 

@@ -16,7 +16,8 @@ import (
 // Pool wraps pgxpool.Pool with Aurora DSQL IAM authentication.
 type Pool struct {
 	*pgxpool.Pool
-	config *resolvedConfig
+	config     *resolvedConfig
+	tokenCache *TokenCache
 }
 
 // NewPool creates a new connection pool to Aurora DSQL.
@@ -51,28 +52,24 @@ func NewPool(ctx context.Context, config any) (*Pool, error) {
 }
 
 func newPoolFromResolved(ctx context.Context, resolved *resolvedConfig) (*Pool, error) {
-	connURL := resolved.connectionURL()
-
-	poolConfig, err := pgxpool.ParseConfig(connURL)
+	credentialsProvider, err := resolveCredentialsProvider(ctx, resolved)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse pool config: %w", err)
+		return nil, fmt.Errorf("failed to resolve credentials provider: %w", err)
 	}
 
-	// Configure token generation on each connection
+	tokenCache := NewTokenCache(credentialsProvider)
+
+	poolConfig, err := pgxpool.ParseConfig("")
+	if err != nil {
+		return nil, fmt.Errorf("unable to create pool config: %w", err)
+	}
+
+	resolved.configureConnConfig(poolConfig.ConnConfig)
 	poolConfig.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
-		var token string
-		var err error
-
-		if resolved.Profile != "" {
-			token, err = GenerateTokenWithProfile(ctx, resolved.Host, resolved.Region, resolved.User, resolved.Profile, resolved.TokenDuration)
-		} else {
-			token, err = GenerateToken(ctx, resolved.Host, resolved.Region, resolved.User, resolved.CustomCredentialsProvider, resolved.TokenDuration)
-		}
-
+		token, err := tokenCache.GetToken(ctx, resolved.Host, resolved.Region, resolved.User, resolved.TokenDuration)
 		if err != nil {
 			return err
 		}
-
 		cfg.Password = token
 		return nil
 	}
@@ -100,7 +97,16 @@ func newPoolFromResolved(ctx context.Context, resolved *resolvedConfig) (*Pool, 
 	}
 
 	return &Pool{
-		Pool:   pool,
-		config: resolved,
+		Pool:       pool,
+		config:     resolved,
+		tokenCache: tokenCache,
 	}, nil
+}
+
+// ClearTokenCache clears all cached authentication tokens.
+// This can be useful when credentials have been rotated.
+func (p *Pool) ClearTokenCache() {
+	if p.tokenCache != nil {
+		p.tokenCache.Clear()
+	}
 }

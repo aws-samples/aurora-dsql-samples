@@ -6,6 +6,7 @@
 package dsql
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/url"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/jackc/pgx/v5"
 )
 
 // Version is the connector version
@@ -35,6 +37,9 @@ const (
 	DefaultMaxConnLifetime = 55 * time.Minute
 	// DefaultMaxConnIdleTime is the default maximum idle time (10 minutes)
 	DefaultMaxConnIdleTime = 10 * time.Minute
+	// DefaultTokenDuration is the default token validity duration (15 minutes)
+	// This is the maximum allowed by Aurora DSQL
+	DefaultTokenDuration = 15 * time.Minute
 )
 
 // Config holds the configuration for connecting to Aurora DSQL.
@@ -119,6 +124,9 @@ func (c *Config) resolve() (*resolvedConfig, error) {
 	if resolved.Port == 0 {
 		resolved.Port = DefaultPort
 	}
+	if resolved.Port < 1 || resolved.Port > 65535 {
+		return nil, fmt.Errorf("port must be between 1 and 65535, got %d", resolved.Port)
+	}
 	if resolved.MaxConnLifetime == 0 {
 		resolved.MaxConnLifetime = DefaultMaxConnLifetime
 	}
@@ -126,9 +134,11 @@ func (c *Config) resolve() (*resolvedConfig, error) {
 		resolved.MaxConnIdleTime = DefaultMaxConnIdleTime
 	}
 
-	// Convert token duration
+	// Convert token duration with default
 	if c.TokenDurationSecs > 0 {
 		resolved.TokenDuration = time.Duration(c.TokenDurationSecs) * time.Second
+	} else {
+		resolved.TokenDuration = DefaultTokenDuration
 	}
 
 	// Handle cluster ID vs full hostname
@@ -217,14 +227,18 @@ func ParseConnectionString(connStr string) (*Config, error) {
 	return cfg, nil
 }
 
-// connectionURL builds a PostgreSQL connection URL from the resolved config.
-func (r *resolvedConfig) connectionURL() string {
-	// Add application_name to the URL for observability
-	return fmt.Sprintf("postgres://%s@%s:%d/%s?sslmode=verify-full&sslnegotiation=direct&application_name=%s",
-		url.QueryEscape(r.User),
-		r.Host,
-		r.Port,
-		url.QueryEscape(r.Database),
-		url.QueryEscape(ApplicationName),
-	)
+// configureConnConfig sets connection parameters on a pgx.ConnConfig.
+// This centralizes the common configuration used by both Pool and Conn.
+func (r *resolvedConfig) configureConnConfig(cfg *pgx.ConnConfig) {
+	cfg.Host = r.Host
+	cfg.Port = uint16(r.Port)
+	cfg.Database = r.Database
+	cfg.User = r.User
+	cfg.TLSConfig = &tls.Config{
+		ServerName: r.Host,
+		MinVersion: tls.VersionTLS12,
+	}
+	cfg.RuntimeParams = map[string]string{
+		"application_name": ApplicationName,
+	}
 }

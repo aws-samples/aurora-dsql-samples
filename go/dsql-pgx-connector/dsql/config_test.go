@@ -16,22 +16,35 @@ import (
 
 func TestConfigDefaults(t *testing.T) {
 	cfg := Config{
-		Host: "cluster.dsql.us-east-1.on.aws",
+		Host: "mycluster.dsql.us-east-1.on.aws",
 	}
 
 	resolved, err := cfg.resolve()
 	require.NoError(t, err)
 
-	assert.Equal(t, "cluster.dsql.us-east-1.on.aws", resolved.Host)
+	assert.Equal(t, "mycluster.dsql.us-east-1.on.aws", resolved.Host)
 	assert.Equal(t, "us-east-1", resolved.Region)
 	assert.Equal(t, "admin", resolved.User)
 	assert.Equal(t, "postgres", resolved.Database)
 	assert.Equal(t, 5432, resolved.Port)
+	assert.Equal(t, DefaultTokenDuration, resolved.TokenDuration)
+}
+
+func TestConfigDefaultTokenDuration(t *testing.T) {
+	cfg := Config{
+		Host: "mycluster.dsql.us-east-1.on.aws",
+	}
+
+	resolved, err := cfg.resolve()
+	require.NoError(t, err)
+
+	// Should default to 15 minutes
+	assert.Equal(t, 15*time.Minute, resolved.TokenDuration)
 }
 
 func TestConfigExplicitRegion(t *testing.T) {
 	cfg := Config{
-		Host:   "cluster.dsql.us-east-1.on.aws",
+		Host:   "mycluster.dsql.us-east-1.on.aws",
 		Region: "eu-west-1", // Override parsed region
 	}
 
@@ -42,15 +55,17 @@ func TestConfigExplicitRegion(t *testing.T) {
 }
 
 func TestConfigClusterID(t *testing.T) {
+	clusterID := "ijsamhssbh36dopuigphknejb4"
+
 	cfg := Config{
-		Host:   "mycluster",
+		Host:   clusterID,
 		Region: "us-west-2",
 	}
 
 	resolved, err := cfg.resolve()
 	require.NoError(t, err)
 
-	assert.Equal(t, "mycluster.dsql.us-west-2.on.aws", resolved.Host)
+	assert.Equal(t, clusterID+".dsql.us-west-2.on.aws", resolved.Host)
 	assert.Equal(t, "us-west-2", resolved.Region)
 }
 
@@ -69,8 +84,10 @@ func TestConfigClusterIDWithoutRegion(t *testing.T) {
 		}
 	}()
 
+	clusterID := "jbtgm4i7xmqphuo2mgamk7oeza"
+
 	cfg := Config{
-		Host: "mycluster", // No region, can't parse from cluster ID
+		Host: clusterID,
 	}
 
 	_, err := cfg.resolve()
@@ -89,8 +106,10 @@ func TestConfigRegionFromEnv(t *testing.T) {
 		}
 	}()
 
+	clusterID := "jyabtzxzk6utb27wod2toxeifm"
+
 	cfg := Config{
-		Host: "mycluster",
+		Host: clusterID,
 	}
 
 	resolved, err := cfg.resolve()
@@ -107,9 +126,20 @@ func TestConfigMissingHost(t *testing.T) {
 	assert.Contains(t, err.Error(), "host")
 }
 
+func TestConfigInvalidPort(t *testing.T) {
+	cfg := Config{
+		Host: "mycluster.dsql.us-east-1.on.aws",
+		Port: 70000,
+	}
+
+	_, err := cfg.resolve()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "port")
+}
+
 func TestConfigAllFields(t *testing.T) {
 	cfg := Config{
-		Host:              "myhost.dsql.us-east-1.on.aws",
+		Host:              "mycluster.dsql.us-east-1.on.aws",
 		Region:            "us-east-1",
 		User:              "myuser",
 		Database:          "mydb",
@@ -121,7 +151,7 @@ func TestConfigAllFields(t *testing.T) {
 	resolved, err := cfg.resolve()
 	require.NoError(t, err)
 
-	assert.Equal(t, "myhost.dsql.us-east-1.on.aws", resolved.Host)
+	assert.Equal(t, "mycluster.dsql.us-east-1.on.aws", resolved.Host)
 	assert.Equal(t, "us-east-1", resolved.Region)
 	assert.Equal(t, "myuser", resolved.User)
 	assert.Equal(t, "mydb", resolved.Database)
@@ -138,18 +168,18 @@ func TestParseConnectionString(t *testing.T) {
 	}{
 		{
 			name:    "basic connection string",
-			connStr: "postgres://admin@cluster.dsql.us-east-1.on.aws/postgres",
+			connStr: "postgres://admin@mycluster.dsql.us-east-1.on.aws/postgres",
 			expected: Config{
-				Host:     "cluster.dsql.us-east-1.on.aws",
+				Host:     "mycluster.dsql.us-east-1.on.aws",
 				User:     "admin",
 				Database: "postgres",
 			},
 		},
 		{
 			name:    "with port",
-			connStr: "postgres://admin@cluster.dsql.us-east-1.on.aws:5433/mydb",
+			connStr: "postgres://admin@mycluster.dsql.us-east-1.on.aws:5433/mydb",
 			expected: Config{
-				Host:     "cluster.dsql.us-east-1.on.aws",
+				Host:     "mycluster.dsql.us-east-1.on.aws",
 				User:     "admin",
 				Database: "mydb",
 				Port:     5433,
@@ -157,9 +187,9 @@ func TestParseConnectionString(t *testing.T) {
 		},
 		{
 			name:    "with region parameter",
-			connStr: "postgres://admin@cluster.dsql.us-east-1.on.aws/postgres?region=eu-west-1",
+			connStr: "postgres://admin@mycluster.dsql.us-east-1.on.aws/postgres?region=eu-west-1",
 			expected: Config{
-				Host:     "cluster.dsql.us-east-1.on.aws",
+				Host:     "mycluster.dsql.us-east-1.on.aws",
 				User:     "admin",
 				Database: "postgres",
 				Region:   "eu-west-1",
@@ -167,9 +197,9 @@ func TestParseConnectionString(t *testing.T) {
 		},
 		{
 			name:    "with token duration",
-			connStr: "postgres://admin@cluster.dsql.us-east-1.on.aws/postgres?tokenDurationSecs=300",
+			connStr: "postgres://admin@mycluster.dsql.us-east-1.on.aws/postgres?tokenDurationSecs=300",
 			expected: Config{
-				Host:              "cluster.dsql.us-east-1.on.aws",
+				Host:              "mycluster.dsql.us-east-1.on.aws",
 				User:              "admin",
 				Database:          "postgres",
 				TokenDurationSecs: 300,

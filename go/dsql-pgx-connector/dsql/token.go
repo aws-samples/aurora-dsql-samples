@@ -19,6 +19,34 @@ import (
 
 const adminUser = "admin"
 
+// resolveCredentialsProvider resolves the AWS credentials provider once based on the configuration.
+// This avoids repeated credential resolution on each token generation.
+func resolveCredentialsProvider(ctx context.Context, resolved *resolvedConfig) (aws.CredentialsProvider, error) {
+	// If custom provider is specified, use it directly
+	if resolved.CustomCredentialsProvider != nil {
+		return resolved.CustomCredentialsProvider, nil
+	}
+
+	// If profile is specified, load config with that profile
+	if resolved.Profile != "" {
+		cfg, err := config.LoadDefaultConfig(ctx,
+			config.WithRegion(resolved.Region),
+			config.WithSharedConfigProfile(resolved.Profile),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load AWS config with profile %s: %w", resolved.Profile, err)
+		}
+		return cfg.Credentials, nil
+	}
+
+	// Use default credential chain
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(resolved.Region))
+	if err != nil {
+		return nil, fmt.Errorf("failed to load AWS config: %w", err)
+	}
+	return cfg.Credentials, nil
+}
+
 // GenerateToken generates an IAM authentication token for Aurora DSQL.
 // If user is "admin", generates an admin token; otherwise generates a standard token.
 // If credentialsProvider is nil, uses the default AWS credential chain.

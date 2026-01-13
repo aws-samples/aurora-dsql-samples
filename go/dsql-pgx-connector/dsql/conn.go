@@ -50,24 +50,22 @@ func Connect(ctx context.Context, config any) (*Conn, error) {
 }
 
 func connectWithResolved(ctx context.Context, resolved *resolvedConfig) (*Conn, error) {
-	connURL := resolved.connectionURL()
-
-	connConfig, err := pgx.ParseConfig(connURL)
+	credentialsProvider, err := resolveCredentialsProvider(ctx, resolved)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse connection config: %w", err)
+		return nil, fmt.Errorf("failed to resolve credentials provider: %w", err)
 	}
 
-	// Generate token
-	var token string
-	if resolved.Profile != "" {
-		token, err = GenerateTokenWithProfile(ctx, resolved.Host, resolved.Region, resolved.User, resolved.Profile, resolved.TokenDuration)
-	} else {
-		token, err = GenerateToken(ctx, resolved.Host, resolved.Region, resolved.User, resolved.CustomCredentialsProvider, resolved.TokenDuration)
-	}
+	token, err := GenerateToken(ctx, resolved.Host, resolved.Region, resolved.User, credentialsProvider, resolved.TokenDuration)
 	if err != nil {
 		return nil, err
 	}
 
+	connConfig, err := pgx.ParseConfig("")
+	if err != nil {
+		return nil, fmt.Errorf("unable to create connection config: %w", err)
+	}
+
+	resolved.configureConnConfig(connConfig)
 	connConfig.Password = token
 
 	conn, err := pgx.ConnectConfig(ctx, connConfig)
