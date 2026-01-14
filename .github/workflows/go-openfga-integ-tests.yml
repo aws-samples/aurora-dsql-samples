@@ -1,0 +1,219 @@
+name: Go OpenFGA DSQL integration tests
+
+permissions: {}
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'go/dsql-pgx-connector/**'
+      - '.github/workflows/go-openfga-integ-tests.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'go/dsql-pgx-connector/**'
+      - '.github/workflows/go-openfga-integ-tests.yml'
+  workflow_dispatch:
+    inputs:
+      openfga_repo:
+        description: 'OpenFGA repository (owner/repo)'
+        required: false
+        default: 'amaksimo/openfga-dsql-alemaksi-3'
+        type: string
+      openfga_branch:
+        description: 'OpenFGA branch'
+        required: false
+        default: 'main'
+        type: string
+
+jobs:
+  openfga-integration:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    concurrency:
+      # Ensure only 1 job uses the workflow cluster at a time
+      group: openfga-${{ github.workflow }}
+    env:
+      GOPROXY: direct
+      OPENFGA_REPO: ${{ inputs.openfga_repo || 'amaksimo/openfga-dsql-alemaksi-3' }}
+      OPENFGA_BRANCH: ${{ inputs.openfga_branch || 'main' }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.GO_IAM_ROLE }}
+        aws-region: ${{ secrets.GO_PGX_CLUSTER_REGION }}
+
+    - name: Clone OpenFGA fork with DSQL support
+      run: |
+        git clone --depth 1 --branch ${{ env.OPENFGA_BRANCH }} \
+          https://github.com/${{ env.OPENFGA_REPO }}.git \
+          openfga-dsql
+
+    - name: Update OpenFGA go.mod to use local connector
+      working-directory: ./openfga-dsql
+      run: |
+        # Update the replace directive to point to the checked out connector
+        sed -i 's|=> ../aurora-dsql-samples/go/dsql-pgx-connector|=> ../go/dsql-pgx-connector|' go.mod
+        cat go.mod
+
+    - name: Build OpenFGA
+      working-directory: ./openfga-dsql
+      run: |
+        go mod tidy
+        go build -o openfga ./cmd/openfga
+
+    - name: Run DSQL migrations
+      working-directory: ./openfga-dsql
+      env:
+        CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
+        AWS_REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
+      run: |
+        ./openfga migrate \
+          --datastore-engine=dsql \
+          --datastore-uri="dsql://admin@${CLUSTER_ENDPOINT}/postgres"
+
+    - name: Start OpenFGA server
+      working-directory: ./openfga-dsql
+      env:
+        CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
+        AWS_REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
+      run: |
+        ./openfga run \
+          --datastore-engine=dsql \
+          --datastore-uri="dsql://admin@${CLUSTER_ENDPOINT}/postgres" \
+          --playground-enabled=false \
+          --http-addr=:8080 \
+          --grpc-addr=:8081 &
+
+        # Wait for server to be ready
+        echo "Waiting for OpenFGA server to start..."
+        for i in {1..30}; do
+          if curl -s http://localhost:8080/healthz > /dev/null 2>&1; then
+            echo "OpenFGA server is ready"
+            break
+          fi
+          echo "Waiting... ($i/30)"
+          sleep 2
+        done
+
+    - name: Test OpenFGA API operations
+      run: |
+        # Create a store
+        STORE_RESPONSE=$(curl -s -X POST http://localhost:8080/stores \
+          -H "Content-Type: application/json" \
+          -d '{"name": "test-store"}')
+        echo "Create store response: $STORE_RESPONSE"
+        STORE_ID=$(echo $STORE_RESPONSE | jq -r '.id')
+        echo "Store ID: $STORE_ID"
+
+        if [ "$STORE_ID" == "null" ] || [ -z "$STORE_ID" ]; then
+          echo "Failed to create store"
+          exit 1
+        fi
+
+        # Create an authorization model
+        MODEL_RESPONSE=$(curl -s -X POST "http://localhost:8080/stores/${STORE_ID}/authorization-models" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "schema_version": "1.1",
+            "type_definitions": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "document",
+                "relations": {
+                  "viewer": {
+                    "this": {}
+                  },
+                  "editor": {
+                    "this": {}
+                  }
+                },
+                "metadata": {
+                  "relations": {
+                    "viewer": {
+                      "directly_related_user_types": [
+                        {"type": "user"}
+                      ]
+                    },
+                    "editor": {
+                      "directly_related_user_types": [
+                        {"type": "user"}
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }')
+        echo "Create model response: $MODEL_RESPONSE"
+        MODEL_ID=$(echo $MODEL_RESPONSE | jq -r '.authorization_model_id')
+        echo "Model ID: $MODEL_ID"
+
+        if [ "$MODEL_ID" == "null" ] || [ -z "$MODEL_ID" ]; then
+          echo "Failed to create authorization model"
+          exit 1
+        fi
+
+        # Write a tuple
+        WRITE_RESPONSE=$(curl -s -X POST "http://localhost:8080/stores/${STORE_ID}/write" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"writes\": {
+              \"tuple_keys\": [
+                {
+                  \"user\": \"user:alice\",
+                  \"relation\": \"viewer\",
+                  \"object\": \"document:doc1\"
+                }
+              ]
+            },
+            \"authorization_model_id\": \"${MODEL_ID}\"
+          }")
+        echo "Write tuple response: $WRITE_RESPONSE"
+
+        # Check permission
+        CHECK_RESPONSE=$(curl -s -X POST "http://localhost:8080/stores/${STORE_ID}/check" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"tuple_key\": {
+              \"user\": \"user:alice\",
+              \"relation\": \"viewer\",
+              \"object\": \"document:doc1\"
+            },
+            \"authorization_model_id\": \"${MODEL_ID}\"
+          }")
+        echo "Check response: $CHECK_RESPONSE"
+
+        ALLOWED=$(echo $CHECK_RESPONSE | jq -r '.allowed')
+        if [ "$ALLOWED" != "true" ]; then
+          echo "Permission check failed - expected allowed=true, got $ALLOWED"
+          exit 1
+        fi
+
+        echo "All OpenFGA API tests passed!"
+
+    - name: Run connector integration tests
+      working-directory: ./go/dsql-pgx-connector/example
+      env:
+        CLUSTER_USER: "admin"
+        CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
+        REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
+      run: |
+        go test -v ./test/openfga/...
+
+    - name: Cleanup - Stop OpenFGA
+      if: always()
+      run: |
+        pkill -f openfga || true
