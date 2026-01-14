@@ -297,6 +297,49 @@ When using this connector with Aurora DSQL, follow these practices:
 - [pgxpool Documentation](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool)
 - [AWS SDK for Go v2](https://aws.github.io/aws-sdk-go-v2/)
 
+## PGAdapter
+
+A PostgreSQL wire protocol proxy that enables standard PostgreSQL clients (psql, pgAdmin, ORMs, etc.) to connect to Aurora DSQL without code changes. The adapter handles IAM authentication transparently.
+
+### Building
+
+```bash
+go build -o bin/dsql-pgadapter ./cmd/dsql-pgadapter
+```
+
+### Usage
+
+```bash
+# Start the adapter
+./bin/dsql-pgadapter --endpoint xxx.dsql.us-east-1.on.aws
+
+# Connect with psql
+psql -h 127.0.0.1 -p 5432 -U admin -d postgres
+```
+
+### CLI Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--endpoint` | (required) | DSQL cluster endpoint |
+| `--region` | (auto-detected) | AWS region |
+| `--listen` | `127.0.0.1:5432` | Local address to listen on |
+| `--user` | `admin` | Database user |
+| `--database` | `postgres` | Database name |
+| `--profile` | `""` | AWS profile for credentials |
+| `--verbose` | `false` | Enable verbose logging |
+| `--version` | `false` | Print version and exit |
+
+### Example with OpenFGA
+
+```bash
+# Terminal 1: Start adapter
+./bin/dsql-pgadapter --endpoint xxx.dsql.us-east-1.on.aws --verbose
+
+# Terminal 2: Run OpenFGA
+openfga run --datastore-uri "postgres://admin@127.0.0.1:5432/postgres?sslmode=disable"
+```
+
 ---
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
