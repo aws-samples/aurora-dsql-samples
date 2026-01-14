@@ -211,6 +211,7 @@ jobs:
         CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
         REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
       run: |
+        go mod tidy
         go test -v ./test/openfga/...
 
     - name: Cleanup - Stop OpenFGA

@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
 	github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.1.17
 	github.com/jackc/pgx/v5 v5.8.0
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
