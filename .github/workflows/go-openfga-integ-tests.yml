@@ -1,0 +1,57 @@
+name: Go OpenFGA DSQL integration tests
+
+permissions: {}
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'go/dsql-pgx-connector/**'
+      - '.github/workflows/go-openfga-integ-tests.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'go/dsql-pgx-connector/**'
+      - '.github/workflows/go-openfga-integ-tests.yml'
+  # Give us a button to allow running the workflow on demand for testing.
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Manual Workflow Run'
+        required: false
+        type: string
+
+jobs:
+
+  openfga-integration:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    concurrency:
+      # Ensure only 1 job uses the workflow cluster at a time.
+      group: ${{ github.workflow }}
+    env:
+      GOPROXY: direct
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.GO_IAM_ROLE }}
+        aws-region: us-east-1
+
+    - name: Run OpenFGA integration tests
+      working-directory: ./go/dsql-pgx-connector/example
+      env:
+        CLUSTER_USER: "admin"
+        CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
+        REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
+      run: |
+        go test -v ./test/openfga/...

@@ -48,3 +48,9 @@ func IsClusterID(host string) bool {
 	}
 	return clusterIDPattern.MatchString(host)
 }
+
+// IsDSQLURI returns true if the URI uses the dsql:// scheme.
+// This is useful for consumers to detect when to use the DSQL connector.
+func IsDSQLURI(uri string) bool {
+	return strings.HasPrefix(uri, "dsql://")
+}
