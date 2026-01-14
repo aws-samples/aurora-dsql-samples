@@ -67,7 +67,7 @@ type TokenCache struct {
 }
 
 // NewTokenCache creates a new token cache with a pre-resolved credentials provider.
-// The credentialsProvider should be obtained from resolveCredentialsProvider to avoid
+// The credentialsProvider should be obtained from ResolveCredentialsProvider to avoid
 // repeated credential resolution.
 func NewTokenCache(credentialsProvider aws.CredentialsProvider) *TokenCache {
 	return &TokenCache{
