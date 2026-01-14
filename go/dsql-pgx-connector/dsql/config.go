@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -180,9 +181,16 @@ func getRegionFromEnv() string {
 	return os.Getenv("AWS_DEFAULT_REGION")
 }
 
-// ParseConnectionString parses a PostgreSQL connection string into a Config.
+// ParseConnectionString parses a PostgreSQL or DSQL connection string into a Config.
+// Supported schemes: postgres://, postgresql://, dsql://
 func ParseConnectionString(connStr string) (*Config, error) {
-	u, err := url.Parse(connStr)
+	// Normalize dsql:// to postgres:// for URL parsing
+	normalizedConnStr := connStr
+	if strings.HasPrefix(connStr, "dsql://") {
+		normalizedConnStr = "postgres://" + strings.TrimPrefix(connStr, "dsql://")
+	}
+
+	u, err := url.Parse(normalizedConnStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid connection string: %w", err)
 	}
