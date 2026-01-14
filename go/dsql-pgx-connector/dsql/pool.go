@@ -52,7 +52,7 @@ func NewPool(ctx context.Context, config any) (*Pool, error) {
 }
 
 func newPoolFromResolved(ctx context.Context, resolved *resolvedConfig) (*Pool, error) {
-	credentialsProvider, err := resolveCredentialsProvider(ctx, resolved)
+	credentialsProvider, err := ResolveCredentialsProvider(ctx, resolved.Region, resolved.Profile, resolved.CustomCredentialsProvider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve credentials provider: %w", err)
 	}

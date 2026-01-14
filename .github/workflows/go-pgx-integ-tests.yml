@@ -52,6 +52,11 @@ jobs:
       run: |
         go test -v ./dsql/...
 
+    - name: Run pgadapter unit tests
+      working-directory: ./go/dsql-pgx-connector
+      run: |
+        go test -v ./pgadapter/...
+
     - name: Run integration tests
       working-directory: ./go/dsql-pgx-connector/example
       env:

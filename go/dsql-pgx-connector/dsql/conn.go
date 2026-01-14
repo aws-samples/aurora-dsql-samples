@@ -50,7 +50,7 @@ func Connect(ctx context.Context, config any) (*Conn, error) {
 }
 
 func connectWithResolved(ctx context.Context, resolved *resolvedConfig) (*Conn, error) {
-	credentialsProvider, err := resolveCredentialsProvider(ctx, resolved)
+	credentialsProvider, err := ResolveCredentialsProvider(ctx, resolved.Region, resolved.Profile, resolved.CustomCredentialsProvider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve credentials provider: %w", err)
 	}
