@@ -247,6 +247,49 @@ go test ./example/test/...
 golangci-lint run
 ```
 
+## Examples
+
+The `example/` directory contains runnable examples demonstrating various patterns:
+
+| Example | Description |
+|---------|-------------|
+| [example_preferred](example/src/example_preferred.go) | Recommended: Connection pool with concurrent queries |
+| [transaction](example/src/transaction/) | Transaction handling with BEGIN/COMMIT/ROLLBACK |
+| [occ_retry](example/src/occ_retry/) | Handling OCC conflicts with exponential backoff |
+| [connection_string](example/src/connection_string/) | Using connection strings for configuration |
+| [manual_token](example/src/alternatives/manual_token/) | Manual IAM token generation without the connector |
+
+### Running examples
+
+```bash
+export CLUSTER_ENDPOINT=your-cluster.dsql.us-east-1.on.aws
+cd example
+
+# Run the preferred example
+go run ./src/example_preferred.go
+
+# Run the transaction example
+go run ./src/transaction/...
+
+# Run the OCC retry example
+go run ./src/occ_retry/...
+
+# Run the connection string example
+go run ./src/connection_string/...
+```
+
+## DSQL Best Practices
+
+When using this connector with Aurora DSQL, follow these practices:
+
+1. **UUID Primary Keys**: Always use `UUID DEFAULT gen_random_uuid()` - DSQL doesn't support sequences or SERIAL
+2. **OCC Handling**: DSQL uses optimistic concurrency control. Handle error codes `OC000` (data conflict) and `OC001` (schema conflict) with retry logic
+3. **No Foreign Keys**: DSQL doesn't support foreign key constraints - enforce relationships in your application
+4. **Async Indexes**: Use `CREATE INDEX ASYNC` for index creation
+5. **Transaction Limits**: Transactions are limited to 3,000 rows, 10 MiB, and 5 minutes
+6. **Connection Limits**: Connections timeout after 60 minutes; configure pool `MaxConnLifetime` accordingly
+7. **No SAVEPOINT**: Partial rollbacks via SAVEPOINT are not supported
+
 ## Additional Resources
 
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
