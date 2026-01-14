@@ -5,7 +5,7 @@ go 1.24
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
-	github.com/aws/aws-sdk-go-v2/service/dsql v1.3.0
+	github.com/aws/aws-sdk-go-v2/service/dsql v1.12.4
 )
 
 require (
