@@ -212,6 +212,7 @@ jobs:
         REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
       run: |
         go mod tidy
+        go mod download
         go test -v ./test/openfga/...
 
     - name: Cleanup - Stop OpenFGA
