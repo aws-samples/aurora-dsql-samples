@@ -247,6 +247,18 @@ go test ./example/test/...
 golangci-lint run
 ```
 
+## DSQL Best Practices
+
+When using this connector with Aurora DSQL, follow these practices:
+
+1. **UUID Primary Keys**: Always use `UUID DEFAULT gen_random_uuid()` - DSQL doesn't support sequences or SERIAL
+2. **OCC Handling**: DSQL uses optimistic concurrency control. Handle error codes `OC000` (data conflict) and `OC001` (schema conflict) with retry logic
+3. **No Foreign Keys**: DSQL doesn't support foreign key constraints - enforce relationships in your application
+4. **Async Indexes**: Use `CREATE INDEX ASYNC` for index creation
+5. **Transaction Limits**: Transactions are limited to 3,000 rows, 10 MiB, and 5 minutes
+6. **Connection Limits**: Connections timeout after 60 minutes; configure pool `MaxConnLifetime` accordingly
+7. **No SAVEPOINT**: Partial rollbacks via SAVEPOINT are not supported
+
 ## Additional Resources
 
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
