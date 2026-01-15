@@ -210,11 +210,11 @@ func TestOpenFGABasicOperations(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	// Test store creation
+	// Test store creation (with retry for OCC errors after schema changes)
 	storeID := fmt.Sprintf("test-store-%d", time.Now().UnixNano())
-	_, err = pool.Exec(ctx,
-		"INSERT INTO store (id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
-		storeID, "Test Store")
+	err = execWithRetry(ctx, pool, fmt.Sprintf(
+		"INSERT INTO store (id, name, created_at, updated_at) VALUES ('%s', 'Test Store', NOW(), NOW())",
+		storeID), 5)
 	require.NoError(t, err, "Failed to create store")
 
 	// Verify store was created
@@ -223,12 +223,12 @@ func TestOpenFGABasicOperations(t *testing.T) {
 	require.NoError(t, err, "Failed to query store")
 	require.Equal(t, "Test Store", name)
 
-	// Test tuple creation
+	// Test tuple creation (with retry for OCC errors)
 	ulid := fmt.Sprintf("01H%d", time.Now().UnixNano())
-	_, err = pool.Exec(ctx,
+	err = execWithRetry(ctx, pool, fmt.Sprintf(
 		`INSERT INTO tuple (store, object_type, object_id, relation, _user, user_type, ulid, inserted_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-		storeID, "document", "doc1", "viewer", "user:alice", "user", ulid)
+		 VALUES ('%s', 'document', 'doc1', 'viewer', 'user:alice', 'user', '%s', NOW())`,
+		storeID, ulid), 5)
 	require.NoError(t, err, "Failed to create tuple")
 
 	// Verify tuple was created
@@ -338,8 +338,8 @@ func TestOCCConflictHandling(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
 
-	// Insert initial row
-	_, err = pool.Exec(ctx, fmt.Sprintf("INSERT INTO %s (id, value) VALUES ('test', 0)", tableName))
+	// Insert initial row (may need retry after schema change)
+	err = execWithRetry(ctx, pool, fmt.Sprintf("INSERT INTO %s (id, value) VALUES ('test', 0)", tableName), 5)
 	require.NoError(t, err)
 
 	// Start two transactions
