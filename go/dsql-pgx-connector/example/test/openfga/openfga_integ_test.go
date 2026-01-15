@@ -293,10 +293,15 @@ func TestOCCConflictHandling(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
 
-	// Insert initial row (may need retry after schema change)
-	err = occretry.ExecWithRetry(ctx, pool, fmt.Sprintf("INSERT INTO %s (id, value) VALUES ('test', 0)", tableName), 5)
+	// Insert initial row and wait for schema to stabilize
+	// Use WithRetry to handle OC001 errors after schema change
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, fmt.Sprintf("INSERT INTO %s (id, value) VALUES ('test', 0)", tableName))
+		return err
+	})
 	require.NoError(t, err)
 
+	// Now test OCC conflict detection with concurrent updates
 	// Start two transactions
 	tx1, err := pool.Begin(ctx)
 	require.NoError(t, err)
@@ -323,7 +328,7 @@ func TestOCCConflictHandling(t *testing.T) {
 	err = tx1.Commit(ctx)
 	require.NoError(t, err)
 
-	// Second commit should fail with OCC error
+	// Second commit should fail with OCC error (OC000 for mutation conflict)
 	err = tx2.Commit(ctx)
 	require.Error(t, err, "Expected OCC error on second commit")
 	require.True(t, occretry.IsOCCError(err), "Expected OCC error, got: %v", err)
