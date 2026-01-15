@@ -72,6 +72,16 @@ jobs:
         go mod tidy
         go build -o openfga ./cmd/openfga
 
+    - name: Clean DSQL tables before migration
+      env:
+        CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
+        AWS_REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
+      run: |
+        # Use the dsql connector to clean up any leftover tables from previous runs
+        # This ensures migrations start from a clean state
+        cd go/dsql-pgx-connector/example
+        go run ../../../.github/scripts/cleanup_dsql.go
+
     - name: Run DSQL migrations
       working-directory: ./openfga-dsql
       env:

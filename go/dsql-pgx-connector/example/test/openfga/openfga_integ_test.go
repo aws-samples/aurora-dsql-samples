@@ -167,14 +167,16 @@ func TestOpenFGABasicOperations(t *testing.T) {
 	require.NoError(t, err, "Failed to query tuple")
 	require.Equal(t, "doc1", objectID)
 
-	// Test SELECT ... FOR UPDATE (supported by DSQL)
+	// Test SELECT ... FOR UPDATE (supported by DSQL with equality predicates on all key columns)
+	// DSQL requires equality predicates on the entire primary key for FOR UPDATE
+	// Primary key is: (store, object_type, object_id, relation, _user)
 	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
 
 	var user string
 	err = tx.QueryRow(ctx,
-		"SELECT _user FROM tuple WHERE store = $1 AND object_type = $2 AND object_id = $3 AND relation = $4 FOR UPDATE",
-		storeID, "document", "doc1", "viewer").Scan(&user)
+		"SELECT _user FROM tuple WHERE store = $1 AND object_type = $2 AND object_id = $3 AND relation = $4 AND _user = $5 FOR UPDATE",
+		storeID, "document", "doc1", "viewer", "user:alice").Scan(&user)
 	require.NoError(t, err, "Failed to SELECT FOR UPDATE")
 	require.Equal(t, "user:alice", user)
 
