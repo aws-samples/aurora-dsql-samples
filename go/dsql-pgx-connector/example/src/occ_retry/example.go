@@ -41,14 +41,13 @@ type Counter struct {
 }
 
 func createSchema(ctx context.Context, pool *dsql.Pool) error {
-	_, err := pool.Exec(ctx, `
+	return occretry.ExecWithRetry(ctx, pool, `
 		CREATE TABLE IF NOT EXISTS counter (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			name VARCHAR(255) NOT NULL UNIQUE,
 			value INT NOT NULL DEFAULT 0
 		)
-	`)
-	return err
+	`, 5)
 }
 
 func getOrCreateCounter(ctx context.Context, pool *dsql.Pool, name string) (string, error) {
@@ -62,10 +61,13 @@ func getOrCreateCounter(ctx context.Context, pool *dsql.Pool, name string) (stri
 		return "", err
 	}
 
-	err = pool.QueryRow(ctx,
-		`INSERT INTO counter (name, value) VALUES ($1, 0) RETURNING id`,
-		name,
-	).Scan(&id)
+	// Use WithRetry for INSERT after schema changes (may get OC001)
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx,
+			`INSERT INTO counter (name, value) VALUES ($1, 0) RETURNING id`,
+			name,
+		).Scan(&id)
+	})
 	return id, err
 }
 
