@@ -312,3 +312,113 @@ func TestDSQLTokenGeneration(t *testing.T) {
 
 	t.Log("Token generation for database/sql works correctly")
 }
+
+// TestOCCConflictHandling verifies that OCC conflicts are properly detected.
+// This is important for OpenFGA because it skips FOR UPDATE on DSQL and relies
+// on OCC to detect concurrent modifications at commit time.
+func TestOCCConflictHandling(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	endpoint := os.Getenv("CLUSTER_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("CLUSTER_ENDPOINT not set, skipping integration test")
+	}
+
+	pool, err := dsql.NewPool(ctx, dsql.Config{Host: endpoint})
+	require.NoError(t, err)
+	defer pool.Close()
+
+	// Create test table
+	tableName := fmt.Sprintf("occ_test_%d", time.Now().UnixNano())
+	_, err = pool.Exec(ctx, fmt.Sprintf(`CREATE TABLE %s (
+		id TEXT PRIMARY KEY,
+		value INT NOT NULL
+	)`, tableName))
+	require.NoError(t, err)
+	defer pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
+
+	// Insert initial row
+	_, err = pool.Exec(ctx, fmt.Sprintf("INSERT INTO %s (id, value) VALUES ('test', 0)", tableName))
+	require.NoError(t, err)
+
+	// Start two transactions
+	tx1, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer tx1.Rollback(ctx)
+
+	tx2, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer tx2.Rollback(ctx)
+
+	// Both read the same row
+	var v1, v2 int
+	err = tx1.QueryRow(ctx, fmt.Sprintf("SELECT value FROM %s WHERE id = 'test'", tableName)).Scan(&v1)
+	require.NoError(t, err)
+	err = tx2.QueryRow(ctx, fmt.Sprintf("SELECT value FROM %s WHERE id = 'test'", tableName)).Scan(&v2)
+	require.NoError(t, err)
+
+	// Both try to update
+	_, err = tx1.Exec(ctx, fmt.Sprintf("UPDATE %s SET value = $1 WHERE id = 'test'", tableName), v1+1)
+	require.NoError(t, err)
+	_, err = tx2.Exec(ctx, fmt.Sprintf("UPDATE %s SET value = $1 WHERE id = 'test'", tableName), v2+1)
+	require.NoError(t, err)
+
+	// First commit succeeds
+	err = tx1.Commit(ctx)
+	require.NoError(t, err)
+
+	// Second commit should fail with OCC error
+	err = tx2.Commit(ctx)
+	require.Error(t, err, "Expected OCC error on second commit")
+	require.True(t, isOCCError(err), "Expected OCC error, got: %v", err)
+
+	t.Log("OCC conflict properly detected - DSQL's OCC provides conflict detection for OpenFGA")
+}
+
+// TestBatchOperationsNearLimit tests batch operations near the 3000 row limit.
+// OpenFGA batches writes, so we verify that operations near the limit work correctly.
+func TestBatchOperationsNearLimit(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	endpoint := os.Getenv("CLUSTER_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("CLUSTER_ENDPOINT not set, skipping integration test")
+	}
+
+	pool, err := dsql.NewPool(ctx, dsql.Config{Host: endpoint})
+	require.NoError(t, err)
+	defer pool.Close()
+
+	// Create test table
+	tableName := fmt.Sprintf("batch_test_%d", time.Now().UnixNano())
+	_, err = pool.Exec(ctx, fmt.Sprintf(`CREATE TABLE %s (
+		id TEXT PRIMARY KEY,
+		data TEXT
+	)`, tableName))
+	require.NoError(t, err)
+	defer pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
+
+	// Test batch insert of 2500 rows (under 3000 limit)
+	batchSize := 2500
+	tx, err := pool.Begin(ctx)
+	require.NoError(t, err)
+
+	for i := 0; i < batchSize; i++ {
+		_, err = tx.Exec(ctx, fmt.Sprintf("INSERT INTO %s (id, data) VALUES ($1, $2)", tableName),
+			fmt.Sprintf("id-%d", i), fmt.Sprintf("data-%d", i))
+		require.NoError(t, err)
+	}
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+
+	// Verify count
+	var count int
+	err = pool.QueryRow(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, batchSize, count)
+
+	t.Logf("Batch insert of %d rows completed successfully", batchSize)
+}
