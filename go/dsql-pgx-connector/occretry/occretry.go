@@ -91,6 +91,24 @@ func IsOCCError(err error) bool {
 	return false
 }
 
+// backoffWait waits with exponential backoff and jitter. Returns the next wait duration.
+func backoffWait(ctx context.Context, wait time.Duration, config Config) (time.Duration, error) {
+	jitter := time.Duration(rand.Int63n(int64(wait / 4)))
+	sleepTime := wait + jitter
+
+	select {
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	case <-time.After(sleepTime):
+	}
+
+	nextWait := time.Duration(float64(wait) * config.Multiplier)
+	if nextWait > config.MaxWait {
+		nextWait = config.MaxWait
+	}
+	return nextWait, nil
+}
+
 // WithRetry executes a transactional function with automatic retry on OCC conflicts.
 // The function fn receives a transaction and should perform all database operations
 // within that transaction. If an OCC error occurs, the transaction is rolled back
@@ -112,20 +130,10 @@ func WithRetry(ctx context.Context, pool *dsql.Pool, config Config, fn func(tx p
 
 	for attempt := 0; attempt <= config.MaxRetries; attempt++ {
 		if attempt > 0 {
-			// Add jitter (up to 25% of wait time) to avoid thundering herd
-			jitter := time.Duration(rand.Int63n(int64(wait / 4)))
-			sleepTime := wait + jitter
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(sleepTime):
-			}
-
-			// Exponential backoff
-			wait = time.Duration(float64(wait) * config.Multiplier)
-			if wait > config.MaxWait {
-				wait = config.MaxWait
+			var err error
+			wait, err = backoffWait(ctx, wait, config)
+			if err != nil {
+				return err
 			}
 		}
 
@@ -184,18 +192,10 @@ func ExecWithRetry(ctx context.Context, pool *dsql.Pool, sql string, maxRetries 
 
 	for attempt := 0; attempt <= config.MaxRetries; attempt++ {
 		if attempt > 0 {
-			jitter := time.Duration(rand.Int63n(int64(wait / 4)))
-			sleepTime := wait + jitter
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(sleepTime):
-			}
-
-			wait = time.Duration(float64(wait) * config.Multiplier)
-			if wait > config.MaxWait {
-				wait = config.MaxWait
+			var err error
+			wait, err = backoffWait(ctx, wait, config)
+			if err != nil {
+				return err
 			}
 		}
 
