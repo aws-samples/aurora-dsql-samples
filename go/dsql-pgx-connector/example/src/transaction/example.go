@@ -22,7 +22,10 @@ package transaction
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/dsql"
 	"github.com/jackc/pgx/v5"
@@ -35,16 +38,56 @@ type Account struct {
 	Balance int
 }
 
+// isOCCError checks if an error is an OCC (Optimistic Concurrency Control) conflict.
+func isOCCError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "OC000") || strings.Contains(errStr, "OC001")
+}
+
 // createSchema sets up the accounts table with UUID primary key.
+// It drops and recreates the table to ensure a clean state.
+// Uses retry logic for OCC errors that may occur after schema changes from other tests.
 func createSchema(ctx context.Context, pool *dsql.Pool) error {
-	_, err := pool.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS account (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			name VARCHAR(255) NOT NULL,
-			balance INT NOT NULL DEFAULT 0
-		)
-	`)
-	return err
+	const maxRetries = 5
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff with jitter
+			backoff := time.Duration(1<<uint(attempt-1))*100*time.Millisecond + time.Duration(rand.Intn(100))*time.Millisecond
+			time.Sleep(backoff)
+		}
+
+		// Drop existing table to ensure clean state
+		_, err := pool.Exec(ctx, `DROP TABLE IF EXISTS account`)
+		if err != nil {
+			if isOCCError(err) {
+				lastErr = err
+				continue
+			}
+			return fmt.Errorf("failed to drop account table: %w", err)
+		}
+
+		_, err = pool.Exec(ctx, `
+			CREATE TABLE account (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				name VARCHAR(255) NOT NULL,
+				balance INT NOT NULL DEFAULT 0
+			)
+		`)
+		if err != nil {
+			if isOCCError(err) {
+				lastErr = err
+				continue
+			}
+			return err
+		}
+		return nil
+	}
+	return fmt.Errorf("createSchema failed after %d retries: %w", maxRetries, lastErr)
 }
 
 // seedAccounts creates test accounts and returns their IDs.
@@ -69,7 +112,36 @@ func seedAccounts(ctx context.Context, pool *dsql.Pool) (aliceID, bobID string, 
 }
 
 // transferFunds demonstrates a transactional money transfer between accounts.
+// Includes retry logic for OCC errors which can occur after schema changes.
 func transferFunds(ctx context.Context, pool *dsql.Pool, fromID, toID string, amount int) error {
+	const maxRetries = 5
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(1<<uint(attempt-1))*100*time.Millisecond + time.Duration(rand.Intn(100))*time.Millisecond
+			time.Sleep(backoff)
+		}
+
+		err := doTransfer(ctx, pool, fromID, toID, amount)
+		if err == nil {
+			return nil
+		}
+
+		// Check for OCC errors (retryable)
+		if isOCCError(err) {
+			lastErr = err
+			continue
+		}
+
+		// Non-OCC errors should not be retried
+		return err
+	}
+	return fmt.Errorf("transfer failed after %d retries: %w", maxRetries, lastErr)
+}
+
+// doTransfer performs the actual transfer in a transaction.
+func doTransfer(ctx context.Context, pool *dsql.Pool, fromID, toID string, amount int) error {
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
