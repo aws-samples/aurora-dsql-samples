@@ -102,7 +102,9 @@ jobs:
           --datastore-uri="dsql://admin@${CLUSTER_ENDPOINT}/postgres" \
           --playground-enabled=false \
           --http-addr=:8080 \
-          --grpc-addr=:8081 &
+          --grpc-addr=:8081 \
+          --log-level=debug \
+          > /tmp/openfga.log 2>&1 &
 
         # Wait for server to be ready
         echo "Waiting for OpenFGA server to start..."
@@ -114,6 +116,10 @@ jobs:
           echo "Waiting... ($i/30)"
           sleep 2
         done
+
+        # Show initial startup logs
+        echo "=== OpenFGA startup logs ==="
+        cat /tmp/openfga.log || true
 
     - name: Test OpenFGA API operations
       run: |
@@ -208,6 +214,8 @@ jobs:
         ALLOWED=$(echo $CHECK_RESPONSE | jq -r '.allowed')
         if [ "$ALLOWED" != "true" ]; then
           echo "Permission check failed - expected allowed=true, got $ALLOWED"
+          echo "=== OpenFGA server logs after failure ==="
+          cat /tmp/openfga.log || true
           exit 1
         fi
 
