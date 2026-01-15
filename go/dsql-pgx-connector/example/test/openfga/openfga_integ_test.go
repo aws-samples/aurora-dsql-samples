@@ -391,28 +391,67 @@ func TestBatchOperationsNearLimit(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	// Create test table
+	// Create test table with retry (schema changes can cause OCC conflicts)
 	tableName := fmt.Sprintf("batch_test_%d", time.Now().UnixNano())
-	_, err = pool.Exec(ctx, fmt.Sprintf(`CREATE TABLE %s (
+	err = execWithRetry(ctx, pool, fmt.Sprintf(`CREATE TABLE %s (
 		id TEXT PRIMARY KEY,
 		data TEXT
-	)`, tableName))
+	)`, tableName), 5)
 	require.NoError(t, err)
 	defer pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
 
 	// Test batch insert of 2500 rows (under 3000 limit)
+	// Retry on OCC errors that can occur after schema changes
 	batchSize := 2500
-	tx, err := pool.Begin(ctx)
-	require.NoError(t, err)
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(1<<uint(attempt-1))*500*time.Millisecond + time.Duration(rand.Intn(100))*time.Millisecond
+			time.Sleep(backoff)
+			t.Logf("Retry attempt %d after OCC error", attempt)
+		}
 
-	for i := 0; i < batchSize; i++ {
-		_, err = tx.Exec(ctx, fmt.Sprintf("INSERT INTO %s (id, data) VALUES ($1, $2)", tableName),
-			fmt.Sprintf("id-%d", i), fmt.Sprintf("data-%d", i))
-		require.NoError(t, err)
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			lastErr = err
+			if isOCCError(err) {
+				continue
+			}
+			require.NoError(t, err)
+		}
+
+		insertErr := false
+		for i := 0; i < batchSize; i++ {
+			_, err = tx.Exec(ctx, fmt.Sprintf("INSERT INTO %s (id, data) VALUES ($1, $2)", tableName),
+				fmt.Sprintf("id-%d", i), fmt.Sprintf("data-%d", i))
+			if err != nil {
+				tx.Rollback(ctx)
+				lastErr = err
+				if isOCCError(err) {
+					insertErr = true
+					break
+				}
+				require.NoError(t, err)
+			}
+		}
+		if insertErr {
+			continue
+		}
+
+		err = tx.Commit(ctx)
+		if err != nil {
+			lastErr = err
+			if isOCCError(err) {
+				continue
+			}
+			require.NoError(t, err)
+		}
+
+		// Success
+		lastErr = nil
+		break
 	}
-
-	err = tx.Commit(ctx)
-	require.NoError(t, err)
+	require.NoError(t, lastErr, "Batch insert failed after retries")
 
 	// Verify count
 	var count int
