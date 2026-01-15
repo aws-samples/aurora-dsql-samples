@@ -242,6 +242,35 @@ FROM generate_series(1, 2500) AS gs
 
 **Reference:** https://marc-bowes.com/dsql-how-to-spend-a-dollar.html
 
+### Session 5 - Critical Code Review and Fixes ✅
+
+**Issues Found in Critical Review:**
+
+1. **CRITICAL: `occ_retry/example.go` was empty (0 bytes)**
+   - File was accidentally deleted instead of refactored
+   - Fixed: Restored example demonstrating `occretry` package usage
+
+2. **BUG: `IsOCCError` not detecting OCC errors correctly**
+   - DSQL returns SQLSTATE `40001` (serialization_failure), not `OC000`/`OC001` as the error code
+   - The OC000/OC001 codes are in the error message text
+   - Fixed: Check message string first, then fallback to SQLSTATE 40001
+
+3. **BUG: `TestTransactionExample` failing with OC001**
+   - `seedAccounts` didn't have OCC retry
+   - After schema changes, DML can get OC001 errors
+   - Fixed: Wrapped `seedAccounts` inserts in `occretry.WithRetry`
+
+4. **Clarification: Unrelated changes in OpenFGA fork**
+   - Changes in `internal/pipe/` and `reverseexpand/` are from upstream OpenFGA
+   - Commit `77280a5` (PR #2876 "Pipe extension adjustment") is upstream
+   - The fork is simply more up-to-date than the original we compared against
+   - **No action needed** - these are legitimate upstream changes
+
+**Changes Made:**
+- Restored `example/src/occ_retry/example.go` (156 lines)
+- Fixed `occretry/occretry.go` `IsOCCError` function
+- Fixed `example/src/transaction/example.go` `seedAccounts` function
+
 ---
 
 ## Files to Create/Modify

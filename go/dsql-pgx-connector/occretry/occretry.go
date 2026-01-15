@@ -73,18 +73,22 @@ func DefaultConfig() Config {
 
 // IsOCCError checks if an error is a DSQL OCC conflict error.
 // Returns true for both OC000 (mutation conflict) and OC001 (schema conflict) errors.
+// DSQL returns these as SQLSTATE 40001 (serialization_failure) with OC000/OC001 in the message.
 func IsOCCError(err error) bool {
 	if err == nil {
 		return false
 	}
-	// Try to extract the PostgreSQL error code
+	// Check error message for OCC codes (DSQL includes OC000/OC001 in the message)
+	errStr := err.Error()
+	if strings.Contains(errStr, ErrorCodeMutation) || strings.Contains(errStr, ErrorCodeSchema) {
+		return true
+	}
+	// Also check for SQLSTATE 40001 (serialization_failure) which DSQL uses
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		return pgErr.Code == ErrorCodeMutation || pgErr.Code == ErrorCodeSchema
+		return pgErr.Code == "40001"
 	}
-	// Fallback to string matching for wrapped errors
-	errStr := err.Error()
-	return strings.Contains(errStr, ErrorCodeMutation) || strings.Contains(errStr, ErrorCodeSchema)
+	return false
 }
 
 // WithRetry executes a transactional function with automatic retry on OCC conflicts.

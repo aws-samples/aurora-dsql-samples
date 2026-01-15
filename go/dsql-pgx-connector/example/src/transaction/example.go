@@ -60,24 +60,30 @@ func createSchema(ctx context.Context, pool *dsql.Pool) error {
 }
 
 // seedAccounts creates test accounts and returns their IDs.
+// Uses occretry.WithRetry for OCC errors that may occur after schema changes.
 func seedAccounts(ctx context.Context, pool *dsql.Pool) (aliceID, bobID string, err error) {
-	err = pool.QueryRow(ctx,
-		`INSERT INTO account (name, balance) VALUES ($1, $2) RETURNING id`,
-		"Alice", 1000,
-	).Scan(&aliceID)
-	if err != nil {
-		return "", "", fmt.Errorf("create Alice: %w", err)
-	}
+	// Use WithRetry for inserts after schema changes (may get OC001)
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		err := tx.QueryRow(ctx,
+			`INSERT INTO account (name, balance) VALUES ($1, $2) RETURNING id`,
+			"Alice", 1000,
+		).Scan(&aliceID)
+		if err != nil {
+			return fmt.Errorf("create Alice: %w", err)
+		}
 
-	err = pool.QueryRow(ctx,
-		`INSERT INTO account (name, balance) VALUES ($1, $2) RETURNING id`,
-		"Bob", 500,
-	).Scan(&bobID)
-	if err != nil {
-		return "", "", fmt.Errorf("create Bob: %w", err)
-	}
+		err = tx.QueryRow(ctx,
+			`INSERT INTO account (name, balance) VALUES ($1, $2) RETURNING id`,
+			"Bob", 500,
+		).Scan(&bobID)
+		if err != nil {
+			return fmt.Errorf("create Bob: %w", err)
+		}
 
-	return aliceID, bobID, nil
+		return nil
+	})
+
+	return aliceID, bobID, err
 }
 
 // transferFunds demonstrates a transactional money transfer between accounts.
