@@ -6,13 +6,46 @@ package openfga
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/dsql"
 	"github.com/stretchr/testify/require"
 )
+
+// isOCCError checks if an error is an OCC (Optimistic Concurrency Control) conflict.
+func isOCCError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "OC000") || strings.Contains(errStr, "OC001")
+}
+
+// execWithRetry executes a SQL statement with retry logic for OCC errors.
+func execWithRetry(ctx context.Context, pool *dsql.Pool, sql string, maxRetries int) error {
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff with jitter
+			backoff := time.Duration(1<<uint(attempt-1))*200*time.Millisecond + time.Duration(rand.Intn(100))*time.Millisecond
+			time.Sleep(backoff)
+		}
+		_, err := pool.Exec(ctx, sql)
+		if err == nil {
+			return nil
+		}
+		if isOCCError(err) {
+			lastErr = err
+			continue
+		}
+		return err
+	}
+	return fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+}
 
 // TestCleanupOpenFGATables drops all OpenFGA-related tables to ensure a clean state.
 // This is useful for CI pipelines that need to start fresh before running migrations.
@@ -71,6 +104,7 @@ func TestOpenFGASchemaSetup(t *testing.T) {
 	defer pool.Close()
 
 	// Drop existing tables if they exist (for test repeatability)
+	// Use retry logic as DSQL may have OCC conflicts after recent schema changes
 	dropSQL := []string{
 		"DROP TABLE IF EXISTS changelog",
 		"DROP TABLE IF EXISTS assertion",
@@ -80,12 +114,13 @@ func TestOpenFGASchemaSetup(t *testing.T) {
 	}
 
 	for _, sql := range dropSQL {
-		_, err := pool.Exec(ctx, sql)
+		err := execWithRetry(ctx, pool, sql, 5)
 		require.NoError(t, err, "Failed to drop table: %s", sql)
 	}
 
 	// Create OpenFGA schema (simplified version for testing)
 	// Note: In production, use the actual OpenFGA migrate command with --datastore-engine=dsql
+	// Use retry logic for OCC errors that may occur after schema changes
 	createTableSQL := []string{
 		`CREATE TABLE tuple (
 			store TEXT NOT NULL,
@@ -138,7 +173,7 @@ func TestOpenFGASchemaSetup(t *testing.T) {
 	}
 
 	for _, sql := range createTableSQL {
-		_, err := pool.Exec(ctx, sql)
+		err := execWithRetry(ctx, pool, sql, 5)
 		require.NoError(t, err, "Failed to create table")
 	}
 
@@ -150,7 +185,7 @@ func TestOpenFGASchemaSetup(t *testing.T) {
 	}
 
 	for _, sql := range createIndexSQL {
-		_, err := pool.Exec(ctx, sql)
+		err := execWithRetry(ctx, pool, sql, 5)
 		require.NoError(t, err, "Failed to create index: %s", sql)
 	}
 
