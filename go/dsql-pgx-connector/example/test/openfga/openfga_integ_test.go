@@ -1,5 +1,7 @@
-// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-// SPDX-License-Identifier: Apache-2.0
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 package openfga
 
@@ -8,44 +10,13 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/dsql"
+	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/occretry"
 	"github.com/stretchr/testify/require"
 )
-
-// isOCCError checks if an error is an OCC (Optimistic Concurrency Control) conflict.
-func isOCCError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "OC000") || strings.Contains(errStr, "OC001")
-}
-
-// execWithRetry executes a SQL statement with retry logic for OCC errors.
-func execWithRetry(ctx context.Context, pool *dsql.Pool, sql string, maxRetries int) error {
-	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			// Exponential backoff with jitter
-			backoff := time.Duration(1<<uint(attempt-1))*200*time.Millisecond + time.Duration(rand.Intn(100))*time.Millisecond
-			time.Sleep(backoff)
-		}
-		_, err := pool.Exec(ctx, sql)
-		if err == nil {
-			return nil
-		}
-		if isOCCError(err) {
-			lastErr = err
-			continue
-		}
-		return err
-	}
-	return fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
-}
 
 // TestCleanupOpenFGATables drops all OpenFGA-related tables to ensure a clean state.
 // This is useful for CI pipelines that need to start fresh before running migrations.
@@ -53,16 +24,12 @@ func TestCleanupOpenFGATables(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	// Get cluster endpoint from environment
 	endpoint := os.Getenv("CLUSTER_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("CLUSTER_ENDPOINT not set, skipping integration test")
 	}
 
-	// Create connection pool
-	pool, err := dsql.NewPool(ctx, dsql.Config{
-		Host: endpoint,
-	})
+	pool, err := dsql.NewPool(ctx, dsql.Config{Host: endpoint})
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -77,7 +44,7 @@ func TestCleanupOpenFGATables(t *testing.T) {
 	}
 
 	for _, sql := range dropSQL {
-		err := execWithRetry(ctx, pool, sql, 5)
+		err := occretry.ExecWithRetry(ctx, pool, sql, 5)
 		require.NoError(t, err, "Failed to drop table: %s", sql)
 	}
 
@@ -90,21 +57,16 @@ func TestOpenFGASchemaSetup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	// Get cluster endpoint from environment
 	endpoint := os.Getenv("CLUSTER_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("CLUSTER_ENDPOINT not set, skipping integration test")
 	}
 
-	// Create connection pool
-	pool, err := dsql.NewPool(ctx, dsql.Config{
-		Host: endpoint,
-	})
+	pool, err := dsql.NewPool(ctx, dsql.Config{Host: endpoint})
 	require.NoError(t, err)
 	defer pool.Close()
 
 	// Drop existing tables if they exist (for test repeatability)
-	// Use retry logic as DSQL may have OCC conflicts after recent schema changes
 	dropSQL := []string{
 		"DROP TABLE IF EXISTS changelog",
 		"DROP TABLE IF EXISTS assertion",
@@ -114,13 +76,12 @@ func TestOpenFGASchemaSetup(t *testing.T) {
 	}
 
 	for _, sql := range dropSQL {
-		err := execWithRetry(ctx, pool, sql, 5)
+		err := occretry.ExecWithRetry(ctx, pool, sql, 5)
 		require.NoError(t, err, "Failed to drop table: %s", sql)
 	}
 
 	// Create OpenFGA schema (simplified version for testing)
 	// Note: In production, use the actual OpenFGA migrate command with --datastore-engine=dsql
-	// Use retry logic for OCC errors that may occur after schema changes
 	createTableSQL := []string{
 		`CREATE TABLE tuple (
 			store TEXT NOT NULL,
@@ -173,7 +134,7 @@ func TestOpenFGASchemaSetup(t *testing.T) {
 	}
 
 	for _, sql := range createTableSQL {
-		err := execWithRetry(ctx, pool, sql, 5)
+		err := occretry.ExecWithRetry(ctx, pool, sql, 5)
 		require.NoError(t, err, "Failed to create table")
 	}
 
@@ -185,7 +146,7 @@ func TestOpenFGASchemaSetup(t *testing.T) {
 	}
 
 	for _, sql := range createIndexSQL {
-		err := execWithRetry(ctx, pool, sql, 5)
+		err := occretry.ExecWithRetry(ctx, pool, sql, 5)
 		require.NoError(t, err, "Failed to create index: %s", sql)
 	}
 
@@ -197,22 +158,18 @@ func TestOpenFGABasicOperations(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	// Get cluster endpoint from environment
 	endpoint := os.Getenv("CLUSTER_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("CLUSTER_ENDPOINT not set, skipping integration test")
 	}
 
-	// Create connection pool
-	pool, err := dsql.NewPool(ctx, dsql.Config{
-		Host: endpoint,
-	})
+	pool, err := dsql.NewPool(ctx, dsql.Config{Host: endpoint})
 	require.NoError(t, err)
 	defer pool.Close()
 
 	// Test store creation (with retry for OCC errors after schema changes)
 	storeID := fmt.Sprintf("test-store-%d", time.Now().UnixNano())
-	err = execWithRetry(ctx, pool, fmt.Sprintf(
+	err = occretry.ExecWithRetry(ctx, pool, fmt.Sprintf(
 		"INSERT INTO store (id, name, created_at, updated_at) VALUES ('%s', 'Test Store', NOW(), NOW())",
 		storeID), 5)
 	require.NoError(t, err, "Failed to create store")
@@ -225,7 +182,7 @@ func TestOpenFGABasicOperations(t *testing.T) {
 
 	// Test tuple creation (with retry for OCC errors)
 	ulid := fmt.Sprintf("01H%d", time.Now().UnixNano())
-	err = execWithRetry(ctx, pool, fmt.Sprintf(
+	err = occretry.ExecWithRetry(ctx, pool, fmt.Sprintf(
 		`INSERT INTO tuple (store, object_type, object_id, relation, _user, user_type, ulid, inserted_at)
 		 VALUES ('%s', 'document', 'doc1', 'viewer', 'user:alice', 'user', '%s', NOW())`,
 		storeID, ulid), 5)
@@ -269,7 +226,6 @@ func TestOpenFGAWithConnectionString(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	// Get cluster endpoint from environment
 	endpoint := os.Getenv("CLUSTER_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("CLUSTER_ENDPOINT not set, skipping integration test")
@@ -295,7 +251,6 @@ func TestDSQLTokenGeneration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	// Get cluster endpoint from environment
 	endpoint := os.Getenv("CLUSTER_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("CLUSTER_ENDPOINT not set, skipping integration test")
@@ -331,7 +286,7 @@ func TestOCCConflictHandling(t *testing.T) {
 
 	// Create test table with retry (schema changes can cause OCC conflicts)
 	tableName := fmt.Sprintf("occ_test_%d", time.Now().UnixNano())
-	err = execWithRetry(ctx, pool, fmt.Sprintf(`CREATE TABLE %s (
+	err = occretry.ExecWithRetry(ctx, pool, fmt.Sprintf(`CREATE TABLE %s (
 		id TEXT PRIMARY KEY,
 		value INT NOT NULL
 	)`, tableName), 5)
@@ -339,7 +294,7 @@ func TestOCCConflictHandling(t *testing.T) {
 	defer pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
 
 	// Insert initial row (may need retry after schema change)
-	err = execWithRetry(ctx, pool, fmt.Sprintf("INSERT INTO %s (id, value) VALUES ('test', 0)", tableName), 5)
+	err = occretry.ExecWithRetry(ctx, pool, fmt.Sprintf("INSERT INTO %s (id, value) VALUES ('test', 0)", tableName), 5)
 	require.NoError(t, err)
 
 	// Start two transactions
@@ -371,7 +326,7 @@ func TestOCCConflictHandling(t *testing.T) {
 	// Second commit should fail with OCC error
 	err = tx2.Commit(ctx)
 	require.Error(t, err, "Expected OCC error on second commit")
-	require.True(t, isOCCError(err), "Expected OCC error, got: %v", err)
+	require.True(t, occretry.IsOCCError(err), "Expected OCC error, got: %v", err)
 
 	t.Log("OCC conflict properly detected - DSQL's OCC provides conflict detection for OpenFGA")
 }
@@ -393,7 +348,7 @@ func TestBatchOperationsNearLimit(t *testing.T) {
 
 	// Create test table with retry (schema changes can cause OCC conflicts)
 	tableName := fmt.Sprintf("batch_test_%d", time.Now().UnixNano())
-	err = execWithRetry(ctx, pool, fmt.Sprintf(`CREATE TABLE %s (
+	err = occretry.ExecWithRetry(ctx, pool, fmt.Sprintf(`CREATE TABLE %s (
 		id TEXT PRIMARY KEY,
 		data TEXT
 	)`, tableName), 5)
@@ -403,8 +358,11 @@ func TestBatchOperationsNearLimit(t *testing.T) {
 	// Test batch insert of 2500 rows (under 3000 limit)
 	// Retry on OCC errors that can occur after schema changes
 	batchSize := 2500
+	config := occretry.DefaultConfig()
+	config.MaxRetries = 5
+
 	var lastErr error
-	for attempt := 0; attempt < 5; attempt++ {
+	for attempt := 0; attempt <= config.MaxRetries; attempt++ {
 		if attempt > 0 {
 			backoff := time.Duration(1<<uint(attempt-1))*500*time.Millisecond + time.Duration(rand.Intn(100))*time.Millisecond
 			time.Sleep(backoff)
@@ -416,7 +374,7 @@ func TestBatchOperationsNearLimit(t *testing.T) {
 		tx, err := pool.Begin(ctx)
 		if err != nil {
 			lastErr = err
-			if isOCCError(err) {
+			if occretry.IsOCCError(err) {
 				continue
 			}
 			require.NoError(t, err)
@@ -429,7 +387,7 @@ func TestBatchOperationsNearLimit(t *testing.T) {
 			if err != nil {
 				tx.Rollback(ctx)
 				lastErr = err
-				if isOCCError(err) {
+				if occretry.IsOCCError(err) {
 					insertErr = true
 					break
 				}
@@ -443,7 +401,7 @@ func TestBatchOperationsNearLimit(t *testing.T) {
 		err = tx.Commit(ctx)
 		if err != nil {
 			lastErr = err
-			if isOCCError(err) {
+			if occretry.IsOCCError(err) {
 				continue
 			}
 			require.NoError(t, err)
