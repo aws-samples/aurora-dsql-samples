@@ -14,6 +14,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCleanupOpenFGATables drops all OpenFGA-related tables to ensure a clean state.
+// This is useful for CI pipelines that need to start fresh before running migrations.
+func TestCleanupOpenFGATables(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	// Get cluster endpoint from environment
+	endpoint := os.Getenv("CLUSTER_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("CLUSTER_ENDPOINT not set, skipping integration test")
+	}
+
+	// Create connection pool
+	pool, err := dsql.NewPool(ctx, dsql.Config{
+		Host: endpoint,
+	})
+	require.NoError(t, err)
+	defer pool.Close()
+
+	// Drop all OpenFGA tables including goose migration table
+	dropSQL := []string{
+		"DROP TABLE IF EXISTS changelog",
+		"DROP TABLE IF EXISTS assertion",
+		"DROP TABLE IF EXISTS authorization_model",
+		"DROP TABLE IF EXISTS store",
+		"DROP TABLE IF EXISTS tuple",
+		"DROP TABLE IF EXISTS goose_db_version",
+	}
+
+	for _, sql := range dropSQL {
+		_, err := pool.Exec(ctx, sql)
+		require.NoError(t, err, "Failed to drop table: %s", sql)
+	}
+
+	t.Log("All OpenFGA tables cleaned up successfully")
+}
+
 // TestOpenFGASchemaSetup validates that the DSQL connector can be used to set up
 // the OpenFGA schema. This test creates the tables and indexes required by OpenFGA.
 func TestOpenFGASchemaSetup(t *testing.T) {

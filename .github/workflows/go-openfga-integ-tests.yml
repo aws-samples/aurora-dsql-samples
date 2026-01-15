@@ -73,14 +73,13 @@ jobs:
         go build -o openfga ./cmd/openfga
 
     - name: Clean DSQL tables before migration
+      working-directory: ./go/dsql-pgx-connector/example
       env:
         CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
         AWS_REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
       run: |
-        # Use the dsql connector to clean up any leftover tables from previous runs
-        # This ensures migrations start from a clean state
-        cd go/dsql-pgx-connector/example
-        go run ../../../.github/scripts/cleanup_dsql.go
+        # Run the cleanup test which drops all OpenFGA tables including goose_db_version
+        go test -v -run TestCleanupOpenFGATables -count=1 ./test/openfga/...
 
     - name: Run DSQL migrations
       working-directory: ./openfga-dsql
