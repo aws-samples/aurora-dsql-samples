@@ -220,6 +220,28 @@ These are out of scope for this refactoring - the goal was to eliminate duplicat
 
 *Awaiting permission to commit and push*
 
+### Session 4 - Fix TestBatchOperationsNearLimit Timeout ✅
+
+**Problem:** Test was timing out after 300 seconds (5 minutes)
+
+**Root Cause:** The test was inserting 2500 rows one at a time using individual INSERT statements in a loop. This is extremely slow and not following DSQL best practices.
+
+**Solution:** Use `generate_series` for efficient bulk insert (DSQL best practice from Marc Bowes' blog):
+```sql
+INSERT INTO table (id, data)
+SELECT 'id-' || gs, 'data-' || gs
+FROM generate_series(1, 2500) AS gs
+```
+
+**Changes:**
+- Replaced 2500 individual INSERT statements with single INSERT using `generate_series`
+- Reduced timeout from 5 minutes to 2 minutes (now completes in seconds)
+- Used `occretry.WithRetry` for clean OCC handling
+- Removed unused `math/rand` import
+- Added `pgx` import for `pgx.Tx` type
+
+**Reference:** https://marc-bowes.com/dsql-how-to-spend-a-dollar.html
+
 ---
 
 ## Files to Create/Modify

@@ -8,13 +8,13 @@ package openfga
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/dsql"
 	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/occretry"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -333,8 +333,9 @@ func TestOCCConflictHandling(t *testing.T) {
 
 // TestBatchOperationsNearLimit tests batch operations near the 3000 row limit.
 // OpenFGA batches writes, so we verify that operations near the limit work correctly.
+// Uses generate_series for efficient bulk insert (DSQL best practice).
 func TestBatchOperationsNearLimit(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	endpoint := os.Getenv("CLUSTER_ENDPOINT")
@@ -356,62 +357,20 @@ func TestBatchOperationsNearLimit(t *testing.T) {
 	defer pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
 
 	// Test batch insert of 2500 rows (under 3000 limit)
-	// Retry on OCC errors that can occur after schema changes
+	// Use generate_series for efficient bulk insert (DSQL best practice)
+	// See: https://marc-bowes.com/dsql-how-to-spend-a-dollar.html
 	batchSize := 2500
-	config := occretry.DefaultConfig()
-	config.MaxRetries = 5
 
-	var lastErr error
-	for attempt := 0; attempt <= config.MaxRetries; attempt++ {
-		if attempt > 0 {
-			backoff := time.Duration(1<<uint(attempt-1))*500*time.Millisecond + time.Duration(rand.Intn(100))*time.Millisecond
-			time.Sleep(backoff)
-			t.Logf("Retry attempt %d after OCC error", attempt)
-			// Clean up any partial data from previous attempt
-			pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s", tableName))
-		}
-
-		tx, err := pool.Begin(ctx)
-		if err != nil {
-			lastErr = err
-			if occretry.IsOCCError(err) {
-				continue
-			}
-			require.NoError(t, err)
-		}
-
-		insertErr := false
-		for i := 0; i < batchSize; i++ {
-			_, err = tx.Exec(ctx, fmt.Sprintf("INSERT INTO %s (id, data) VALUES ($1, $2)", tableName),
-				fmt.Sprintf("id-%d", i), fmt.Sprintf("data-%d", i))
-			if err != nil {
-				tx.Rollback(ctx)
-				lastErr = err
-				if occretry.IsOCCError(err) {
-					insertErr = true
-					break
-				}
-				require.NoError(t, err)
-			}
-		}
-		if insertErr {
-			continue
-		}
-
-		err = tx.Commit(ctx)
-		if err != nil {
-			lastErr = err
-			if occretry.IsOCCError(err) {
-				continue
-			}
-			require.NoError(t, err)
-		}
-
-		// Success
-		lastErr = nil
-		break
-	}
-	require.NoError(t, lastErr, "Batch insert failed after retries")
+	// Use occretry.WithRetry for the transactional insert
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, fmt.Sprintf(`
+			INSERT INTO %s (id, data)
+			SELECT 'id-' || gs, 'data-' || gs
+			FROM generate_series(1, %d) AS gs
+		`, tableName, batchSize))
+		return err
+	})
+	require.NoError(t, err, "Batch insert failed")
 
 	// Verify count
 	var count int
