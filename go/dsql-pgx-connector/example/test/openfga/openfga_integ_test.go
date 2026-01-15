@@ -77,7 +77,7 @@ func TestCleanupOpenFGATables(t *testing.T) {
 	}
 
 	for _, sql := range dropSQL {
-		_, err := pool.Exec(ctx, sql)
+		err := execWithRetry(ctx, pool, sql, 5)
 		require.NoError(t, err, "Failed to drop table: %s", sql)
 	}
 
