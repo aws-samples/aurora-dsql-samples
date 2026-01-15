@@ -329,12 +329,12 @@ func TestOCCConflictHandling(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	// Create test table
+	// Create test table with retry (schema changes can cause OCC conflicts)
 	tableName := fmt.Sprintf("occ_test_%d", time.Now().UnixNano())
-	_, err = pool.Exec(ctx, fmt.Sprintf(`CREATE TABLE %s (
+	err = execWithRetry(ctx, pool, fmt.Sprintf(`CREATE TABLE %s (
 		id TEXT PRIMARY KEY,
 		value INT NOT NULL
-	)`, tableName))
+	)`, tableName), 5)
 	require.NoError(t, err)
 	defer pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
 
@@ -409,6 +409,8 @@ func TestBatchOperationsNearLimit(t *testing.T) {
 			backoff := time.Duration(1<<uint(attempt-1))*500*time.Millisecond + time.Duration(rand.Intn(100))*time.Millisecond
 			time.Sleep(backoff)
 			t.Logf("Retry attempt %d after OCC error", attempt)
+			// Clean up any partial data from previous attempt
+			pool.Exec(ctx, fmt.Sprintf("DELETE FROM %s", tableName))
 		}
 
 		tx, err := pool.Begin(ctx)
