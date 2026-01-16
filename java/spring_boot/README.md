@@ -57,11 +57,8 @@ connections should be used where possible to ensure data security during transmi
    java -version
    ```
 
-* Build Tool (Maven or Gradle)
-    - _Maven_: Ensure Maven is installed if that is your preferred option. You can download it from
-      the [official website](https://maven.apache.org/download.cgi).
-    - _Gradle_: A Gradle wrapper is included with the example. If you prefer to use a system installation of Gradle, you
-      can download it from the [official website](https://gradle.org/install/).
+*  _Gradle_: A Gradle wrapper is included with the example. If you prefer to use a system installation of Gradle, you
+  can download it from the [official website](https://gradle.org/install/).
 * AWS SDK: Ensure that you set up the latest version of the AWS Java
   SDK from the [official website](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/setup.html).
 * You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the
@@ -102,14 +99,6 @@ The example is designed to work with both admin and non-admin users:
 - When run as a non-admin user, it uses the `myschema` schema
 
 **Note:** running the example will use actual resources in your AWS account and may incur charges.
-
-**Using Maven:**
-
-```bash
-mvn spring-boot:run
-```
-
-**Using Gradle:**
 
 ```bash
 ./gradlew bootRun

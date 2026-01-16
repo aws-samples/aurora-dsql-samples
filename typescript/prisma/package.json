@@ -20,7 +20,7 @@
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",
-        "@types/node": "^24.1.0",
+        "@types/node": "^25.0.9",
         "prettier": "^3.6.2",
         "prisma": "^6.12.0",
         "ts-jest": "^29.4.1",
@@ -28,8 +28,8 @@
         "typescript": "^5.8.3"
     },
     "dependencies": {
-        "@aws/aurora-dsql-node-postgres-connector": "^0.1.6",
-        "@prisma/adapter-pg": "^6.14.0",
+        "@aws/aurora-dsql-node-postgres-connector": "^0.1.7",
+        "@prisma/adapter-pg": "^7.2.0",
         "@prisma/client": "^6.12.0",
         "@types/pg": "^8.15.6",
         "pg": "^8.16.3"
