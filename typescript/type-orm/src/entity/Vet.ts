@@ -1,7 +1,7 @@
 import "reflect-metadata";
+import { randomUUID } from "crypto";
 import { Column, Entity, PrimaryColumn, ManyToMany, JoinTable } from "typeorm";
 import { Specialty } from "./Specialty";
-import { v4 as uuidv4 } from "uuid";
 
 @Entity("vet")
 export class Vet {
@@ -37,7 +37,7 @@ export class Vet {
 
     constructor() {
         if (!this.id) {
-            this.id = uuidv4();
+            this.id = randomUUID();
         }
     }
 }
