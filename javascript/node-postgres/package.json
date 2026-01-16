@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws/aurora-dsql-node-postgres-connector": "^0.1.5",
+    "@aws/aurora-dsql-node-postgres-connector": "^0.1.7",
     "assert": "2.1.0",
     "uuid": "^13.0.0"
   },
