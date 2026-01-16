@@ -174,9 +174,11 @@ func TestOpenFGABasicOperations(t *testing.T) {
 		storeID), 5)
 	require.NoError(t, err, "Failed to create store")
 
-	// Verify store was created
+	// Verify store was created (use WithRetry for OC001 after schema changes)
 	var name string
-	err = pool.QueryRow(ctx, "SELECT name FROM store WHERE id = $1", storeID).Scan(&name)
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, "SELECT name FROM store WHERE id = $1", storeID).Scan(&name)
+	})
 	require.NoError(t, err, "Failed to query store")
 	require.Equal(t, "Test Store", name)
 
@@ -188,11 +190,13 @@ func TestOpenFGABasicOperations(t *testing.T) {
 		storeID, ulid), 5)
 	require.NoError(t, err, "Failed to create tuple")
 
-	// Verify tuple was created
+	// Verify tuple was created (use WithRetry for OC001 after schema changes)
 	var objectID string
-	err = pool.QueryRow(ctx,
-		"SELECT object_id FROM tuple WHERE store = $1 AND _user = $2",
-		storeID, "user:alice").Scan(&objectID)
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx,
+			"SELECT object_id FROM tuple WHERE store = $1 AND _user = $2",
+			storeID, "user:alice").Scan(&objectID)
+	})
 	require.NoError(t, err, "Failed to query tuple")
 	require.Equal(t, "doc1", objectID)
 
@@ -374,9 +378,11 @@ func TestBatchOperationsNearLimit(t *testing.T) {
 	})
 	require.NoError(t, err, "Batch insert failed")
 
-	// Verify count
+	// Verify count (use WithRetry for OC001 after schema changes)
 	var count int
-	err = pool.QueryRow(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&count)
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&count)
+	})
 	require.NoError(t, err)
 	require.Equal(t, batchSize, count)
 
