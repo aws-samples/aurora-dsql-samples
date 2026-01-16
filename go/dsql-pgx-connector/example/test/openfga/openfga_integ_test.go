@@ -199,18 +199,15 @@ func TestOpenFGABasicOperations(t *testing.T) {
 	// Test SELECT ... FOR UPDATE (supported by DSQL with equality predicates on all key columns)
 	// DSQL requires equality predicates on the entire primary key for FOR UPDATE
 	// Primary key is: (store, object_type, object_id, relation, _user)
-	tx, err := pool.Begin(ctx)
-	require.NoError(t, err)
-
+	// Use WithRetry to handle OC001 errors after schema changes
 	var user string
-	err = tx.QueryRow(ctx,
-		"SELECT _user FROM tuple WHERE store = $1 AND object_type = $2 AND object_id = $3 AND relation = $4 AND _user = $5 FOR UPDATE",
-		storeID, "document", "doc1", "viewer", "user:alice").Scan(&user)
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx,
+			"SELECT _user FROM tuple WHERE store = $1 AND object_type = $2 AND object_id = $3 AND relation = $4 AND _user = $5 FOR UPDATE",
+			storeID, "document", "doc1", "viewer", "user:alice").Scan(&user)
+	})
 	require.NoError(t, err, "Failed to SELECT FOR UPDATE")
 	require.Equal(t, "user:alice", user)
-
-	err = tx.Commit(ctx)
-	require.NoError(t, err)
 
 	// Cleanup
 	_, err = pool.Exec(ctx, "DELETE FROM tuple WHERE store = $1", storeID)
