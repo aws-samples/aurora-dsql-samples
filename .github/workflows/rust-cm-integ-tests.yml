@@ -58,7 +58,7 @@ jobs:
         run: rustup update
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.RUST_IAM_ROLE }}
           aws-region: us-east-1
