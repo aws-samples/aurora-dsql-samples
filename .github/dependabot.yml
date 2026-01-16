@@ -109,5 +109,10 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
-
-
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "gitleaks/gitleaks-action"
