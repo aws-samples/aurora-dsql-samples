@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/example/src/occ_retry"
+	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/occretry"
 )
 
 func TestOCCRetryExample(t *testing.T) {
@@ -24,11 +25,12 @@ func TestOCCRetryExample(t *testing.T) {
 }
 
 func TestIsOCCError(t *testing.T) {
-	if occ_retry.IsOCCError(nil) {
+	// Test the canonical occretry.IsOCCError function
+	if occretry.IsOCCError(nil) {
 		t.Error("IsOCCError should return false for nil")
 	}
 
-	if occ_retry.IsOCCError(os.ErrNotExist) {
+	if occretry.IsOCCError(os.ErrNotExist) {
 		t.Error("IsOCCError should return false for non-OCC errors")
 	}
 }

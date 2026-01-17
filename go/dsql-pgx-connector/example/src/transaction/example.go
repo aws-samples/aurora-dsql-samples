@@ -10,6 +10,7 @@
 //   - Starting and committing transactions
 //   - Rolling back on errors
 //   - Using pgx transaction helpers
+//   - Using occretry for OCC conflict handling
 //
 // DSQL transaction limits:
 //   - Maximum 3,000 rows modified per transaction
@@ -25,6 +26,7 @@ import (
 	"os"
 
 	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/dsql"
+	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/occretry"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -36,84 +38,66 @@ type Account struct {
 }
 
 // createSchema sets up the accounts table with UUID primary key.
+// It drops and recreates the table to ensure a clean state.
+// Uses occretry.ExecWithRetry for OCC errors that may occur after schema changes.
 func createSchema(ctx context.Context, pool *dsql.Pool) error {
-	_, err := pool.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS account (
+	// Drop existing table to ensure clean state
+	if err := occretry.ExecWithRetry(ctx, pool, `DROP TABLE IF EXISTS account`, 5); err != nil {
+		return fmt.Errorf("drop account table: %w", err)
+	}
+
+	if err := occretry.ExecWithRetry(ctx, pool, `
+		CREATE TABLE account (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			name VARCHAR(255) NOT NULL,
 			balance INT NOT NULL DEFAULT 0
 		)
-	`)
-	return err
-}
-
-// seedAccounts creates test accounts and returns their IDs.
-func seedAccounts(ctx context.Context, pool *dsql.Pool) (aliceID, bobID string, err error) {
-	err = pool.QueryRow(ctx,
-		`INSERT INTO account (name, balance) VALUES ($1, $2) RETURNING id`,
-		"Alice", 1000,
-	).Scan(&aliceID)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create Alice: %w", err)
-	}
-
-	err = pool.QueryRow(ctx,
-		`INSERT INTO account (name, balance) VALUES ($1, $2) RETURNING id`,
-		"Bob", 500,
-	).Scan(&bobID)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create Bob: %w", err)
-	}
-
-	return aliceID, bobID, nil
-}
-
-// transferFunds demonstrates a transactional money transfer between accounts.
-func transferFunds(ctx context.Context, pool *dsql.Pool, fromID, toID string, amount int) error {
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	var newFromBalance int
-	err = tx.QueryRow(ctx,
-		`UPDATE account SET balance = balance - $1 WHERE id = $2 RETURNING balance`,
-		amount, fromID,
-	).Scan(&newFromBalance)
-	if err != nil {
-		return fmt.Errorf("failed to debit account: %w", err)
-	}
-
-	if newFromBalance < 0 {
-		return fmt.Errorf("insufficient funds: balance would be %d", newFromBalance)
-	}
-
-	_, err = tx.Exec(ctx,
-		`UPDATE account SET balance = balance + $1 WHERE id = $2`,
-		amount, toID,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to credit account: %w", err)
-	}
-
-	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+	`, 5); err != nil {
+		return fmt.Errorf("create account table: %w", err)
 	}
 
 	return nil
 }
 
-// transferFundsWithCallback demonstrates using pgx.BeginTxFunc for cleaner transaction handling.
-func transferFundsWithCallback(ctx context.Context, pool *dsql.Pool, fromID, toID string, amount int) error {
-	return pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		var newFromBalance int
+// seedAccounts creates test accounts and returns their IDs.
+// Uses occretry.WithRetry for OCC errors that may occur after schema changes.
+func seedAccounts(ctx context.Context, pool *dsql.Pool) (aliceID, bobID string, err error) {
+	// Use WithRetry for inserts after schema changes (may get OC001)
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		err := tx.QueryRow(ctx,
+			`INSERT INTO account (name, balance) VALUES ($1, $2) RETURNING id`,
+			"Alice", 1000,
+		).Scan(&aliceID)
+		if err != nil {
+			return fmt.Errorf("create Alice: %w", err)
+		}
+
+		err = tx.QueryRow(ctx,
+			`INSERT INTO account (name, balance) VALUES ($1, $2) RETURNING id`,
+			"Bob", 500,
+		).Scan(&bobID)
+		if err != nil {
+			return fmt.Errorf("create Bob: %w", err)
+		}
+
+		return nil
+	})
+
+	return aliceID, bobID, err
+}
+
+// transferFunds demonstrates a transactional money transfer between accounts.
+// Uses occretry.WithRetry for automatic OCC conflict handling.
+func transferFunds(ctx context.Context, pool *dsql.Pool, fromID, toID string, amount int) error {
+	var newFromBalance int
+
+	return occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx,
 			`UPDATE account SET balance = balance - $1 WHERE id = $2 RETURNING balance`,
 			amount, fromID,
 		).Scan(&newFromBalance)
 		if err != nil {
-			return fmt.Errorf("failed to debit account: %w", err)
+			return fmt.Errorf("debit account: %w", err)
 		}
 
 		if newFromBalance < 0 {
@@ -125,7 +109,36 @@ func transferFundsWithCallback(ctx context.Context, pool *dsql.Pool, fromID, toI
 			amount, toID,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to credit account: %w", err)
+			return fmt.Errorf("credit account: %w", err)
+		}
+
+		return nil
+	})
+}
+
+// transferFundsWithCallback demonstrates using pgx.BeginTxFunc for cleaner transaction handling.
+// Note: This does not include OCC retry - use occretry.WithRetry for production code.
+func transferFundsWithCallback(ctx context.Context, pool *dsql.Pool, fromID, toID string, amount int) error {
+	return pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		var newFromBalance int
+		err := tx.QueryRow(ctx,
+			`UPDATE account SET balance = balance - $1 WHERE id = $2 RETURNING balance`,
+			amount, fromID,
+		).Scan(&newFromBalance)
+		if err != nil {
+			return fmt.Errorf("debit account: %w", err)
+		}
+
+		if newFromBalance < 0 {
+			return fmt.Errorf("insufficient funds: balance would be %d", newFromBalance)
+		}
+
+		_, err = tx.Exec(ctx,
+			`UPDATE account SET balance = balance + $1 WHERE id = $2`,
+			amount, toID,
+		)
+		if err != nil {
+			return fmt.Errorf("credit account: %w", err)
 		}
 
 		return nil
@@ -159,17 +172,17 @@ func Example() error {
 		MaxConns: 5,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create pool: %w", err)
+		return fmt.Errorf("create pool: %w", err)
 	}
 	defer pool.Close()
 
 	if err := createSchema(ctx, pool); err != nil {
-		return fmt.Errorf("failed to create schema: %w", err)
+		return fmt.Errorf("create schema: %w", err)
 	}
 
 	aliceID, bobID, err := seedAccounts(ctx, pool)
 	if err != nil {
-		return fmt.Errorf("failed to seed accounts: %w", err)
+		return fmt.Errorf("seed accounts: %w", err)
 	}
 	defer cleanup(ctx, pool)
 
@@ -179,7 +192,7 @@ func Example() error {
 	fmt.Printf("  Alice: $%d\n", aliceBalance)
 	fmt.Printf("  Bob: $%d\n", bobBalance)
 
-	fmt.Println("\nTransferring $200 from Alice to Bob (manual transaction)...")
+	fmt.Println("\nTransferring $200 from Alice to Bob (with OCC retry)...")
 	if err := transferFunds(ctx, pool, aliceID, bobID, 200); err != nil {
 		return fmt.Errorf("transfer failed: %w", err)
 	}
@@ -190,7 +203,7 @@ func Example() error {
 	fmt.Printf("  Alice: $%d\n", aliceBalance)
 	fmt.Printf("  Bob: $%d\n", bobBalance)
 
-	fmt.Println("\nTransferring $100 from Bob to Alice (callback pattern)...")
+	fmt.Println("\nTransferring $100 from Bob to Alice (callback pattern, no retry)...")
 	if err := transferFundsWithCallback(ctx, pool, bobID, aliceID, 100); err != nil {
 		return fmt.Errorf("transfer failed: %w", err)
 	}
