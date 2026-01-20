@@ -69,7 +69,7 @@ func seedAccounts(ctx context.Context, pool *dsql.Pool) (aliceID, bobID string, 
 			"Alice", 1000,
 		).Scan(&aliceID)
 		if err != nil {
-			return fmt.Errorf("create Alice: %w", err)
+			return fmt.Errorf("failed to create Alice: %w", err)
 		}
 
 		err = tx.QueryRow(ctx,
@@ -77,7 +77,7 @@ func seedAccounts(ctx context.Context, pool *dsql.Pool) (aliceID, bobID string, 
 			"Bob", 500,
 		).Scan(&bobID)
 		if err != nil {
-			return fmt.Errorf("create Bob: %w", err)
+			return fmt.Errorf("failed to create Bob: %w", err)
 		}
 
 		return nil
@@ -97,7 +97,7 @@ func transferFunds(ctx context.Context, pool *dsql.Pool, fromID, toID string, am
 			amount, fromID,
 		).Scan(&newFromBalance)
 		if err != nil {
-			return fmt.Errorf("debit account: %w", err)
+			return fmt.Errorf("failed to debit account: %w", err)
 		}
 
 		if newFromBalance < 0 {
@@ -109,7 +109,7 @@ func transferFunds(ctx context.Context, pool *dsql.Pool, fromID, toID string, am
 			amount, toID,
 		)
 		if err != nil {
-			return fmt.Errorf("credit account: %w", err)
+			return fmt.Errorf("failed to credit account: %w", err)
 		}
 
 		return nil
@@ -126,7 +126,7 @@ func transferFundsWithCallback(ctx context.Context, pool *dsql.Pool, fromID, toI
 			amount, fromID,
 		).Scan(&newFromBalance)
 		if err != nil {
-			return fmt.Errorf("debit account: %w", err)
+			return fmt.Errorf("failed to debit account: %w", err)
 		}
 
 		if newFromBalance < 0 {
@@ -138,7 +138,7 @@ func transferFundsWithCallback(ctx context.Context, pool *dsql.Pool, fromID, toI
 			amount, toID,
 		)
 		if err != nil {
-			return fmt.Errorf("credit account: %w", err)
+			return fmt.Errorf("failed to credit account: %w", err)
 		}
 
 		return nil

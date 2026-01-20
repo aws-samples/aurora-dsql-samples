@@ -96,6 +96,8 @@ func backoffWait(ctx context.Context, wait time.Duration, config Config) (time.D
 	jitter := time.Duration(rand.Int63n(int64(wait / 4)))
 	sleepTime := wait + jitter
 
+	// Use select to allow cancellation during the backoff wait.
+	// ctx.Done() returns a channel that closes when the context is cancelled.
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
@@ -124,28 +126,38 @@ func backoffWait(ctx context.Context, wait time.Duration, config Config) (time.D
 //	    _, err = tx.Exec(ctx, "UPDATE accounts SET balance = balance + $1 WHERE id = $2", amount, toID)
 //	    return err
 //	})
+//
+// To return values from the transaction, use a closure to capture results:
+//
+//	var balance int
+//	err := occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+//	    return tx.QueryRow(ctx, "SELECT balance FROM accounts WHERE id = $1", id).Scan(&balance)
+//	})
+//	// balance is now set if err == nil
 func WithRetry(ctx context.Context, pool *dsql.Pool, config Config, fn func(tx pgx.Tx) error) error {
 	var lastErr error
 	wait := config.InitialWait
 
 	for attempt := 0; attempt <= config.MaxRetries; attempt++ {
-		if attempt > 0 {
-			var err error
-			wait, err = backoffWait(ctx, wait, config)
-			if err != nil {
-				return err
-			}
+		err, shouldRetry := executeTransaction(ctx, pool, fn)
+		if err == nil {
+			return nil // success
 		}
 
-		err, shouldRetry := executeTransaction(ctx, pool, fn)
-		if err != nil {
-			if shouldRetry {
-				lastErr = err
-				continue
-			}
+		if !shouldRetry {
 			return err
 		}
-		return nil // success
+
+		lastErr = err
+
+		// Wait after error, before next retry (skip on last attempt)
+		if attempt < config.MaxRetries {
+			var waitErr error
+			wait, waitErr = backoffWait(ctx, wait, config)
+			if waitErr != nil {
+				return waitErr
+			}
+		}
 	}
 
 	return fmt.Errorf("max retries (%d) exceeded, last error: %w", config.MaxRetries, lastErr)

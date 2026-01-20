@@ -129,18 +129,18 @@ func NewAssumeRoleCredentialsProvider(ctx context.Context, roleARN, region strin
 	return stscreds.NewAssumeRoleProvider(stsClient, roleARN), nil
 }
 
-// GenerateDBToken generates an IAM authentication token from a DSQL connection string.
+// GenerateTokenConnString generates an IAM authentication token from a DSQL connection string.
 // This is useful for use with database/sql drivers that don't support the Pool/Conn wrappers.
 // The connection string should be in the format: dsql://user@host/database or postgres://user@host/database
 //
 // Example usage:
 //
-//	token, err := dsql.GenerateDBToken(ctx, "dsql://admin@cluster.dsql.us-east-1.on.aws/postgres")
+//	token, err := dsql.GenerateTokenConnString(ctx, "dsql://admin@cluster.dsql.us-east-1.on.aws/postgres")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
 //	// Use token as password in database/sql connection string
-func GenerateDBToken(ctx context.Context, connStr string) (string, error) {
+func GenerateTokenConnString(ctx context.Context, connStr string) (string, error) {
 	// Parse the connection string
 	cfg, err := ParseConnectionString(connStr)
 	if err != nil {
