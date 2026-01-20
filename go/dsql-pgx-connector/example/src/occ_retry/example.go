@@ -4,140 +4,26 @@
  */
 
 // Package occ_retry demonstrates handling Optimistic Concurrency Control (OCC)
-// conflicts in Aurora DSQL.
+// conflicts in Aurora DSQL using the occretry utility package.
 //
-// Aurora DSQL uses OCC where conflicts are detected at commit time. When two
-// transactions modify the same data, the first to commit wins and the second
-// receives an OCC error (codes "OC000" or "OC001"). Applications should retry
-// failed transactions with exponential backoff.
+// This example shows:
+//   - How to use occretry.WithRetry for transactional operations
+//   - How to use occretry.IsOCCError to detect OCC conflicts
+//   - Best practices for retry configuration
 //
-// Key concepts:
-//   - OCC allows high concurrency by not locking rows during reads
-//   - Conflicts are only detected at commit time
-//   - Failed transactions should be retried with fresh data
-//   - Use exponential backoff to avoid thundering herd
+// For the core OCC retry utilities, see the occretry package.
 package occ_retry
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/dsql"
+	"github.com/aws-samples/aurora-dsql-samples/go/dsql-pgx-connector/occretry"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 )
-
-// OCC error codes for Aurora DSQL optimistic concurrency control conflicts.
-// OC000: "mutation conflicts with another transaction" - concurrent writes to same rows
-// OC001: "schema has been updated by another transaction" - catalog/DDL conflict
-const (
-	OCCErrorCode  = "OC000"
-	OCCErrorCode2 = "OC001"
-)
-
-// RetryConfig holds configuration for retry behavior.
-type RetryConfig struct {
-	MaxRetries  int
-	InitialWait time.Duration
-	MaxWait     time.Duration
-	Multiplier  float64
-}
-
-// DefaultRetryConfig returns sensible defaults for DSQL OCC retry.
-func DefaultRetryConfig() RetryConfig {
-	return RetryConfig{
-		MaxRetries:  3,
-		InitialWait: 100 * time.Millisecond,
-		MaxWait:     5 * time.Second,
-		Multiplier:  2.0,
-	}
-}
-
-// IsOCCError checks if an error is a DSQL OCC conflict error.
-// Checks for both OC000 and OC001 error codes.
-func IsOCCError(err error) bool {
-	if err == nil {
-		return false
-	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == OCCErrorCode || pgErr.Code == OCCErrorCode2
-	}
-	errStr := err.Error()
-	return strings.Contains(errStr, OCCErrorCode) || strings.Contains(errStr, OCCErrorCode2)
-}
-
-// WithRetry executes a function with automatic retry on OCC conflicts.
-func WithRetry(ctx context.Context, pool *dsql.Pool, config RetryConfig, fn func(tx pgx.Tx) error) error {
-	var lastErr error
-	wait := config.InitialWait
-
-	for attempt := 0; attempt <= config.MaxRetries; attempt++ {
-		if attempt > 0 {
-			jitter := time.Duration(rand.Int63n(int64(wait / 4)))
-			sleepTime := wait + jitter
-
-			fmt.Printf("  Retry attempt %d/%d after %v...\n", attempt, config.MaxRetries, sleepTime)
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(sleepTime):
-			}
-
-			wait = time.Duration(float64(wait) * config.Multiplier)
-			if wait > config.MaxWait {
-				wait = config.MaxWait
-			}
-		}
-
-		// Use anonymous function to properly scope the defer for each iteration
-		err, shouldContinue := func() (error, bool) {
-			tx, err := pool.Begin(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to begin transaction: %w", err), false
-			}
-			defer tx.Rollback(ctx) // No-op if committed, ensures cleanup
-
-			err = fn(tx)
-			if err != nil {
-				if IsOCCError(err) {
-					lastErr = err
-					fmt.Printf("  OCC conflict detected: %v\n", err)
-					return nil, true // continue retry loop
-				}
-				return err, false
-			}
-
-			err = tx.Commit(ctx)
-			if err != nil {
-				if IsOCCError(err) {
-					lastErr = err
-					fmt.Printf("  OCC conflict on commit: %v\n", err)
-					return nil, true // continue retry loop
-				}
-				return fmt.Errorf("failed to commit: %w", err), false
-			}
-
-			return nil, false // success
-		}()
-
-		if err != nil {
-			return err
-		}
-		if shouldContinue {
-			continue
-		}
-		return nil // success
-	}
-
-	return fmt.Errorf("max retries (%d) exceeded, last error: %w", config.MaxRetries, lastErr)
-}
 
 // Counter represents a simple counter entity.
 //
@@ -155,14 +41,13 @@ type Counter struct {
 }
 
 func createSchema(ctx context.Context, pool *dsql.Pool) error {
-	_, err := pool.Exec(ctx, `
+	return occretry.ExecWithRetry(ctx, pool, `
 		CREATE TABLE IF NOT EXISTS counter (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			name VARCHAR(255) NOT NULL UNIQUE,
 			value INT NOT NULL DEFAULT 0
 		)
-	`)
-	return err
+	`, 5)
 }
 
 func getOrCreateCounter(ctx context.Context, pool *dsql.Pool, name string) (string, error) {
@@ -176,17 +61,21 @@ func getOrCreateCounter(ctx context.Context, pool *dsql.Pool, name string) (stri
 		return "", err
 	}
 
-	err = pool.QueryRow(ctx,
-		`INSERT INTO counter (name, value) VALUES ($1, 0) RETURNING id`,
-		name,
-	).Scan(&id)
+	// Use WithRetry for INSERT after schema changes (may get OC001)
+	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx,
+			`INSERT INTO counter (name, value) VALUES ($1, 0) RETURNING id`,
+			name,
+		).Scan(&id)
+	})
 	return id, err
 }
 
 func incrementCounter(ctx context.Context, pool *dsql.Pool, counterID string, amount int) (int, error) {
 	var newValue int
 
-	err := WithRetry(ctx, pool, DefaultRetryConfig(), func(tx pgx.Tx) error {
+	// Use occretry.WithRetry for automatic OCC conflict handling
+	err := occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
 		var currentValue int
 		err := tx.QueryRow(ctx, `SELECT value FROM counter WHERE id = $1`, counterID).Scan(&currentValue)
 		if err != nil {
@@ -271,10 +160,10 @@ func Example() error {
 	fmt.Println("OCC retry example completed successfully!")
 	fmt.Println()
 	fmt.Println("Key takeaways:")
-	fmt.Println("  - Check for OCC error codes 'OC000' and 'OC001' to detect conflicts")
-	fmt.Println("  - Use exponential backoff with jitter for retries")
-	fmt.Println("  - Always retry with a fresh transaction and fresh data")
-	fmt.Println("  - Set a reasonable max retry limit to avoid infinite loops")
+	fmt.Println("  - Use occretry.IsOCCError to detect OCC conflicts (OC000, OC001)")
+	fmt.Println("  - Use occretry.WithRetry for transactional operations")
+	fmt.Println("  - Use occretry.ExecWithRetry for simple DDL/DML statements")
+	fmt.Println("  - Configure retry behavior with occretry.Config")
 
 	return nil
 }
