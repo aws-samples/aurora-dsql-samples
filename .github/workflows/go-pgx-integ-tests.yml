@@ -13,23 +13,23 @@ on:
     paths:
       - 'go/dsql-pgx-connector/**'
       - '.github/workflows/go-pgx-integ-tests.yml'
-  # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
-    inputs:
-      tags:
-        description: 'Manual Workflow Run'
-        required: false
-        type: string
 
 jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: go-pgx
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.GO_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
 
   build:
+    needs: create-cluster
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    concurrency:
-      # Ensure only 1 job uses the workflow cluster at a time.
-      group: ${{ github.workflow }}
     env:
       GOPROXY: direct
 
@@ -45,7 +45,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.GO_IAM_ROLE }}
-        aws-region: us-east-1
+        aws-region: ${{ needs.create-cluster.outputs.region }}
 
     - name: Run connector unit tests
       working-directory: ./go/dsql-pgx-connector
@@ -56,7 +56,19 @@ jobs:
       working-directory: ./go/dsql-pgx-connector/example
       env:
         CLUSTER_USER: "admin"
-        CLUSTER_ENDPOINT: ${{ secrets.GO_PGX_CLUSTER_ENDPOINT }}
-        REGION: ${{ secrets.GO_PGX_CLUSTER_REGION }}
+        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        REGION: ${{ needs.create-cluster.outputs.region }}
       run: |
         go test -v ./test/...
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, build]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.GO_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials

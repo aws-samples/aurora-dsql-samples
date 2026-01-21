@@ -52,7 +52,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.PYTHON_IAM_ROLE }}
-        aws-region: us-east-1
+        aws-region: ${{ needs.create-cluster.outputs.region }}
 
     - name: Configure and run integration for psycopg3 - admin
       working-directory: ./python/psycopg

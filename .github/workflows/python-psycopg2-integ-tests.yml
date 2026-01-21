@@ -13,22 +13,23 @@ on:
     paths:
       - 'python/psycopg2/**'
       - '.github/workflows/python-psycopg2-integ-tests.yml'
-  # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
-    inputs:
-      tags:
-        description: 'Manual Workflow Run'
-        required: false
-        type: string
 
 jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: python-psycopg2
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.PYTHON_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   python-psycopg2-integ-test:
+    needs: create-cluster
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    concurrency:
-      # Ensure only 1 job uses the workflow cluster at a time.
-      group: ${{ github.workflow }}
 
     steps:
     - name: Checkout code
@@ -51,14 +52,14 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.PYTHON_IAM_ROLE }}
-        aws-region: us-east-1
+        aws-region: ${{ needs.create-cluster.outputs.region }}
 
     - name: Configure and run integration for psycopg2 - admin
       working-directory: ./python/psycopg2
       env:
         CLUSTER_USER: "admin"
-        CLUSTER_ENDPOINT: ${{ secrets.PYTHON_PSYCOPG2_CLUSTER_ENDPOINT }}
-        REGION: ${{ secrets.PYTHON_PSYCOPG2_CLUSTER_REGION }}
+        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        REGION: ${{ needs.create-cluster.outputs.region }}
       run: |
         python3 -m venv .venv
         source .venv/bin/activate
@@ -69,3 +70,15 @@ jobs:
         echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
         wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
         pytest
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, python-psycopg2-integ-test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.PYTHON_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
