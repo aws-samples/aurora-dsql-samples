@@ -1,0 +1,60 @@
+name: Cleanup Aurora DSQL Clusters by Run ID
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      run-id:
+        required: true
+        type: string
+        description: 'The GitHub run ID used to tag clusters'
+      regions:
+        required: true
+        type: string
+        description: 'Space-separated list of AWS regions to search for clusters'
+    secrets:
+      AWS_IAM_ROLE:
+        required: true
+
+jobs:
+  cleanup:
+    name: Cleanup Aurora DSQL Clusters
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          aws-region: us-east-1
+
+      - name: Delete clusters by run ID
+        run: |
+          for region in ${{ inputs.regions }}; do
+            echo "Checking region $region..."
+            CLUSTER_IDS=$(aws dsql list-clusters --region "$region" --query 'clusters[].identifier' --output text)
+            
+            for cluster_id in $CLUSTER_IDS; do
+              [ -z "$cluster_id" ] && continue
+              
+              TAGS=$(aws dsql get-cluster --region "$region" --identifier "$cluster_id" --query 'tags' --output json 2>/dev/null || echo "{}")
+              
+              RUN_ID_TAG=$(echo "$TAGS" | jq -r '.RunId // empty')
+              REPO_TAG=$(echo "$TAGS" | jq -r '.Repo // empty')
+              TYPE_TAG=$(echo "$TAGS" | jq -r '.Type // empty')
+              
+              if [ "$RUN_ID_TAG" = "${{ inputs.run-id }}" ] && \
+                 [ "$REPO_TAG" = "${{ github.repository }}" ] && \
+                 [ "$TYPE_TAG" = "cluster-management" ]; then
+                echo "Deleting cluster $cluster_id in $region (RunId: $RUN_ID_TAG)..."
+                aws dsql update-cluster --region "$region" --identifier "$cluster_id" --no-deletion-protection-enabled 2>/dev/null || true
+                aws dsql delete-cluster --region "$region" --identifier "$cluster_id" || true
+              else
+                echo "Skipping cluster $cluster_id in $region (RunId: $RUN_ID_TAG, Repo: $REPO_TAG, Type: $TYPE_TAG)"
+              fi
+            done
+          done
