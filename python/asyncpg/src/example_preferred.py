@@ -17,9 +17,7 @@ async def worker_task(pool, worker_id):
         return result
 
 
-async def connect_with_pool_concurrent_connections(
-    cluster_user, cluster_endpoint
-):
+async def connect_with_pool_concurrent_connections(cluster_user, cluster_endpoint):
 
     ssl_cert_path = "./root.pem"
     if not os.path.isfile(ssl_cert_path):
@@ -59,9 +57,7 @@ async def main():
             cluster_endpoint is not None
         ), "CLUSTER_ENDPOINT environment variable is not set"
 
-        await connect_with_pool_concurrent_connections(
-            cluster_user, cluster_endpoint
-        )
+        await connect_with_pool_concurrent_connections(cluster_user, cluster_endpoint)
 
     finally:
         pass
