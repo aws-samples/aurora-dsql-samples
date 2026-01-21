@@ -1,0 +1,64 @@
+name: Create Aurora DSQL Cluster
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      workflow_name:
+        required: true
+        type: string
+        description: 'Name of the calling workflow (used for cluster naming)'
+    secrets:
+      AWS_IAM_ROLE:
+        required: true
+    outputs:
+      cluster-id:
+        description: 'The cluster identifier'
+        value: ${{ jobs.create.outputs.cluster-id }}
+      cluster-endpoint:
+        description: 'The cluster endpoint'
+        value: ${{ jobs.create.outputs.cluster-endpoint }}
+      region:
+        description: 'The AWS region'
+        value: ${{ jobs.create.outputs.region }}
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  create:
+    name: Create Aurora DSQL Cluster
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    outputs:
+      cluster-id: ${{ steps.create.outputs.cluster-id }}
+      cluster-endpoint: ${{ steps.create.outputs.cluster-endpoint }}
+      region: ${{ steps.create.outputs.region }}
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create cluster
+        id: create
+        run: |
+          CLUSTER_NAME="${{ inputs.workflow_name }}-${{ github.run_id }}"
+          
+          RESULT=$(aws dsql create-cluster \
+            --no-deletion-protection-enabled \
+            --tags "Name=$CLUSTER_NAME" "Repo=aws-samples/aurora-dsql-samples" "Type=integration-test")
+          
+          CLUSTER_ID=$(echo "$RESULT" | jq -r '.identifier')
+          echo "Waiting for cluster $CLUSTER_ID to become active..."
+          
+          aws dsql wait cluster-active --identifier "$CLUSTER_ID"
+          
+          echo "cluster-id=$CLUSTER_ID" >> "$GITHUB_OUTPUT"
+          echo "cluster-endpoint=${CLUSTER_ID}.dsql.${{ env.AWS_REGION }}.on.aws" >> "$GITHUB_OUTPUT"
+          echo "region=${{ env.AWS_REGION }}" >> "$GITHUB_OUTPUT"
