@@ -40,10 +40,7 @@ pub async fn create_cluster(region: &str) -> anyhow::Result<GetClusterOutput> {
             String::from("Repo"),
             String::from("aws-samples/aurora-dsql-samples"),
         ),
-        (
-            String::from("Type"),
-            String::from("cluster-management"),
-        ),
+        (String::from("Type"), String::from("cluster-management")),
     ]);
 
     let create_cluster_output = client

@@ -44,10 +44,7 @@ pub async fn create_multi_region_clusters(
             String::from("Repo"),
             String::from("aws-samples/aurora-dsql-samples"),
         ),
-        (
-            String::from("Type"),
-            String::from("cluster-management"),
-        ),
+        (String::from("Type"), String::from("cluster-management")),
     ]);
 
     // We can only set the witness region for the first cluster
