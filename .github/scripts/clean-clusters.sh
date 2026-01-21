@@ -7,6 +7,12 @@ if [ -z "${IS_CI}" ]; then
   exit 1
 fi
 
+# CLUSTER_TYPE filters which clusters to clean up:
+# - "cluster-management" (default): only clusters created by cluster management tests
+# - "integration-test": only clusters created for integration tests
+# - "all": all clusters with the Repo tag
+CLUSTER_TYPE="${CLUSTER_TYPE:-cluster-management}"
+
 REGIONS=("us-east-1" "us-east-2")
 
 # Region and cluster ID can be extracted from ARN
@@ -31,7 +37,7 @@ done
 echo -e "\nFound ${#ARNS[@]} cluster(s) across all regions:"
 printf '%s\n' "${ARNS[@]}"
 
-echo -e "\nFiltering clusters..."
+echo -e "\nFiltering clusters (Type: $CLUSTER_TYPE)..."
 for arn in "${ARNS[@]}"; do
   region=$(echo "$arn" | cut -d':' -f4)
   cluster_id=$(echo "$arn" | cut -d'/' -f2)
@@ -42,11 +48,17 @@ for arn in "${ARNS[@]}"; do
 
   status=$(echo "$cluster_details" | jq -r '.status')
   repo_tag=$(echo "$cluster_details" | jq -r '.tags.Repo // empty')
+  type_tag=$(echo "$cluster_details" | jq -r '.tags.Type // empty')
 
   # We only want clusters that are not already deleting, and have the specific repo tag
   if [[ "$status" != "DELETED" && "$status" != "DELETING" && "$repo_tag" == "aws-samples/aurora-dsql-samples" ]]; then
-    echo "Cluster $cluster_id qualifies for update (Status: $status, Repo tag: $repo_tag)"
-    FILTERED_ARNS+=("$arn")
+    # Filter by type tag if not cleaning all
+    if [[ "$CLUSTER_TYPE" == "all" || "$type_tag" == "$CLUSTER_TYPE" || ( -z "$type_tag" && "$CLUSTER_TYPE" == "cluster-management" ) ]]; then
+      echo "Cluster $cluster_id qualifies for cleanup (Status: $status, Type: $type_tag)"
+      FILTERED_ARNS+=("$arn")
+    else
+      echo "Skipping cluster $cluster_id (Type mismatch: $type_tag != $CLUSTER_TYPE)"
+    fi
   else
     echo "Skipping cluster $cluster_id (Status: $status, Repo tag: $repo_tag)"
   fi
