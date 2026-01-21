@@ -45,6 +45,7 @@ std::pair<CreateClusterResult, CreateClusterResult> CreateMultiRegionClusters(
     Aws::Map<Aws::String, Aws::String> tags;
     tags["Name"] = "cpp multi region cluster 1";
     tags["Repo"] = "aws-samples/aurora-dsql-samples";
+    tags["Type"] = "cluster-management";
     createClusterRequest1.SetTags(tags);
     
     auto createOutcome1 = client1.CreateCluster(createClusterRequest1);
@@ -73,6 +74,7 @@ std::pair<CreateClusterResult, CreateClusterResult> CreateMultiRegionClusters(
     
     tags["Name"] = "cpp multi region cluster 2";
     tags["Repo"] = "aws-samples/aurora-dsql-samples";
+    tags["Type"] = "cluster-management";
     createClusterRequest2.SetMultiRegionProperties(multiRegionProps2);
     createClusterRequest2.SetTags(tags);
     

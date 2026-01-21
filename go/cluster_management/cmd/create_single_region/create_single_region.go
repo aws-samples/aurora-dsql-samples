@@ -29,6 +29,7 @@ func CreateCluster(ctx context.Context, region string) error {
 		Tags: map[string]string{
 			"Repo": os.Getenv("GITHUB_REPOSITORY"),
 			"Name": util.GetUniqueRunTagName("go single region cluster"),
+			"Type": "cluster-management",
 		},
 	}
 

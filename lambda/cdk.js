@@ -16,6 +16,8 @@ class DsqlLambdaStack extends Stack {
                 key: 'Name', value: 'Lambda single region cluster',
             }, {
                 key: 'Repo', value: 'aws-samples/aurora-dsql-samples',
+            }, {
+                key: 'Type', value: 'integration-test',
             }],
         });
 

@@ -12,7 +12,8 @@ export async function createMultiRegionCluster(region1, region2, witnessRegion) 
             deletionProtectionEnabled: true,
             tags: {
                 Name: "javascript multi region cluster 1",
-                Repo: "aws-samples/aurora-dsql-samples"
+                Repo: "aws-samples/aurora-dsql-samples",
+                Type: "cluster-management"
             },
             multiRegionProperties: {
                 witnessRegion: witnessRegion
@@ -28,7 +29,8 @@ export async function createMultiRegionCluster(region1, region2, witnessRegion) 
             deletionProtectionEnabled: true,
             tags: {
                 Name: "javascript multi region cluster 2",
-                Repo: "aws-samples/aurora-dsql-samples"
+                Repo: "aws-samples/aurora-dsql-samples",
+                Type: "cluster-management"
             },
             multiRegionProperties: {
                 witnessRegion: witnessRegion,

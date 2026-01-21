@@ -42,7 +42,8 @@ public class CreateMultiRegionClusters {
                 .multiRegionProperties(mrp -> mrp.witnessRegion(witnessRegion.toString()))
                 .tags(Map.of(
                         "Name", "java multi region cluster",
-                        "Repo", "aws-samples/aurora-dsql-samples"
+                        "Repo", "aws-samples/aurora-dsql-samples",
+                        "Type", "cluster-management"
                 ))
                 .build();
         CreateClusterResponse cluster1 = client1.createCluster(request1);
@@ -58,7 +59,8 @@ public class CreateMultiRegionClusters {
                 )
                 .tags(Map.of(
                         "Name", "java multi region cluster",
-                        "Repo", "aws-samples/aurora-dsql-samples"
+                        "Repo", "aws-samples/aurora-dsql-samples",
+                        "Type", "cluster-management"
                 ))
                 .build();
         CreateClusterResponse cluster2 = client2.createCluster(request2);

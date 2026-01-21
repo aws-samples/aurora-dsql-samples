@@ -11,7 +11,7 @@ def create_multi_region_clusters(region_1, region_2, witness_region):
         cluster_1 = client_1.create_cluster(
             deletionProtectionEnabled=True,
             multiRegionProperties={"witnessRegion": witness_region},
-            tags={"Name": "Python-CM-Example-Multi-Region", "Repo": "aws-samples/aurora-dsql-samples"}
+            tags={"Name": "Python-CM-Example-Multi-Region", "Repo": "aws-samples/aurora-dsql-samples", "Type": "cluster-management"}
         )
         print(f"Created {cluster_1['arn']}")
 
@@ -19,7 +19,7 @@ def create_multi_region_clusters(region_1, region_2, witness_region):
         cluster_2 = client_2.create_cluster(
             deletionProtectionEnabled=True,
             multiRegionProperties={"witnessRegion": witness_region, "clusters": [cluster_1["arn"]]},
-            tags={"Name": "Python-CM-Example-Multi-Region", "Repo": "aws-samples/aurora-dsql-samples"}
+            tags={"Name": "Python-CM-Example-Multi-Region", "Repo": "aws-samples/aurora-dsql-samples", "Type": "cluster-management"}
         )
 
         print(f"Created {cluster_2['arn']}")

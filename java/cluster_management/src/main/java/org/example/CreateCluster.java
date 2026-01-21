@@ -32,7 +32,8 @@ public class CreateCluster {
                 .deletionProtectionEnabled(true)
                 .tags(Map.of(
                         "Name", "java single region cluster",
-                        "Repo", "aws-samples/aurora-dsql-samples"
+                        "Repo", "aws-samples/aurora-dsql-samples",
+                        "Type", "cluster-management"
                 ))
                 .build();
         CreateClusterResponse cluster = client.createCluster(request);

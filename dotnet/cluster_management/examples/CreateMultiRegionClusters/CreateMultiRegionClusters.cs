@@ -35,7 +35,8 @@ public class CreateMultiRegionClusters
         var tags = new Dictionary<string, string>
         {
             { "Name", "csharp multi region cluster" },
-            { "Repo", "aws-samples/aurora-dsql-samples" }
+            { "Repo", "aws-samples/aurora-dsql-samples" },
+            { "Type", "cluster-management" }
         };
 
         // We can only set the witness region for the first cluster

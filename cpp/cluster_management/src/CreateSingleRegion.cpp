@@ -28,6 +28,7 @@ CreateClusterResult CreateCluster(const Aws::String& region) {
     Aws::Map<Aws::String, Aws::String> tags;
     tags["Name"] = "cpp single region cluster";
     tags["Repo"] = "aws-samples/aurora-dsql-samples";
+    tags["Type"] = "cluster-management";
     createClusterRequest.SetTags(tags);
     
     auto createOutcome = client.CreateCluster(createClusterRequest);

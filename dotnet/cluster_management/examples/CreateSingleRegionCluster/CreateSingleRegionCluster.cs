@@ -34,7 +34,8 @@ public class CreateSingleRegionCluster
             Tags = new Dictionary<string, string>
             {
                 { "Name", "csharp single region cluster" },
-                { "Repo", "aws-samples/aurora-dsql-samples" }
+                { "Repo", "aws-samples/aurora-dsql-samples" },
+                { "Type", "cluster-management" }
             }
         };
 

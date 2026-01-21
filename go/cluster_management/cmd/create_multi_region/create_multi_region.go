@@ -44,6 +44,7 @@ func CreateMultiRegionClusters(ctx context.Context, witness, region1, region2 st
 		Tags: map[string]string{
 			"Repo": os.Getenv("GITHUB_REPOSITORY"),
 			"Name": util.GetUniqueRunTagName("go multi-region cluster"),
+			"Type": "cluster-management",
 		},
 	}
 
@@ -66,6 +67,7 @@ func CreateMultiRegionClusters(ctx context.Context, witness, region1, region2 st
 		Tags: map[string]string{
 			"Repo": os.Getenv("GITHUB_REPOSITORY"),
 			"Name": util.GetUniqueRunTagName("go multi-region cluster"),
+			"Type": "cluster-management",
 		},
 	}
 

@@ -9,7 +9,8 @@ export async function createCluster(region) {
             deletionProtectionEnabled: true,
             tags: {
                 Name: "javascript single region cluster",
-                Repo: "aws-samples/aurora-dsql-samples"
+                Repo: "aws-samples/aurora-dsql-samples",
+                Type: "cluster-management"
             },
         });
         const response = await client.send(createClusterCommand);

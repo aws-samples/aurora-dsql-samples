@@ -5,7 +5,7 @@ import os
 def create_cluster(region):
     try:
         client = boto3.client("dsql", region_name=region)
-        tags = {"Name": "Python-CM-Example-Single-Region", "Repo": "aws-samples/aurora-dsql-samples"}
+        tags = {"Name": "Python-CM-Example-Single-Region", "Repo": "aws-samples/aurora-dsql-samples", "Type": "cluster-management"}
         cluster = client.create_cluster(tags=tags, deletionProtectionEnabled=True)
         print(f"Initiated creation of cluster: {cluster['identifier']}")
 

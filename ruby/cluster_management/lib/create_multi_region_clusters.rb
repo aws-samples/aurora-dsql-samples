@@ -14,7 +14,8 @@ def create_multi_region_clusters(region_1, region_2, witness_region)
     },
     tags: {
       Name: "Ruby-CM-Example-Multi-Region",
-      Repo: "aws-samples/aurora-dsql-samples"
+      Repo: "aws-samples/aurora-dsql-samples",
+      Type: "cluster-management"
     }
   )
   puts "Created #{cluster_1.arn}"
@@ -29,7 +30,8 @@ def create_multi_region_clusters(region_1, region_2, witness_region)
     },
     tags: {
       Name: "Ruby-CM-Example-Multi-Region",
-      Repo: "aws-samples/aurora-dsql-samples"
+      Repo: "aws-samples/aurora-dsql-samples",
+      Type: "cluster-management"
     }
   )
   puts "Created #{cluster_2.arn}"

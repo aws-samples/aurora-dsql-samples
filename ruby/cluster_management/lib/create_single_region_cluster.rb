@@ -7,7 +7,8 @@ def create_cluster(region)
     deletion_protection_enabled: true,
     tags: {
       Name: "Ruby-CM-Example-Single-Region",
-      Repo: "aws-samples/aurora-dsql-samples"
+      Repo: "aws-samples/aurora-dsql-samples",
+      Type: "cluster-management"
     }
   )
   puts "Created #{cluster.arn}"
