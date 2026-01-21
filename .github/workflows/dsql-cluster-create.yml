@@ -52,7 +52,7 @@ jobs:
           
           RESULT=$(aws dsql create-cluster \
             --no-deletion-protection-enabled \
-            --tags "Name=$CLUSTER_NAME" "Repo=aws-samples/aurora-dsql-samples" "Type=integration-test")
+            --tags "Name=$CLUSTER_NAME,Repo=aws-samples/aurora-dsql-samples,Type=integration-test")
           
           CLUSTER_ID=$(echo "$RESULT" | jq -r '.identifier')
           echo "Waiting for cluster $CLUSTER_ID to become active..."
