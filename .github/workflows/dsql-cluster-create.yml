@@ -25,6 +25,8 @@ on:
 
 env:
   AWS_REGION: us-east-1
+  MAX_RETRIES: 5
+  INITIAL_BACKOFF: 10
 
 jobs:
   create:
@@ -50,13 +52,22 @@ jobs:
         run: |
           CLUSTER_NAME="${{ inputs.workflow_name }}-${{ github.run_id }}"
           
-          RESULT=$(aws dsql create-cluster \
-            --no-deletion-protection-enabled \
-            --tags "Name=$CLUSTER_NAME,Repo=aws-samples/aurora-dsql-samples,Type=integration-test")
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            RESULT=$(aws dsql create-cluster \
+              --no-deletion-protection-enabled \
+              --tags "Name=$CLUSTER_NAME,Repo=aws-samples/aurora-dsql-samples,Type=integration-test" 2>&1) && break
+            BACKOFF=$((INITIAL_BACKOFF * attempt))
+            echo "Attempt $attempt failed, retrying in ${BACKOFF}s..."
+            sleep $BACKOFF
+          done
           
           CLUSTER_ID=$(echo "$RESULT" | jq -r '.identifier')
-          echo "Waiting for cluster $CLUSTER_ID to become active..."
+          if [ -z "$CLUSTER_ID" ] || [ "$CLUSTER_ID" = "null" ]; then
+            echo "Failed to create cluster: $RESULT"
+            exit 1
+          fi
           
+          echo "Waiting for cluster $CLUSTER_ID to become active..."
           aws dsql wait cluster-active --identifier "$CLUSTER_ID"
           
           echo "cluster-id=$CLUSTER_ID" >> "$GITHUB_OUTPUT"
