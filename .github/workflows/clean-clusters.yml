@@ -8,48 +8,162 @@ on:
   workflow_dispatch:
 
 jobs:
-  cleanup:
-    name: Clean up (${{ matrix.name }})
+  cleanup-cpp:
+    name: Clean up (cpp)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: cpp
-            role_secret: CPP_IAM_ROLE
-          - name: dotnet
-            role_secret: DOTNET_IAM_ROLE
-          - name: go
-            role_secret: GO_IAM_ROLE
-          - name: java
-            role_secret: JAVA_IAM_ROLE
-          - name: javascript
-            role_secret: JAVASCRIPT_IAM_ROLE
-          - name: python
-            role_secret: PYTHON_IAM_ROLE
-          - name: ruby
-            role_secret: RUBY_IAM_ROLE
-          - name: rust
-            role_secret: RUST_IAM_ROLE
-          - name: typescript
-            role_secret: TYPESCRIPT_IAM_ROLE
-          - name: lambda
-            role_secret: LAMBDA_IAM_ROLE
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets[matrix.role_secret] }}
+          role-to-assume: ${{ secrets.CPP_IAM_ROLE }}
           aws-region: us-east-1
-
-      - name: Run cluster cleanup script
+      - run: .github/scripts/clean-clusters.sh
         env:
           IS_CI: "true"
-        run: .github/scripts/clean-clusters.sh
+
+  cleanup-dotnet:
+    name: Clean up (dotnet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.DOTNET_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-go:
+    name: Clean up (go)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.GO_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-java:
+    name: Clean up (java)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.JAVA_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-javascript:
+    name: Clean up (javascript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-lambda:
+    name: Clean up (lambda)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.LAMBDA_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-python:
+    name: Clean up (python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.PYTHON_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-ruby:
+    name: Clean up (ruby)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.RUBY_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-rust:
+    name: Clean up (rust)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.RUST_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-typescript:
+    name: Clean up (typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
