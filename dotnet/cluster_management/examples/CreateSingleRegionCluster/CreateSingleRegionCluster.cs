@@ -28,14 +28,18 @@ public class CreateSingleRegionCluster
     {
         using var client = await CreateDSQLClient(region);
 
+        var repo = Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") ?? "local";
+        var runId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID") ?? "local";
+
         var createClusterRequest = new CreateClusterRequest
         {
             DeletionProtectionEnabled = true,
             Tags = new Dictionary<string, string>
             {
                 { "Name", "csharp single region cluster" },
-                { "Repo", "aws-samples/aurora-dsql-samples" },
-                { "Type", "cluster-management" }
+                { "Repo", repo },
+                { "Type", "cluster-management" },
+                { "RunId", runId }
             }
         };
 
