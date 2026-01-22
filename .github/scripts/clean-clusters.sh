@@ -1,94 +1,54 @@
 #!/bin/bash
 
+# Deletes Aurora DSQL clusters older than 1 week that belong to this repo.
+# Intended as a safety net for orphaned clusters from failed CI runs.
+
 if [ -z "${IS_CI}" ]; then
   echo "Error: This script is intended to run only in CI environments."
-  echo "Running it locally may delete clusters in your account."
   echo "Set the IS_CI environment variable to run this script."
   exit 1
 fi
 
-# CLUSTER_TYPE filters which clusters to clean up:
-# - "cluster-management" (default): only clusters created by cluster management tests
-# - "integration-test": only clusters created for integration tests
-# - "all": all clusters with the Repo tag
-CLUSTER_TYPE="${CLUSTER_TYPE:-cluster-management}"
-
 REGIONS=("us-east-1" "us-east-2")
 
-# Region and cluster ID can be extracted from ARN
-# ARN format: arn:aws:dsql:REGION:ACCOUNT:cluster/CLUSTER_ID
-declare -a ARNS=()
-declare -a FILTERED_ARNS=()
+MAX_AGE_DAYS=7
+CUTOFF_DATE=$(date -u -d "$MAX_AGE_DAYS days ago" +%Y-%m-%dT%H:%M:%S)
 
-# Get clusters from each region and extract ARNs
+echo "Deleting clusters older than $MAX_AGE_DAYS days (before $CUTOFF_DATE)"
+
 for region in "${REGIONS[@]}"; do
-  echo "Listing clusters in $region..."
-
-  region_arns=$(aws dsql list-clusters --region "$region" | jq -r '.clusters[].arn')
-
-  # Add ARNs to the array if any were found
-  if [ -n "$region_arns" ]; then
-    while IFS= read -r arn; do
-      ARNS+=("$arn")
-    done <<< "$region_arns"
+  echo -e "\nChecking region $region..."
+  
+  CLUSTERS=$(aws dsql list-clusters --region "$region" --output json)
+  CLUSTER_IDS=$(echo "$CLUSTERS" | jq -r '.clusters[].identifier')
+  
+  if [ -z "$CLUSTER_IDS" ]; then
+    echo "No clusters found"
+    continue
   fi
-done
-
-echo -e "\nFound ${#ARNS[@]} cluster(s) across all regions:"
-printf '%s\n' "${ARNS[@]}"
-
-echo -e "\nFiltering clusters (Type: $CLUSTER_TYPE)..."
-for arn in "${ARNS[@]}"; do
-  region=$(echo "$arn" | cut -d':' -f4)
-  cluster_id=$(echo "$arn" | cut -d'/' -f2)
-
-  echo "Checking cluster $cluster_id in region $region..."
-
-  cluster_details=$(aws dsql get-cluster --region "$region" --identifier "$cluster_id")
-
-  status=$(echo "$cluster_details" | jq -r '.status')
-  repo_tag=$(echo "$cluster_details" | jq -r '.tags.Repo // empty')
-  type_tag=$(echo "$cluster_details" | jq -r '.tags.Type // empty')
-
-  # We only want clusters that are not already deleting, and have the specific repo tag
-  if [[ "$status" != "DELETED" && "$status" != "DELETING" && "$repo_tag" == "aws-samples/aurora-dsql-samples" ]]; then
-    # Filter by type tag if not cleaning all
-    if [[ "$CLUSTER_TYPE" == "all" || "$type_tag" == "$CLUSTER_TYPE" || ( -z "$type_tag" && "$CLUSTER_TYPE" == "cluster-management" ) ]]; then
-      echo "Cluster $cluster_id qualifies for cleanup (Status: $status, Type: $type_tag)"
-      FILTERED_ARNS+=("$arn")
-    else
-      echo "Skipping cluster $cluster_id (Type mismatch: $type_tag != $CLUSTER_TYPE)"
+  
+  for cluster_id in $CLUSTER_IDS; do
+    CLUSTER=$(aws dsql get-cluster --region "$region" --identifier "$cluster_id" --output json 2>/dev/null) || continue
+    
+    STATUS=$(echo "$CLUSTER" | jq -r '.status')
+    REPO_TAG=$(echo "$CLUSTER" | jq -r '.tags.Repo // empty')
+    CREATED=$(echo "$CLUSTER" | jq -r '.creationTime')
+    
+    if [ "$STATUS" = "DELETING" ] || [ "$STATUS" = "DELETED" ]; then
+      continue
     fi
-  else
-    echo "Skipping cluster $cluster_id (Status: $status, Repo tag: $repo_tag)"
-  fi
-done
-
-echo -e "\nFound ${#FILTERED_ARNS[@]} cluster(s) that will be updated and deleted:"
-printf '%s\n' "${FILTERED_ARNS[@]}"
-
-# Early exit if no clusters to update
-if [ ${#FILTERED_ARNS[@]} -eq 0 ]; then
-  echo -e "\nNo clusters to update or delete. Exiting."
-  exit 0
-fi
-
-echo -e "\nUpdating filtered clusters to disable deletion protection..."
-for arn in "${FILTERED_ARNS[@]}"; do
-  region=$(echo "$arn" | cut -d':' -f4)
-  cluster_id=$(echo "$arn" | cut -d'/' -f2)
-
-  echo "Updating cluster $cluster_id in region $region..."
-  aws dsql update-cluster --region "$region" --identifier "$cluster_id" --no-deletion-protection-enabled
-  echo "Cluster $cluster_id updated successfully."
-done
-
-echo -e "\nDeleting filtered clusters..."
-for arn in "${FILTERED_ARNS[@]}"; do
-  region=$(echo "$arn" | cut -d':' -f4)
-  cluster_id=$(echo "$arn" | cut -d'/' -f2)
-
-  echo "Deleting cluster $cluster_id in region $region..."
-  aws dsql delete-cluster --region "$region" --identifier "$cluster_id"
-  echo "Deletion initiated for cluster $cluster_id."
+    
+    if [ "$REPO_TAG" != "aws-samples/aurora-dsql-samples" ]; then
+      continue
+    fi
+    
+    if [[ "$CREATED" > "$CUTOFF_DATE" ]]; then
+      echo "Skipping $cluster_id (created $CREATED, too recent)"
+      continue
+    fi
+    
+    echo "Deleting $cluster_id (created $CREATED)..."
+    aws dsql update-cluster --region "$region" --identifier "$cluster_id" --no-deletion-protection-enabled 2>/dev/null || true
+    aws dsql delete-cluster --region "$region" --identifier "$cluster_id"
+  done
 done

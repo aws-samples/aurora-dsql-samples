@@ -1,44 +1,53 @@
-name: Clean up Aurora DSQL Clusters
+name: Clean up old Aurora DSQL Clusters
 
 permissions: {}
 
 on:
-  workflow_call:
-    inputs:
-      aws_region:
-        required: false
-        type: string
-        default: 'us-east-1'
-        description: 'Default AWS region for credentials, does not limit access to other regions'
-    secrets:
-      AWS_IAM_ROLE:
-        required: true
-        description: 'AWS IAM role to assume for cluster cleanup'
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday at midnight UTC
+  workflow_dispatch:
 
 jobs:
   cleanup:
-    name: Clean up Aurora DSQL Clusters
+    name: Clean up (${{ matrix.name }})
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: cpp
+            role_secret: CPP_IAM_ROLE
+          - name: dotnet
+            role_secret: DOTNET_IAM_ROLE
+          - name: go
+            role_secret: GO_IAM_ROLE
+          - name: java
+            role_secret: JAVA_IAM_ROLE
+          - name: javascript
+            role_secret: JAVASCRIPT_IAM_ROLE
+          - name: python
+            role_secret: PYTHON_IAM_ROLE
+          - name: ruby
+            role_secret: RUBY_IAM_ROLE
+          - name: rust
+            role_secret: RUST_IAM_ROLE
+          - name: typescript
+            role_secret: TYPESCRIPT_IAM_ROLE
+          - name: lambda
+            role_secret: LAMBDA_IAM_ROLE
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Update AWS CLI to latest version
-        run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip -q awscliv2.zip
-          sudo ./aws/install --update
-          aws --version
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ secrets[matrix.role_secret] }}
+          aws-region: us-east-1
 
       - name: Run cluster cleanup script
         env:
