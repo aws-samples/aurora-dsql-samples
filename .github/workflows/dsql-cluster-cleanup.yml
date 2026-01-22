@@ -45,11 +45,17 @@ jobs:
             fi
             
             for cluster_id in $CLUSTER_IDS; do
-              TAGS=$(aws dsql get-cluster --region "$region" --identifier "$cluster_id" --query 'tags' --output json 2>/dev/null || echo "{}")
+              CLUSTER_INFO=$(aws dsql get-cluster --region "$region" --identifier "$cluster_id" --output json 2>/dev/null || echo "{}")
               
-              RUN_ID_TAG=$(echo "$TAGS" | jq -r '.RunId // empty')
-              REPO_TAG=$(echo "$TAGS" | jq -r '.Repo // empty')
-              TYPE_TAG=$(echo "$TAGS" | jq -r '.Type // empty')
+              STATUS=$(echo "$CLUSTER_INFO" | jq -r '.status // empty')
+              RUN_ID_TAG=$(echo "$CLUSTER_INFO" | jq -r '.tags.RunId // empty')
+              REPO_TAG=$(echo "$CLUSTER_INFO" | jq -r '.tags.Repo // empty')
+              TYPE_TAG=$(echo "$CLUSTER_INFO" | jq -r '.tags.Type // empty')
+              
+              if [ "$STATUS" = "DELETING" ] || [ "$STATUS" = "DELETED" ]; then
+                echo "Skipping cluster $cluster_id in $region (Status: $STATUS)"
+                continue
+              fi
               
               if [ "$RUN_ID_TAG" = "${{ inputs.run-id }}" ] && \
                  [ "$REPO_TAG" = "${{ github.repository }}" ] && \
