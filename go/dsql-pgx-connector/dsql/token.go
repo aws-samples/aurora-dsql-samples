@@ -19,28 +19,28 @@ import (
 
 const adminUser = "admin"
 
-// resolveCredentialsProvider resolves the AWS credentials provider once based on the configuration.
+// ResolveCredentialsProvider resolves the AWS credentials provider once based on the configuration.
 // This avoids repeated credential resolution on each token generation.
-func resolveCredentialsProvider(ctx context.Context, resolved *resolvedConfig) (aws.CredentialsProvider, error) {
+func ResolveCredentialsProvider(ctx context.Context, region, profile string, customProvider aws.CredentialsProvider) (aws.CredentialsProvider, error) {
 	// If custom provider is specified, use it directly
-	if resolved.CustomCredentialsProvider != nil {
-		return resolved.CustomCredentialsProvider, nil
+	if customProvider != nil {
+		return customProvider, nil
 	}
 
 	// If profile is specified, load config with that profile
-	if resolved.Profile != "" {
+	if profile != "" {
 		cfg, err := config.LoadDefaultConfig(ctx,
-			config.WithRegion(resolved.Region),
-			config.WithSharedConfigProfile(resolved.Profile),
+			config.WithRegion(region),
+			config.WithSharedConfigProfile(profile),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load AWS config with profile %s: %w", resolved.Profile, err)
+			return nil, fmt.Errorf("failed to load AWS config with profile %s: %w", profile, err)
 		}
 		return cfg.Credentials, nil
 	}
 
 	// Use default credential chain
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(resolved.Region))
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
