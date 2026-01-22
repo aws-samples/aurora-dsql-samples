@@ -208,11 +208,11 @@ func ParseConnectionString(connStr string) (*Config, error) {
 	}
 
 	if portStr := u.Port(); portStr != "" {
-		port, err := strconv.Atoi(portStr)
+		port, err := strconv.ParseUint(portStr, 10, 16)
 		if err != nil {
 			return nil, fmt.Errorf("invalid port: %w", err)
 		}
-		cfg.Port = port
+		cfg.Port = int(port)
 	}
 
 	// Parse query parameters
