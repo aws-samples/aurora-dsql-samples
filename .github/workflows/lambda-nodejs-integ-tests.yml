@@ -26,9 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    concurrency:
-      # Ensure only 1 job uses the workflow cluster at a time.
-      group: ${{ github.workflow }}
     defaults:
       run:
         working-directory: ./lambda
@@ -71,10 +68,6 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
-    concurrency:
-      # Ensure only 1 job uses the workflow cluster at a time.
-      group: ${{ github.workflow }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -104,7 +97,7 @@ jobs:
       - name: Run sample Lambda
         run: |
           RESPONSE=$(aws lambda invoke \
-            --function-name DsqlLambdaSample \
+            --function-name DsqlLambdaSample-${{ github.run_id }} \
             --query 'FunctionError' \
             --output text \
             response.json)
