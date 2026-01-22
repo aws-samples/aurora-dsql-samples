@@ -27,8 +27,10 @@ func CreateCluster(ctx context.Context, region string) error {
 	input := dsql.CreateClusterInput{
 		DeletionProtectionEnabled: &deleteProtect,
 		Tags: map[string]string{
-			"Repo": os.Getenv("GITHUB_REPOSITORY"),
-			"Name": util.GetUniqueRunTagName("go single region cluster"),
+			"Repo":  os.Getenv("GITHUB_REPOSITORY"),
+			"Name":  util.GetUniqueRunTagName("go single region cluster"),
+			"Type":  "cluster-management",
+			"RunId": util.GetEnvWithDefault("GITHUB_RUN_ID", "local"),
 		},
 	}
 

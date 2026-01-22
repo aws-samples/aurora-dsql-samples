@@ -5,6 +5,7 @@ import {Effect, PolicyStatement} from "aws-cdk-lib/aws-iam";
 const app = new App();
 
 const region = process.env.CLUSTER_REGION || 'us-east-1';
+const runId = process.env.GITHUB_RUN_ID || 'local';
 
 class DsqlLambdaStack extends Stack {
     constructor(scope, id, props) {
@@ -16,12 +17,16 @@ class DsqlLambdaStack extends Stack {
                 key: 'Name', value: 'Lambda single region cluster',
             }, {
                 key: 'Repo', value: 'aws-samples/aurora-dsql-samples',
+            }, {
+                key: 'Type', value: 'integration-test',
+            }, {
+                key: 'RunId', value: runId,
             }],
         });
 
         // Define the Lambda function
         const dsqlFunction = new Function(this, 'DsqlLambdaSample', {
-            functionName: 'DsqlLambdaSample',
+            functionName: `DsqlLambdaSample-${runId}`,
             runtime: Runtime.NODEJS_22_X,
             handler: 'lambda.handler',
             code: Code.fromAsset('sample'),
@@ -42,7 +47,7 @@ class DsqlLambdaStack extends Stack {
     }
 }
 
-new DsqlLambdaStack(app, "DsqlSample", {
+new DsqlLambdaStack(app, `DsqlSample-${runId}`, {
     env: {
         region: region
     }

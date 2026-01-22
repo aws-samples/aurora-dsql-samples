@@ -15,22 +15,23 @@ on:
       - 'dotnet/npgsql/**'
       - '.github/workflows/dotnet-npgsql-integ-tests.yml'
 
-  # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
-    inputs:
-      tags:
-        description: 'Manual Workflow Run'
-        required: false
-        type: string
 
 jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: dotnet-npgsql
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.DOTNET_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   dotnet-npgsql-integ-test:
+    needs: create-cluster
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    concurrency:
-      # Ensure only 1 job uses the workflow cluster at a time.
-      group: ${{ github.workflow }}
 
     steps:
     - name: Checkout code
@@ -45,13 +46,25 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v5
       with:
         role-to-assume: ${{ secrets.DOTNET_IAM_ROLE }}
-        aws-region: us-east-1
+        aws-region: ${{ needs.create-cluster.outputs.region }}
 
     - name: Configure and run integration for npgsql
       working-directory: ./dotnet/npgsql
       env:
         CLUSTER_USER: "admin"
-        CLUSTER_ENDPOINT: ${{ secrets.DOTNET_NPGSQL_CLUSTER_ENDPOINT }}
-        REGION: ${{ secrets.DOTNET_NPGSQL_CLUSTER_REGION }}
+        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        REGION: ${{ needs.create-cluster.outputs.region }}
       run: |
         dotnet run --framework net9.0
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, dotnet-npgsql-integ-test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.DOTNET_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials

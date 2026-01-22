@@ -44,7 +44,11 @@ std::pair<CreateClusterResult, CreateClusterResult> CreateMultiRegionClusters(
     // Add tags
     Aws::Map<Aws::String, Aws::String> tags;
     tags["Name"] = "cpp multi region cluster 1";
-    tags["Repo"] = "aws-samples/aurora-dsql-samples";
+    const char* repo = std::getenv("GITHUB_REPOSITORY");
+    tags["Repo"] = repo ? repo : "local";
+    tags["Type"] = "cluster-management";
+    const char* runId = std::getenv("GITHUB_RUN_ID");
+    tags["RunId"] = runId ? runId : "local";
     createClusterRequest1.SetTags(tags);
     
     auto createOutcome1 = client1.CreateCluster(createClusterRequest1);
@@ -72,7 +76,6 @@ std::pair<CreateClusterResult, CreateClusterResult> CreateMultiRegionClusters(
     multiRegionProps2.SetClusters(clusters);
     
     tags["Name"] = "cpp multi region cluster 2";
-    tags["Repo"] = "aws-samples/aurora-dsql-samples";
     createClusterRequest2.SetMultiRegionProperties(multiRegionProps2);
     createClusterRequest2.SetTags(tags);
     

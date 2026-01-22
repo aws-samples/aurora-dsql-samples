@@ -27,7 +27,11 @@ CreateClusterResult CreateCluster(const Aws::String& region) {
     // Add tags
     Aws::Map<Aws::String, Aws::String> tags;
     tags["Name"] = "cpp single region cluster";
-    tags["Repo"] = "aws-samples/aurora-dsql-samples";
+    const char* repo = std::getenv("GITHUB_REPOSITORY");
+    tags["Repo"] = repo ? repo : "local";
+    tags["Type"] = "cluster-management";
+    const char* runId = std::getenv("GITHUB_RUN_ID");
+    tags["RunId"] = runId ? runId : "local";
     createClusterRequest.SetTags(tags);
     
     auto createOutcome = client.CreateCluster(createClusterRequest);

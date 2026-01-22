@@ -5,6 +5,9 @@ export async function createMultiRegionCluster(region1, region2, witnessRegion) 
     const client1 = new DSQLClient({ region: region1 });
     const client2 = new DSQLClient({ region: region2 });
 
+    const repo = process.env.GITHUB_REPOSITORY || "local";
+    const runId = process.env.GITHUB_RUN_ID || "local";
+
     try {
         // We can only set the witness region for the first cluster
         console.log(`Creating cluster in ${region1}`);
@@ -12,7 +15,9 @@ export async function createMultiRegionCluster(region1, region2, witnessRegion) 
             deletionProtectionEnabled: true,
             tags: {
                 Name: "javascript multi region cluster 1",
-                Repo: "aws-samples/aurora-dsql-samples"
+                Repo: repo,
+                Type: "cluster-management",
+                RunId: runId
             },
             multiRegionProperties: {
                 witnessRegion: witnessRegion
@@ -28,7 +33,9 @@ export async function createMultiRegionCluster(region1, region2, witnessRegion) 
             deletionProtectionEnabled: true,
             tags: {
                 Name: "javascript multi region cluster 2",
-                Repo: "aws-samples/aurora-dsql-samples"
+                Repo: repo,
+                Type: "cluster-management",
+                RunId: runId
             },
             multiRegionProperties: {
                 witnessRegion: witnessRegion,

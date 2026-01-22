@@ -13,22 +13,23 @@ on:
     paths:
       - 'javascript/node-postgres/**'
       - '.github/workflows/javascript-node-postgres-integ-tests.yml'
-  # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
-    inputs:
-      tags:
-        description: 'Manual Workflow Run'
-        required: false
-        type: string
 
 jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: javascript-node-postgres
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   node-postgres-integ-test:
+    needs: create-cluster
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    concurrency:
-      # Ensure only 1 job uses the workflow cluster at a time.
-      group: ${{ github.workflow }}
 
     steps:
     - name: Checkout code
@@ -43,15 +44,26 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v5
       with:
         role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
-        aws-region: us-east-1
+        aws-region: ${{ needs.create-cluster.outputs.region }}
 
     - name: Configure and run integration for nodejs HowTo
       working-directory: ./javascript/node-postgres
       env:
-        CLUSTER_ENDPOINT: ${{ secrets.JAVASCRIPT_NODEJS_CLUSTER_ENDPOINT }}
-        REGION: ${{ secrets.JAVASCRIPT_NODEJS_CLUSTER_REGION }}
+        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        REGION: ${{ needs.create-cluster.outputs.region }}
         CLUSTER_USER: 'admin'
       run: |
         npm ci
         npm test
-        
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, node-postgres-integ-test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials

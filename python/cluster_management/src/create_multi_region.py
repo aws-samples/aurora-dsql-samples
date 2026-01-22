@@ -6,12 +6,19 @@ def create_multi_region_clusters(region_1, region_2, witness_region):
     try:
         client_1 = boto3.client("dsql", region_name=region_1)
         client_2 = boto3.client("dsql", region_name=region_2)
+        run_id = os.environ.get("GITHUB_RUN_ID", "local")
+        repo = os.environ.get("GITHUB_REPOSITORY", "local")
 
         # We can only set the witness region for the first cluster
         cluster_1 = client_1.create_cluster(
             deletionProtectionEnabled=True,
             multiRegionProperties={"witnessRegion": witness_region},
-            tags={"Name": "Python-CM-Example-Multi-Region", "Repo": "aws-samples/aurora-dsql-samples"}
+            tags={
+                "Name": "Python-CM-Example-Multi-Region",
+                "Repo": repo,
+                "Type": "cluster-management",
+                "RunId": run_id,
+            }
         )
         print(f"Created {cluster_1['arn']}")
 
@@ -19,7 +26,12 @@ def create_multi_region_clusters(region_1, region_2, witness_region):
         cluster_2 = client_2.create_cluster(
             deletionProtectionEnabled=True,
             multiRegionProperties={"witnessRegion": witness_region, "clusters": [cluster_1["arn"]]},
-            tags={"Name": "Python-CM-Example-Multi-Region", "Repo": "aws-samples/aurora-dsql-samples"}
+            tags={
+                "Name": "Python-CM-Example-Multi-Region",
+                "Repo": repo,
+                "Type": "cluster-management",
+                "RunId": run_id,
+            }
         )
 
         print(f"Created {cluster_2['arn']}")

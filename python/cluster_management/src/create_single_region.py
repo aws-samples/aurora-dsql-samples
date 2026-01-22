@@ -5,7 +5,14 @@ import os
 def create_cluster(region):
     try:
         client = boto3.client("dsql", region_name=region)
-        tags = {"Name": "Python-CM-Example-Single-Region", "Repo": "aws-samples/aurora-dsql-samples"}
+        run_id = os.environ.get("GITHUB_RUN_ID", "local")
+        repo = os.environ.get("GITHUB_REPOSITORY", "local")
+        tags = {
+            "Name": "Python-CM-Example-Single-Region",
+            "Repo": repo,
+            "Type": "cluster-management",
+            "RunId": run_id,
+        }
         cluster = client.create_cluster(tags=tags, deletionProtectionEnabled=True)
         print(f"Initiated creation of cluster: {cluster['identifier']}")
 

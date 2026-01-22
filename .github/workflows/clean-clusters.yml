@@ -1,46 +1,169 @@
-name: Clean up Aurora DSQL Clusters
+name: Clean up old Aurora DSQL Clusters
 
 permissions: {}
 
 on:
-  workflow_call:
-    inputs:
-      aws_region:
-        required: false
-        type: string
-        default: 'us-east-1'
-        description: 'Default AWS region for credentials, does not limit access to other regions'
-    secrets:
-      AWS_IAM_ROLE:
-        required: true
-        description: 'AWS IAM role to assume for cluster cleanup'
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sunday at midnight UTC
+  workflow_dispatch:
 
 jobs:
-  cleanup:
-    name: Clean up Aurora DSQL Clusters
+  cleanup-cpp:
+    name: Clean up (cpp)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Update AWS CLI to latest version
-        run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip -q awscliv2.zip
-          sudo ./aws/install --update
-          aws --version
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v5
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          aws-region: ${{ inputs.aws_region }}
-
-      - name: Run cluster cleanup script
+          role-to-assume: ${{ secrets.CPP_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
         env:
           IS_CI: "true"
-        run: .github/scripts/clean-clusters.sh
+
+  cleanup-dotnet:
+    name: Clean up (dotnet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.DOTNET_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-go:
+    name: Clean up (go)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.GO_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-java:
+    name: Clean up (java)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.JAVA_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-javascript:
+    name: Clean up (javascript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-lambda:
+    name: Clean up (lambda)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.LAMBDA_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-python:
+    name: Clean up (python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.PYTHON_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-ruby:
+    name: Clean up (ruby)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.RUBY_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-rust:
+    name: Clean up (rust)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.RUST_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"
+
+  cleanup-typescript:
+    name: Clean up (typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
+          aws-region: us-east-1
+      - run: .github/scripts/clean-clusters.sh
+        env:
+          IS_CI: "true"

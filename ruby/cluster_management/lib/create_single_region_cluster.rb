@@ -3,11 +3,15 @@ require "pp"
 
 def create_cluster(region)
   client = Aws::DSQL::Client.new(region: region)
+  repo = ENV.fetch("GITHUB_REPOSITORY", "local")
+  run_id = ENV.fetch("GITHUB_RUN_ID", "local")
   cluster = client.create_cluster(
     deletion_protection_enabled: true,
     tags: {
       Name: "Ruby-CM-Example-Single-Region",
-      Repo: "aws-samples/aurora-dsql-samples"
+      Repo: repo,
+      Type: "cluster-management",
+      RunId: run_id
     }
   )
   puts "Created #{cluster.arn}"

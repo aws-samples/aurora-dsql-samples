@@ -9,7 +9,9 @@ export async function createCluster(region) {
             deletionProtectionEnabled: true,
             tags: {
                 Name: "javascript single region cluster",
-                Repo: "aws-samples/aurora-dsql-samples"
+                Repo: process.env.GITHUB_REPOSITORY || "local",
+                Type: "cluster-management",
+                RunId: process.env.GITHUB_RUN_ID || "local"
             },
         });
         const response = await client.send(createClusterCommand);

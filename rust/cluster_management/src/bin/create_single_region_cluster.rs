@@ -31,15 +31,16 @@ async fn dsql_client(region: &str) -> anyhow::Result<Client> {
 /// Create an example DSQL cluster.
 pub async fn create_cluster(region: &str) -> anyhow::Result<GetClusterOutput> {
     let client = dsql_client(region).await?;
+    let repo = env::var("GITHUB_REPOSITORY").unwrap_or_else(|_| "local".to_string());
+    let run_id = env::var("GITHUB_RUN_ID").unwrap_or_else(|_| "local".to_string());
     let tags = HashMap::from([
         (
             String::from("Name"),
             String::from("rust single region cluster"),
         ),
-        (
-            String::from("Repo"),
-            String::from("aws-samples/aurora-dsql-samples"),
-        ),
+        (String::from("Repo"), repo),
+        (String::from("Type"), String::from("cluster-management")),
+        (String::from("RunId"), run_id),
     ]);
 
     let create_cluster_output = client

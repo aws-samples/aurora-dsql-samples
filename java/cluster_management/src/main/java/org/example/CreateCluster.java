@@ -28,11 +28,15 @@ public class CreateCluster {
     }
 
     public static GetClusterResponse example(DsqlClient client) {
+        String repo = System.getenv().getOrDefault("GITHUB_REPOSITORY", "local");
+        String runId = System.getenv().getOrDefault("GITHUB_RUN_ID", "local");
         CreateClusterRequest request = CreateClusterRequest.builder()
                 .deletionProtectionEnabled(true)
                 .tags(Map.of(
                         "Name", "java single region cluster",
-                        "Repo", "aws-samples/aurora-dsql-samples"
+                        "Repo", repo,
+                        "Type", "cluster-management",
+                        "RunId", runId
                 ))
                 .build();
         CreateClusterResponse cluster = client.createCluster(request);

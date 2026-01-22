@@ -42,8 +42,10 @@ func CreateMultiRegionClusters(ctx context.Context, witness, region1, region2 st
 			WitnessRegion: aws.String(witness),
 		},
 		Tags: map[string]string{
-			"Repo": os.Getenv("GITHUB_REPOSITORY"),
-			"Name": util.GetUniqueRunTagName("go multi-region cluster"),
+			"Repo":  os.Getenv("GITHUB_REPOSITORY"),
+			"Name":  util.GetUniqueRunTagName("go multi-region cluster"),
+			"Type":  "cluster-management",
+			"RunId": util.GetEnvWithDefault("GITHUB_RUN_ID", "local"),
 		},
 	}
 
@@ -64,8 +66,10 @@ func CreateMultiRegionClusters(ctx context.Context, witness, region1, region2 st
 			Clusters:      cluster2Arns,
 		},
 		Tags: map[string]string{
-			"Repo": os.Getenv("GITHUB_REPOSITORY"),
-			"Name": util.GetUniqueRunTagName("go multi-region cluster"),
+			"Repo":  os.Getenv("GITHUB_REPOSITORY"),
+			"Name":  util.GetUniqueRunTagName("go multi-region cluster"),
+			"Type":  "cluster-management",
+			"RunId": util.GetEnvWithDefault("GITHUB_RUN_ID", "local"),
 		},
 	}
 

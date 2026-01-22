@@ -1,0 +1,38 @@
+name: Delete Aurora DSQL Cluster
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      cluster-id:
+        required: true
+        type: string
+        description: 'The cluster identifier to delete'
+      region:
+        required: true
+        type: string
+        description: 'The AWS region where the cluster exists'
+    secrets:
+      AWS_IAM_ROLE:
+        required: true
+
+jobs:
+  delete:
+    name: Delete Aurora DSQL Cluster
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          aws-region: ${{ inputs.region }}
+
+      - name: Delete cluster
+        run: |
+          echo "Deleting cluster ${{ inputs.cluster-id }}..."
+          aws dsql delete-cluster --identifier "${{ inputs.cluster-id }}" > /dev/null

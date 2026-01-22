@@ -32,10 +32,15 @@ public class CreateMultiRegionClusters
         using var client1 = await CreateDSQLClient(region1);
         using var client2 = await CreateDSQLClient(region2);
 
+        var repo = Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") ?? "local";
+        var runId = Environment.GetEnvironmentVariable("GITHUB_RUN_ID") ?? "local";
+
         var tags = new Dictionary<string, string>
         {
             { "Name", "csharp multi region cluster" },
-            { "Repo", "aws-samples/aurora-dsql-samples" }
+            { "Repo", repo },
+            { "Type", "cluster-management" },
+            { "RunId", runId }
         };
 
         // We can only set the witness region for the first cluster

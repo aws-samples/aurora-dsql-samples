@@ -8,30 +8,18 @@ on:
     paths:
       - 'go/cluster_management/**'
       - '.github/workflows/go-cm-integ-tests.yml'
-      - '.github/workflows/clean-clusters.yml'
   pull_request:
     branches: [ "main" ]
     paths:
       - 'go/cluster_management/**'
       - '.github/workflows/go-cm-integ-tests.yml'
-      - '.github/workflows/clean-clusters.yml'
-  # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
-    inputs:
-      tags:
-        description: 'Manual Workflow Run'
-        required: false
-        type: string
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    concurrency:
-      # Ensure only 1 job mutates clusters in this account at a time.
-      group: ${{ github.workflow }}
     env:
       GOPROXY: direct
 
@@ -92,13 +80,11 @@ jobs:
   cleanup:
     if: always()
     needs: build
-    uses: ./.github/workflows/clean-clusters.yml
+    uses: ./.github/workflows/dsql-cluster-cleanup.yml
     with:
-      aws_region: 'us-east-1'
+      run-id: ${{ github.run_id }}
+      regions: us-east-1 us-east-2
     secrets:
       AWS_IAM_ROLE: ${{ secrets.GO_IAM_ROLE }}
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    concurrency:
-      # Ensure only 1 job mutates clusters in this account at a time.
-      group: ${{ github.workflow }}

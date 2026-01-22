@@ -13,13 +13,7 @@ on:
     paths:
       - "typescript/prisma/**"
       - ".github/workflows/typescript-prisma-integ-tests.yml"
-  # Give us a button to allow running the workflow on demand for testing.
   workflow_dispatch:
-    inputs:
-      tags:
-        description: "Manual Workflow Run"
-        required: false
-        type: string
 
 jobs:
   format:
@@ -41,13 +35,20 @@ jobs:
           npm ci
           npm run format:check
 
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: typescript-prisma
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   prisma-integ-test:
+    needs: create-cluster
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    concurrency:
-      # Ensure only 1 job uses the workflow cluster at a time.
-      group: ${{ github.workflow }}
 
     steps:
       - name: Checkout code
@@ -62,7 +63,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
-          aws-region: us-east-1
+          aws-region: ${{ needs.create-cluster.outputs.region }}
 
       - name: Download DSQL certificate
         run: |
@@ -129,8 +130,8 @@ jobs:
         working-directory: ./typescript/prisma
         env:
           CLUSTER_USER: "admin"
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
-          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           source /tmp/generate-prisma-url.sh
           configure_credentials $CLUSTER_USER
@@ -144,8 +145,8 @@ jobs:
         working-directory: ./typescript/prisma
         env:
           CLUSTER_USER: "admin"
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
-          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           source /tmp/generate-prisma-url.sh
           configure_credentials $CLUSTER_USER
@@ -180,7 +181,7 @@ jobs:
         working-directory: ./typescript/prisma
         env:
           CLUSTER_USER: "admin"
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         run: |
           npm run test -- --testPathPatterns=dsql-client
 
@@ -188,8 +189,8 @@ jobs:
         working-directory: ./typescript/prisma
         env:
           CLUSTER_USER: "admin"
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
-          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           npm run sample
 
@@ -197,8 +198,8 @@ jobs:
         working-directory: ./typescript/prisma
         env:
           CLUSTER_USER: "admin"
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
-          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           source /tmp/generate-prisma-url.sh
           configure_credentials $CLUSTER_USER
@@ -212,8 +213,8 @@ jobs:
           NON_ADMIN_USER: "myuser"
           NON_ADMIN_SCHEMA: "myschema"
           CLUSTER_ROLE: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
-          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           source /tmp/generate-prisma-url.sh
           configure_credentials $ADMIN_USER
@@ -234,8 +235,8 @@ jobs:
         env:
           CLUSTER_USER: "myuser"
           NON_ADMIN_SCHEMA: "myschema"
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
-          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           source /tmp/generate-prisma-url.sh
           configure_credentials $CLUSTER_USER
@@ -249,8 +250,8 @@ jobs:
         working-directory: ./typescript/prisma
         env:
           CLUSTER_USER: "myuser"
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
-          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           npm run sample
 
@@ -259,8 +260,8 @@ jobs:
         env:
           CLUSTER_USER: "myuser"
           NON_ADMIN_SCHEMA: "myschema"
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
-          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           source /tmp/generate-prisma-url.sh
           configure_credentials $CLUSTER_USER
@@ -274,8 +275,8 @@ jobs:
           NON_ADMIN_USER: "myuser"
           NON_ADMIN_SCHEMA: "myschema"
           CLUSTER_ROLE: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
-          CLUSTER_ENDPOINT: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_ENDPOINT }}
-          REGION: ${{ secrets.TYPESCRIPT_PRISMA_CLUSTER_REGION }}
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           source /tmp/generate-prisma-url.sh
           configure_credentials $ADMIN_USER
@@ -284,3 +285,15 @@ jobs:
           psql -c "DROP SCHEMA \"$NON_ADMIN_SCHEMA\" CASCADE"
           psql -c "AWS IAM REVOKE \"$NON_ADMIN_USER\" FROM '$CLUSTER_ROLE'"
           psql -c "DROP ROLE \"$NON_ADMIN_USER\""
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, prisma-integ-test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.TYPESCRIPT_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials

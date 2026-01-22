@@ -4,6 +4,8 @@ require "pp"
 def create_multi_region_clusters(region_1, region_2, witness_region)
   client_1 = Aws::DSQL::Client.new(region: region_1)
   client_2 = Aws::DSQL::Client.new(region: region_2)
+  repo = ENV.fetch("GITHUB_REPOSITORY", "local")
+  run_id = ENV.fetch("GITHUB_RUN_ID", "local")
 
   # We can only set the witness region for the first cluster
   puts "Creating cluster in #{region_1}"
@@ -14,7 +16,9 @@ def create_multi_region_clusters(region_1, region_2, witness_region)
     },
     tags: {
       Name: "Ruby-CM-Example-Multi-Region",
-      Repo: "aws-samples/aurora-dsql-samples"
+      Repo: repo,
+      Type: "cluster-management",
+      RunId: run_id
     }
   )
   puts "Created #{cluster_1.arn}"
@@ -29,7 +33,9 @@ def create_multi_region_clusters(region_1, region_2, witness_region)
     },
     tags: {
       Name: "Ruby-CM-Example-Multi-Region",
-      Repo: "aws-samples/aurora-dsql-samples"
+      Repo: repo,
+      Type: "cluster-management",
+      RunId: run_id
     }
   )
   puts "Created #{cluster_2.arn}"

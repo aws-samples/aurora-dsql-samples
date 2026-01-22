@@ -35,6 +35,9 @@ public class CreateMultiRegionClusters {
     }
 
     public static List<GetClusterResponse> example(DsqlClient client1, DsqlClient client2, Region witnessRegion) {
+        String repo = System.getenv().getOrDefault("GITHUB_REPOSITORY", "local");
+        String runId = System.getenv().getOrDefault("GITHUB_RUN_ID", "local");
+
         // We can only set the witness region on the first cluster.
         System.out.println("Creating cluster in " + client1.serviceClientConfiguration().region());
         CreateClusterRequest request1 = CreateClusterRequest.builder()
@@ -42,7 +45,9 @@ public class CreateMultiRegionClusters {
                 .multiRegionProperties(mrp -> mrp.witnessRegion(witnessRegion.toString()))
                 .tags(Map.of(
                         "Name", "java multi region cluster",
-                        "Repo", "aws-samples/aurora-dsql-samples"
+                        "Repo", repo,
+                        "Type", "cluster-management",
+                        "RunId", runId
                 ))
                 .build();
         CreateClusterResponse cluster1 = client1.createCluster(request1);
@@ -58,7 +63,9 @@ public class CreateMultiRegionClusters {
                 )
                 .tags(Map.of(
                         "Name", "java multi region cluster",
-                        "Repo", "aws-samples/aurora-dsql-samples"
+                        "Repo", repo,
+                        "Type", "cluster-management",
+                        "RunId", runId
                 ))
                 .build();
         CreateClusterResponse cluster2 = client2.createCluster(request2);
