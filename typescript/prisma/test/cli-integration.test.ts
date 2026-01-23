@@ -49,7 +49,6 @@ describe("CLI Integration", () => {
             const invalidSchema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -80,7 +79,6 @@ model User {
             const validSchema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -152,7 +150,6 @@ CREATE INDEX "user_idx" ON "user"("id");`;
             const invalidSchema = `
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {

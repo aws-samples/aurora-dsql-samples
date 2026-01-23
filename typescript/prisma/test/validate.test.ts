@@ -28,7 +28,6 @@ describe("Schema Validator", () => {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -48,7 +47,6 @@ model User {
             const schema = `
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -69,7 +67,6 @@ model User {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -91,7 +88,6 @@ model User {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -110,7 +106,6 @@ model User {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -131,7 +126,6 @@ model User {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -151,7 +145,6 @@ model User {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -171,7 +164,6 @@ model User {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -191,7 +183,6 @@ model User {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -213,7 +204,6 @@ model User {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -234,7 +224,6 @@ model User {
             const schema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 

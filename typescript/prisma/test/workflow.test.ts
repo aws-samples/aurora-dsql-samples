@@ -32,7 +32,6 @@ describe("Prisma DSQL Workflow", () => {
         const validSchema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -145,7 +144,6 @@ ALTER TABLE "Pet" ADD CONSTRAINT "Pet_ownerId_fkey" FOREIGN KEY ("ownerId") REFE
             const invalidSchema = `
 datasource db {
   provider     = "postgresql"
-  url          = env("DATABASE_URL")
   relationMode = "prisma"
 }
 
@@ -167,7 +165,6 @@ model User {
             const invalidSchema = `
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
