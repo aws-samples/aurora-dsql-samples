@@ -170,15 +170,15 @@ Note: The foreign key constraint is automatically removed since DSQL doesn't sup
 
 ## Incremental Migrations
 
-After your initial deployment, when you need to make schema changes (add columns, tables, indexes), use the `--from-url` option to generate a migration that only includes the differences:
+After your initial deployment, when you need to make schema changes (add columns, tables, indexes), use the `--from-config-datasource` option to generate a migration that only includes the differences:
 
 ```bash
 npm run dsql-migrate prisma/schema.prisma \
     -o prisma/migrations/002_add_email/migration.sql \
-    --from-url "$DATABASE_URL"
+    --from-config-datasource
 ```
 
-This compares your updated schema against the live database and generates only the necessary changes.
+This compares your updated schema against the live database (using credentials from `prisma.config.ts`) and generates only the necessary changes.
 
 ### Migration Ordering
 
@@ -217,7 +217,7 @@ If the primary key isn't actually changing (Prisma is just being cautious), use 
 ```bash
 npm run dsql-migrate prisma/schema.prisma \
     -o prisma/migrations/002_add_email/migration.sql \
-    --from-url "$DATABASE_URL" \
+    --from-config-datasource \
     --force
 ```
 

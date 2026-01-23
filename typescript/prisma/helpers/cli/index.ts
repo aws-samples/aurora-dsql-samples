@@ -42,7 +42,7 @@ Examples:
   npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
 
   # Incremental migration (after schema changes)
-  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/002_changes/migration.sql --from-url "$DATABASE_URL"
+  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/002_changes/migration.sql --from-config-datasource
 
   # Manual workflow
   npm run validate prisma/schema.prisma
@@ -118,7 +118,7 @@ Examples:
   npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/001_init/migration.sql
 
   # Incremental migration (after schema changes)
-  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/002_changes/migration.sql --from-url "$DATABASE_URL"
+  npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/002_changes/migration.sql --from-config-datasource
 `);
         process.exit(0);
     }
@@ -126,6 +126,7 @@ Examples:
     let schemaPath: string | null = null;
     let outputFile: string | null = null;
     let fromUrl: string | null = null;
+    let fromConfigDatasource = false;
     let fromEmpty = false;
     let includeHeader = true;
     let force = false;
@@ -140,6 +141,8 @@ Examples:
                 console.error("Error: --from-url requires a URL argument");
                 process.exit(1);
             }
+        } else if (args[i] === "--from-config-datasource") {
+            fromConfigDatasource = true;
         } else if (args[i] === "--from-empty") {
             fromEmpty = true;
         } else if (args[i] === "--no-header") {
@@ -168,7 +171,7 @@ Examples:
     }
 
     // Default to --from-empty if no --from-* option specified
-    if (!fromUrl && !fromEmpty) {
+    if (!fromUrl && !fromConfigDatasource && !fromEmpty) {
         fromEmpty = true;
     }
 
@@ -193,10 +196,17 @@ Examples:
     }
 
     // Step 2: Generate migration using Prisma
-    const fromSource = fromUrl ? "database" : "empty";
+    const fromSource = fromUrl || fromConfigDatasource ? "database" : "empty";
     console.log(`\nGenerating migration (from ${fromSource})...`);
 
-    const fromArg = fromUrl ? `--from-url "${fromUrl}"` : "--from-empty";
+    let fromArg: string;
+    if (fromUrl) {
+        fromArg = `--from-url "${fromUrl}"`;
+    } else if (fromConfigDatasource) {
+        fromArg = "--from-config-datasource";
+    } else {
+        fromArg = "--from-empty";
+    }
     const prismaCmd = `npx prisma migrate diff ${fromArg} --to-schema "${schemaPath}" --script`;
 
     let rawSql: string;
