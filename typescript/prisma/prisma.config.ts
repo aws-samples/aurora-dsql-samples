@@ -15,7 +15,7 @@ async function extractRegionFromEndpoint(endpoint: string): Promise<string> {
 async function getDatabaseUrl(): Promise<string | undefined> {
     const endpoint = process.env.CLUSTER_ENDPOINT;
     if (!endpoint) {
-        console.warn(
+        console.error(
             "CLUSTER_ENDPOINT not set - database operations will fail",
         );
         return undefined;
