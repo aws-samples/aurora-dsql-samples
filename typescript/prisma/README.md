@@ -287,17 +287,9 @@ Install all required packages for the Prisma example:
 npm install
 ```
 
-### Build the project
-
-Build the TypeScript code. This works without database credentials:
-
-```bash
-npm run build
-```
-
 ### Set environment variables
 
-Set environment variables for your cluster details:
+Set environment variables for your cluster details. These are required for all Prisma commands:
 
 ```bash
 # e.g. "admin"
@@ -305,6 +297,14 @@ export CLUSTER_USER="<your user>"
 
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your endpoint>"
+```
+
+### Build the project
+
+Build the TypeScript code:
+
+```bash
+npm run build
 ```
 
 ### Database migrations

@@ -12,13 +12,10 @@ async function extractRegionFromEndpoint(endpoint: string): Promise<string> {
     return match[1];
 }
 
-async function getDatabaseUrl(): Promise<string | undefined> {
+async function getDatabaseUrl(): Promise<string> {
     const endpoint = process.env.CLUSTER_ENDPOINT;
     if (!endpoint) {
-        console.error(
-            "CLUSTER_ENDPOINT not set - database operations will fail",
-        );
-        return undefined;
+        throw new Error("CLUSTER_ENDPOINT environment variable is required");
     }
 
     const user = process.env.CLUSTER_USER ?? "admin";
