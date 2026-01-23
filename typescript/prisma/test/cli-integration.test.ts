@@ -23,9 +23,9 @@ describe("CLI Integration", () => {
     describe("README golden path workflow", () => {
         test("prisma migrate diff | dsql-transform produces valid output", () => {
             // This is the exact command from the README:
-            // npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script | npm run dsql-transform
+            // npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script | npm run dsql-transform
             const output = execSync(
-                "npx prisma migrate diff --from-empty --to-schema-datamodel prisma/veterinary-schema.prisma --script | npm run dsql-transform -- --no-header 2>/dev/null",
+                "npx prisma migrate diff --from-empty --to-schema prisma/veterinary-schema.prisma --script | npm run dsql-transform -- --no-header 2>/dev/null",
                 { cwd: path.join(__dirname, ".."), encoding: "utf-8" },
             );
 

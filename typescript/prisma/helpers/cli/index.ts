@@ -46,7 +46,7 @@ Examples:
 
   # Manual workflow
   npm run validate prisma/schema.prisma
-  npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script | npm run dsql-transform > migration.sql
+  npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script | npm run dsql-transform > migration.sql
 `;
 
 async function main(): Promise<void> {
@@ -197,7 +197,7 @@ Examples:
     console.log(`\nGenerating migration (from ${fromSource})...`);
 
     const fromArg = fromUrl ? `--from-url "${fromUrl}"` : "--from-empty";
-    const prismaCmd = `npx prisma migrate diff ${fromArg} --to-schema-datamodel "${schemaPath}" --script`;
+    const prismaCmd = `npx prisma migrate diff ${fromArg} --to-schema "${schemaPath}" --script`;
 
     let rawSql: string;
     try {
@@ -282,7 +282,7 @@ Examples:
   npm run dsql-transform raw.sql -o migration.sql
 
   # Transform using pipes
-  npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script | npm run dsql-transform > migration.sql
+  npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script | npm run dsql-transform > migration.sql
 
   # Without header comment
   npm run dsql-transform raw.sql --no-header -o migration.sql

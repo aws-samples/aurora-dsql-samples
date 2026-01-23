@@ -56,7 +56,7 @@ For more control over each step, you can run the tools separately:
     # Generate and transform in one step
     npx prisma migrate diff \
         --from-empty \
-        --to-schema-datamodel prisma/schema.prisma \
+        --to-schema prisma/schema.prisma \
         --script | npm run dsql-transform > prisma/migrations/001_init/migration.sql
     ```
 
@@ -117,7 +117,7 @@ npm run dsql-transform raw.sql -o migration.sql
 # Transform using pipes (recommended)
 npx prisma migrate diff \
     --from-empty \
-    --to-schema-datamodel prisma/schema.prisma \
+    --to-schema prisma/schema.prisma \
     --script | npm run dsql-transform > migration.sql
 ```
 
@@ -287,6 +287,14 @@ Install all required packages for the Prisma example:
 npm install
 ```
 
+### Build the project
+
+Build the TypeScript code. This works without database credentials:
+
+```bash
+npm run build
+```
+
 ### Set environment variables
 
 Set environment variables for your cluster details:
@@ -301,27 +309,7 @@ export CLUSTER_ENDPOINT="<your endpoint>"
 
 ### Database migrations
 
-Before running the example, you need to apply database migrations to create the required tables. Prisma's migration
-tool requires a `DATABASE_URL` environment variable with authentication credentials.
-
-Generate an authentication token following the instructions in
-the [Aurora DSQL authentication token guide](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_authentication-token.html)
-and set it as the `CLUSTER_PASSWORD` environment variable, then set up the database URL:
-
-```bash
-# Set schema based on user type.
-if [ "$CLUSTER_USER" = "admin" ]; then
-  export SCHEMA="public"
-else
-  export SCHEMA="myschema"
-fi
-
-# URL-encode password for consumption by Prisma.
-export ENCODED_PASSWORD=$(python -c "from urllib.parse import quote; print(quote('$CLUSTER_PASSWORD', safe=''))")
-
-# Set up DATABASE_URL for Prisma migrations.
-export DATABASE_URL="postgresql://$CLUSTER_USER:$ENCODED_PASSWORD@$CLUSTER_ENDPOINT:5432/postgres?sslmode=verify-full&schema=$SCHEMA"
-```
+Before running the example, you need to apply database migrations to create the required tables. The `prisma.config.ts` file handles IAM authentication automatically using your AWS credentials.
 
 Apply the database migrations:
 
