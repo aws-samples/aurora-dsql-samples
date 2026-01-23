@@ -3,7 +3,9 @@ import { defineConfig } from "prisma/config";
 import { DsqlSigner } from "@aws-sdk/dsql-signer";
 
 async function extractRegionFromEndpoint(endpoint: string): Promise<string> {
-    const match = endpoint.match(/^[a-z0-9]+\.dsql(?:-[^.]+)?\.([a-z0-9-]+)\.on\.aws$/);
+    const match = endpoint.match(
+        /^[a-z0-9]+\.dsql(?:-[^.]+)?\.([a-z0-9-]+)\.on\.aws$/,
+    );
     if (!match) {
         throw new Error(`Unknown DSQL endpoint format: ${endpoint}`);
     }
@@ -13,12 +15,15 @@ async function extractRegionFromEndpoint(endpoint: string): Promise<string> {
 async function getDatabaseUrl(): Promise<string | undefined> {
     const endpoint = process.env.CLUSTER_ENDPOINT;
     if (!endpoint) {
-        console.warn("CLUSTER_ENDPOINT not set - database operations will fail");
+        console.warn(
+            "CLUSTER_ENDPOINT not set - database operations will fail",
+        );
         return undefined;
     }
 
     const user = process.env.CLUSTER_USER ?? "admin";
-    const region = process.env.AWS_REGION ?? await extractRegionFromEndpoint(endpoint);
+    const region =
+        process.env.AWS_REGION ?? (await extractRegionFromEndpoint(endpoint));
     const schema = user === "admin" ? "public" : "myschema";
 
     const signer = new DsqlSigner({ hostname: endpoint, region });
