@@ -15,19 +15,19 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |     C++     |                   [libpq](cpp/libpq)                    |
 | C# (dotnet) |                 [Npgsql](dotnet/npgsql)                 |
 |     Go      |              [pgx](go/dsql-pgx-connector/)              |
-|    Java     |        [HikariCP + pgJDBC](java/pgjdbc)        |
+|    Java     |            [HikariCP + pgJDBC](java/pgjdbc)             |
 |    Java     |               [Liquibase](java/liquibase)               |
-|    Java     |                  [pgJDBC](java/pgjdbc)                  |
+|    Java     |             [Spring Boot](java/spring_boot)             |
 | JavaScript  |          [AWS Lambda + node-postgres](lambda/)          |
 | JavaScript  | [node-postgres (standalone)](javascript/node-postgres/) |
 | JavaScript  |         [Postgres.js](javascript/postgres-js/)          |
+|   Python    |                [asyncpg](python/asyncpg)                |
 |   Python    |                [Jupyter](python/jupyter)                |
-|   Python    |               [asyncpg](python/asyncpg)                |
 |   Python    |               [psycopg](python/psycopg/)                |
 |   Python    |              [psycopg2](python/psycopg2/)               |
 |   Python    |             [SQLAlchemy](python/sqlalchemy)             |
-|    Ruby     |                   [Rails](ruby/rails)                   |
 |    Ruby     |                   [pg](ruby/ruby-pg)                    |
+|    Ruby     |                   [Rails](ruby/rails)                   |
 |    Rust     |                    [sqlx](rust/sqlx)                    |
 | Typescript  |               [Prisma](typescript/prisma)               |
 | Typescript  |            [Sequelize](typescript/sequelize)            |
@@ -44,6 +44,19 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |   Python    |   [cluster_management](python/cluster_management)   |
 |    Ruby     |    [cluster_management](ruby/cluster_management)    |
 |    Rust     |    [cluster_management](rust/cluster_management)    |
+
+
+|  Language   |                    Token Generation                     |
+|:-----------:|:-------------------------------------------------------:|
+|     CLI     |          [generate_token](cli/authentication)           |
+|     C++     |          [generate_token](cpp/authentication)           |
+| C# (dotnet) |         [generate_token](dotnet/authentication)         |
+|     Go      |           [generate_token](go/authentication)           |
+|    Java     |          [generate_token](java/authentication)          |
+| JavaScript  |       [generate_token](javascript/authentication)       |
+|   Python    |         [generate_token](python/authentication)         |
+|    Ruby     |          [generate_token](ruby/authentication)          |
+|    Rust     |          [generate_token](rust/authentication)          |
 
 Each example includes language and client-specific instructions as well as instructions to invoke example code.
 
