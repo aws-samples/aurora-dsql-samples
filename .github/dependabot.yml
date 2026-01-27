@@ -79,11 +79,6 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
-  - package-ecosystem: "pip"
-    directory: "/python/sqlalchemy"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
   - package-ecosystem: "cargo"
     directory: "/rust/cluster_management"
     schedule:
