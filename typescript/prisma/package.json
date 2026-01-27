@@ -32,6 +32,6 @@
         "@prisma/adapter-pg": "^7.3.0",
         "@prisma/client": "^6.12.0",
         "@types/pg": "^8.15.6",
-        "pg": "^8.17.1"
+        "pg": "^8.17.2"
     }
 }
