@@ -1,7 +1,5 @@
-"""
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-SPDX-License-Identifier: Apache-2.0
-"""
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 import asyncio
 import os
@@ -78,9 +76,7 @@ async def main():
         assert cluster_user is not None, "CLUSTER_USER environment variable is not set"
 
         cluster_endpoint = os.environ.get("CLUSTER_ENDPOINT", None)
-        assert (
-            cluster_endpoint is not None
-        ), "CLUSTER_ENDPOINT environment variable is not set"
+        assert cluster_endpoint is not None, "CLUSTER_ENDPOINT environment variable is not set"
 
         conn = await create_connection(cluster_user, cluster_endpoint)
         await exercise_connection(conn)

@@ -1,0 +1,48 @@
+{
+  "name": "aurora-dsql-query-editor-sample",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "webpack serve --mode development",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sts": "^3.971.0",
+    "@aws-sdk/types": "^3.914.0",
+    "@aws/aurora-dsql-postgresjs-connector": "^0.2.0",
+    "buffer": "^6.0.3",
+    "net-browserify": "^0.2.4",
+    "performance-now": "^2.1.0",
+    "postgres": "^3.4.7",
+    "process": "^0.11.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "setimmediate": "^1.0.5",
+    "timers-browserify": "^2.0.12"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.22.0",
+    "@babel/preset-react": "^7.22.0",
+    "@eslint/js": "^9.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/webpack": "^5.28.5",
+    "@types/webpack-dev-server": "^4.7.1",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "babel-loader": "^9.1.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "html-webpack-plugin": "^5.5.0",
+    "ts-loader": "^9.4.0",
+    "typescript": "^5.0.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0",
+    "webpack-dev-server": "^5.2.1"
+  },
+  "overrides": {
+    "ws": "^8.18.0"
+  }
+}
