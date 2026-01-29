@@ -5,7 +5,7 @@
     "scripts": {
         "prisma:generate": "npx prisma generate --schema=prisma/veterinary-schema.prisma",
         "prisma:migrate-up": "PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy --schema=prisma/veterinary-schema.prisma",
-        "prisma:migrate-down": "npx prisma db execute --file prisma/migrations/0_init/down.sql --schema prisma/veterinary-schema.prisma",
+        "prisma:migrate-down": "npx prisma db execute --file prisma/migrations/0_init/down.sql",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "prebuild": "npm run prisma:generate",
@@ -13,7 +13,7 @@
         "presample": "npm run build",
         "sample": "tsx src/index.ts",
         "pretest": "npm run build",
-        "test": "jest",
+        "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
         "validate": "tsx helpers/cli/index.ts validate",
         "dsql-transform": "tsx helpers/cli/index.ts transform",
         "dsql-migrate": "tsx helpers/cli/index.ts migrate"
@@ -22,16 +22,20 @@
         "@types/jest": "^30.0.0",
         "@types/node": "^25.0.9",
         "prettier": "^3.8.1",
-        "prisma": "^6.12.0",
+        "prisma": "^7.3.0",
         "ts-jest": "^29.4.1",
         "tsx": "^4.20.3",
         "typescript": "^5.8.3"
     },
     "dependencies": {
+        "@aws-sdk/dsql-signer": "^3.971.0",
         "@aws/aurora-dsql-node-postgres-connector": "^0.1.7",
         "@prisma/adapter-pg": "^7.3.0",
-        "@prisma/client": "^6.12.0",
+        "@prisma/client": "^7.3.0",
         "@types/pg": "^8.15.6",
         "pg": "^8.17.2"
+    },
+    "overrides": {
+        "lodash": "^4.17.22"
     }
 }

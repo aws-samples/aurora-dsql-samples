@@ -2,7 +2,7 @@
 --
 --      npx prisma migrate diff
 --          --from-empty
---          --to-schema-datamodel prisma/veterinary-schema.prisma
+--          --to-schema prisma/veterinary-schema.prisma
 --          --script
 --          > prisma/migrations/0_init/migration.sql
 --
