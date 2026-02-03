@@ -3,17 +3,10 @@ name: Python SQLAlchemy integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'python/sqlalchemy/**'
-      - '.github/workflows/python-sqlalchemy-integ-tests.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'python/sqlalchemy/**'
-      - '.github/workflows/python-sqlalchemy-integ-tests.yml'
-  workflow_dispatch:
 
 jobs:
   create-cluster:

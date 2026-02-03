@@ -3,17 +3,10 @@ name: Go SDK cluster management integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ "main" ]
-    paths:
-      - 'go/cluster_management/**'
-      - '.github/workflows/go-cm-integ-tests.yml'
-  pull_request:
-    branches: [ "main" ]
-    paths:
-      - 'go/cluster_management/**'
-      - '.github/workflows/go-cm-integ-tests.yml'
-  workflow_dispatch:
 
 jobs:
   build:

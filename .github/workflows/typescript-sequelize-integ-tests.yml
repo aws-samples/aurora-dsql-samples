@@ -3,19 +3,10 @@ name: TypeScript Sequelize integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ "main" ]
-    paths:
-      - 'typescript/sequelize/**'
-      - '.github/workflows/typescript-sequelize-integ-tests.yml'
-
-  pull_request:
-    branches: [ "main" ]
-    paths:
-      - 'typescript/sequelize/**'
-      - '.github/workflows/typescript-sequelize-integ-tests.yml'
-
-  workflow_dispatch:
 
 jobs:
   create-cluster:

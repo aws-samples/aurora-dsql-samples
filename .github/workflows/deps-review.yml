@@ -2,13 +2,12 @@ name: 'Dependency Review'
 
 permissions: {}
 
-on: [pull_request]
+on:
+  workflow_call: {}
 
 jobs:
   dependency-review:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read # required by actions/dependency-review-action
     steps:
       - name: 'Checkout Repository'
         uses: actions/checkout@v6
