@@ -3,17 +3,10 @@ name: Ruby pg integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'ruby/ruby-pg/**'
-      - '.github/workflows/ruby-rubypg-integ-tests.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'ruby/ruby-pg/**'
-      - '.github/workflows/ruby-rubypg-integ-tests.yml'
-  workflow_dispatch:
 
 jobs:
   create-cluster:

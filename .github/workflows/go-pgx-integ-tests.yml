@@ -3,17 +3,10 @@ name: Go pgx integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ "main" ]
-    paths:
-      - 'go/dsql-pgx-connector/**'
-      - '.github/workflows/go-pgx-integ-tests.yml'
-  pull_request:
-    branches: [ "main" ]
-    paths:
-      - 'go/dsql-pgx-connector/**'
-      - '.github/workflows/go-pgx-integ-tests.yml'
-  workflow_dispatch:
 
 jobs:
   create-cluster:

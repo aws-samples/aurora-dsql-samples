@@ -3,17 +3,10 @@ name: JavaScript node-postgres integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'javascript/node-postgres/**'
-      - '.github/workflows/javascript-node-postgres-integ-tests.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'javascript/node-postgres/**'
-      - '.github/workflows/javascript-node-postgres-integ-tests.yml'
-  workflow_dispatch:
 
 jobs:
   create-cluster:

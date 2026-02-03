@@ -3,17 +3,10 @@ name: Python Psycopg2 integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'python/psycopg2/**'
-      - '.github/workflows/python-psycopg2-integ-tests.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'python/psycopg2/**'
-      - '.github/workflows/python-psycopg2-integ-tests.yml'
-  workflow_dispatch:
 
 jobs:
   create-cluster:

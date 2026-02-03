@@ -3,17 +3,10 @@ name: Java Spring Boot integration tests
 permissions: { }
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - "java/spring_boot/**"
-      - ".github/workflows/java-spring-boot-integ-tests.yml"
-  pull_request:
-    branches: [ main ]
-    paths:
-      - "java/spring_boot/**"
-      - ".github/workflows/java-spring-boot-integ-tests.yml"
-  workflow_dispatch:
 
 jobs:
   create-cluster:

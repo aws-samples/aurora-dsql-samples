@@ -3,17 +3,10 @@ name: C++ libpq integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'cpp/libpq/**'
-      - '.github/workflows/cpp-libpq-integ-tests.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'cpp/libpq/**'
-      - '.github/workflows/cpp-libpq-integ-tests.yml'
-  workflow_dispatch:
 
 jobs:
   create-cluster:

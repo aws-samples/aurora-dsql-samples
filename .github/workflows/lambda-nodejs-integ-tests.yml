@@ -3,23 +3,15 @@ name: CDK Lambda DSQL Sample Test
 permissions: {}
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'lambda/**'
-      - '.github/workflows/lambda-nodejs-integ-tests.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'lambda/**'
-      - '.github/workflows/lambda-nodejs-integ-tests.yml'
-  # Give us a button to allow running the workflow on demand for testing.
+  workflow_call: {}
   workflow_dispatch:
     inputs:
       tags:
         description: 'Manual Workflow Run'
         required: false
         type: string
+  push:
+    branches: [ main ]
 
 jobs:
   build-and-deploy:
