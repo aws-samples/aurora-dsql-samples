@@ -82,34 +82,6 @@ jobs:
         run: |
           npm run build
 
-      - name: Run validator unit tests
-        working-directory: ./typescript/prisma
-        env:
-          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-        run: |
-          npm run test -- --testPathPatterns=validate
-
-      - name: Run transformer unit tests
-        working-directory: ./typescript/prisma
-        env:
-          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-        run: |
-          npm run test -- --testPathPatterns=transform
-
-      - name: Run workflow unit tests
-        working-directory: ./typescript/prisma
-        env:
-          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-        run: |
-          npm run test -- --testPathPatterns=workflow
-
-      - name: Run CLI integration tests
-        working-directory: ./typescript/prisma
-        env:
-          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-        run: |
-          npm run test -- --testPathPatterns=cli-integration
-
       - name: Create psql auth helper
         run: |
           cat > /tmp/configure-psql.sh << 'EOF'

@@ -10,15 +10,15 @@
         "format:check": "prettier --check .",
         "prebuild": "npm run prisma:generate",
         "build": "tsc",
-        "presample": "npm run build",
         "sample": "tsx src/index.ts",
         "pretest": "npm run build",
         "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
-        "validate": "tsx helpers/cli/index.ts validate",
-        "dsql-transform": "tsx helpers/cli/index.ts transform",
-        "dsql-migrate": "tsx helpers/cli/index.ts migrate"
+        "validate": "aurora-dsql-prisma validate",
+        "dsql-transform": "aurora-dsql-prisma transform",
+        "dsql-migrate": "aurora-dsql-prisma migrate"
     },
     "devDependencies": {
+        "@aws/aurora-dsql-prisma-tools": "^0.1.0",
         "@types/jest": "^30.0.0",
         "@types/node": "^25.0.9",
         "prettier": "^3.8.1",
