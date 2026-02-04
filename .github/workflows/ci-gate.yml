@@ -30,7 +30,6 @@ jobs:
       python-cm: ${{ steps.detect.outputs.python-cm }}
       python-psycopg2: ${{ steps.detect.outputs.python-psycopg2 }}
       python-psycopg3: ${{ steps.detect.outputs.python-psycopg3 }}
-      python-sqlalchemy: ${{ steps.detect.outputs.python-sqlalchemy }}
       ruby-cm: ${{ steps.detect.outputs.ruby-cm }}
       ruby-pg: ${{ steps.detect.outputs.ruby-pg }}
       rust-cm: ${{ steps.detect.outputs.rust-cm }}
@@ -61,7 +60,6 @@ jobs:
               'python-cm': ['python/cluster_management/', '.github/workflows/python-cm-integ-tests.yml'],
               'python-psycopg2': ['python/psycopg2/', '.github/workflows/python-psycopg2-integ-tests.yml'],
               'python-psycopg3': ['python/psycopg/', '.github/workflows/python-psycopg3-integ-tests.yml'],
-              'python-sqlalchemy': ['python/sqlalchemy/', '.github/workflows/python-sqlalchemy-integ-tests.yml'],
               'ruby-cm': ['ruby/cluster_management/', '.github/workflows/ruby-cm-integ-tests.yml'],
               'ruby-pg': ['ruby/ruby-pg/', '.github/workflows/ruby-pg-integ-tests.yml'],
               'rust-cm': ['rust/cluster_management/', '.github/workflows/rust-cm-integ-tests.yml'],
@@ -251,14 +249,6 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
-  python-sqlalchemy:
-    needs: changes
-    if: needs.changes.outputs.python-sqlalchemy == 'true'
-    uses: ./.github/workflows/python-sqlalchemy-integ-tests.yml
-    secrets: inherit
-    permissions:
-      id-token: write # required by aws-actions/configure-aws-credentials
-
   ruby-cm:
     needs: changes
     if: needs.changes.outputs.ruby-cm == 'true'
@@ -338,7 +328,6 @@ jobs:
       - python-cm
       - python-psycopg2
       - python-psycopg3
-      - python-sqlalchemy
       - ruby-cm
       - ruby-pg
       - rust-cm

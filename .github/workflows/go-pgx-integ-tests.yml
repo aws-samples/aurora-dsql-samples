@@ -40,13 +40,8 @@ jobs:
         role-to-assume: ${{ secrets.GO_IAM_ROLE }}
         aws-region: ${{ needs.create-cluster.outputs.region }}
 
-    - name: Run connector unit tests
-      working-directory: ./go/dsql-pgx-connector
-      run: |
-        go test -v ./dsql/...
-
     - name: Run integration tests
-      working-directory: ./go/dsql-pgx-connector/example
+      working-directory: ./go/pgx
       env:
         CLUSTER_USER: "admin"
         CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
