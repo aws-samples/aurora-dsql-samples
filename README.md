@@ -25,7 +25,6 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |   Python    |                [Jupyter](python/jupyter)                |
 |   Python    |               [psycopg](python/psycopg/)                |
 |   Python    |              [psycopg2](python/psycopg2/)               |
-|   Python    |             [SQLAlchemy](python/sqlalchemy)             |
 |    Ruby     |                   [pg](ruby/ruby-pg)                    |
 |    Ruby     |                   [Rails](ruby/rails)                   |
 |    Rust     |                    [sqlx](rust/sqlx)                    |
