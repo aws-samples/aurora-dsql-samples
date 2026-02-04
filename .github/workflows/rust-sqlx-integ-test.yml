@@ -3,17 +3,10 @@ name: Rust SQLx integration Tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'rust/sqlx/**'
-      - '.github/workflows/rust-sqlx-integ-test.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'rust/sqlx/**'
-      - '.github/workflows/rust-sqlx-integ-test.yml'
-  workflow_dispatch:
 
 jobs:
   create-cluster:

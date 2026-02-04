@@ -3,17 +3,10 @@ name: TypeScript TypeORM integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - "typescript/type-orm/**"
-      - ".github/workflows/typescript-type-orm-integ-tests.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "typescript/type-orm/**"
-      - ".github/workflows/typescript-type-orm-integ-tests.yml"
-  workflow_dispatch:
 
 jobs:
   create-cluster:

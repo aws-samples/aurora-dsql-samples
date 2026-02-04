@@ -3,17 +3,10 @@ name: TypeScript Prisma integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - "typescript/prisma/**"
-      - ".github/workflows/typescript-prisma-integ-tests.yml"
-  pull_request:
-    branches: [ main ]
-    paths:
-      - "typescript/prisma/**"
-      - ".github/workflows/typescript-prisma-integ-tests.yml"
-  workflow_dispatch:
 
 jobs:
   format:
@@ -77,41 +70,21 @@ jobs:
 
       - name: Build project
         working-directory: ./typescript/prisma
+        env:
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         run: |
           npm run build
 
-      - name: Run validator unit tests
-        working-directory: ./typescript/prisma
+      - name: Create psql auth helper
         run: |
-          npm run test -- --testPathPatterns=validate
-
-      - name: Run transformer unit tests
-        working-directory: ./typescript/prisma
-        run: |
-          npm run test -- --testPathPatterns=transform
-
-      - name: Run workflow unit tests
-        working-directory: ./typescript/prisma
-        run: |
-          npm run test -- --testPathPatterns=workflow
-
-      - name: Run CLI integration tests
-        working-directory: ./typescript/prisma
-        run: |
-          npm run test -- --testPathPatterns=cli-integration
-
-      - name: Create auth helper
-        run: |
-          cat > /tmp/generate-prisma-url.sh << 'EOF'
-          configure_credentials() {
+          cat > /tmp/configure-psql.sh << 'EOF'
+          configure_psql() {
             local user=$1
 
             if [ "$user" = "admin" ]; then
               local auth_type="admin-auth"
-              local schema="public"
             else
               local auth_type="auth"
-              local schema="$NON_ADMIN_SCHEMA"
             fi
 
             export PGHOST=$CLUSTER_ENDPOINT
@@ -119,10 +92,6 @@ jobs:
             export PGUSER=$user
             export PGDATABASE="postgres"
             export PGSSLMODE="verify-full"
-
-            # URL-encode password for consumption by Prisma.
-            prisma_pass=$(python -c "from urllib.parse import quote; print(quote('$PGPASSWORD', safe=''))")
-            export DATABASE_URL="postgresql://$PGUSER:$prisma_pass@$CLUSTER_ENDPOINT:5432/$PGDATABASE?sslmode=$PGSSLMODE&schema=$schema"
           }
           EOF
 
@@ -131,11 +100,7 @@ jobs:
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/generate-prisma-url.sh
-          configure_credentials $CLUSTER_USER
-
           # Ensure clean state first.
           npm run prisma:migrate-down
 
@@ -148,8 +113,8 @@ jobs:
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
           REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/generate-prisma-url.sh
-          configure_credentials $CLUSTER_USER
+          source /tmp/configure-psql.sh
+          configure_psql $CLUSTER_USER
 
           # Add a new column to the vet model (after the name field)
           sed -i '/model vet/,/^}/s/name        String      @db.VarChar(30)/name        String      @db.VarChar(30)\n  phone       String?     @db.VarChar(20)/' prisma/veterinary-schema.prisma
@@ -160,9 +125,9 @@ jobs:
           # Validate the modified schema first
           npm run validate prisma/veterinary-schema.prisma
 
-          # Generate incremental migration using --from-url
+          # Generate incremental migration using --from-config-datasource (reads from prisma.config.ts)
           # Use --force because Prisma may generate DROP CONSTRAINT for PKs
-          npm run dsql-migrate -- prisma/veterinary-schema.prisma -o prisma/migrations/incremental/migration.sql --from-url "$DATABASE_URL" --force
+          npm run dsql-migrate -- prisma/veterinary-schema.prisma -o prisma/migrations/incremental/migration.sql --from-config-datasource --force
 
           # Show what was generated
           cat prisma/migrations/incremental/migration.sql
@@ -190,7 +155,6 @@ jobs:
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           npm run sample
 
@@ -199,11 +163,7 @@ jobs:
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/generate-prisma-url.sh
-          configure_credentials $CLUSTER_USER
-
           npm run prisma:migrate-down
 
       - name: Create non-admin role
@@ -216,8 +176,8 @@ jobs:
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
           REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/generate-prisma-url.sh
-          configure_credentials $ADMIN_USER
+          source /tmp/configure-psql.sh
+          configure_psql $ADMIN_USER
 
           # Ensure clean state first.
           psql -c "REVOKE ALL PRIVILEGES ON SCHEMA \"$NON_ADMIN_SCHEMA\" FROM \"$NON_ADMIN_USER\"" || true
@@ -234,13 +194,8 @@ jobs:
         working-directory: ./typescript/prisma
         env:
           CLUSTER_USER: "myuser"
-          NON_ADMIN_SCHEMA: "myschema"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/generate-prisma-url.sh
-          configure_credentials $CLUSTER_USER
-
           # Ensure clean state first.
           npm run prisma:migrate-down
 
@@ -251,7 +206,6 @@ jobs:
         env:
           CLUSTER_USER: "myuser"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
           npm run sample
 
@@ -259,13 +213,8 @@ jobs:
         working-directory: ./typescript/prisma
         env:
           CLUSTER_USER: "myuser"
-          NON_ADMIN_SCHEMA: "myschema"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/generate-prisma-url.sh
-          configure_credentials $CLUSTER_USER
-
           npm run prisma:migrate-down
 
       - name: Clean non-admin role
@@ -278,8 +227,8 @@ jobs:
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
           REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/generate-prisma-url.sh
-          configure_credentials $ADMIN_USER
+          source /tmp/configure-psql.sh
+          configure_psql $ADMIN_USER
 
           psql -c "REVOKE ALL PRIVILEGES ON SCHEMA \"$NON_ADMIN_SCHEMA\" FROM \"$NON_ADMIN_USER\""
           psql -c "DROP SCHEMA \"$NON_ADMIN_SCHEMA\" CASCADE"

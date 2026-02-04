@@ -1,0 +1,26 @@
+# Auto-approves and enables squash merge for Dependabot PRs.
+# Merge occurs after CI Gate passes.
+name: Dependabot Auto-merge
+
+permissions: {}
+
+on:
+  pull_request:
+
+jobs:
+  automerge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # required to approve PR
+      contents: write # required to enable auto-merge
+    steps:
+      - uses: dependabot/fetch-metadata@v2
+
+      - name: Approve and enable auto-merge
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --squash "$PR_URL"

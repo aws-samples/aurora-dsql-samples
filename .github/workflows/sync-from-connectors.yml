@@ -15,31 +15,36 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Clone connectors
+      - name: Clone connectors mono-repo
         run: |
-          git clone --depth 1 https://github.com/awslabs/aurora-dsql-python-connector.git /tmp/python
-          git clone --depth 1 https://github.com/awslabs/aurora-dsql-nodejs-connector.git /tmp/nodejs
-          git clone --depth 1 https://github.com/awslabs/aurora-dsql-jdbc-connector.git /tmp/jdbc
+          git clone --depth 1 https://github.com/awslabs/aurora-dsql-connectors.git /tmp/connectors
 
       - name: Sync Python examples
         run: |
-          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/python/examples/psycopg/src/ python/psycopg/src/
-          rsync -av --delete --exclude='*no_connector*' /tmp/python/examples/psycopg/test/ python/psycopg/test/
-          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/python/examples/psycopg2/src/ python/psycopg2/src/
-          rsync -av --delete --exclude='*no_connector*' /tmp/python/examples/psycopg2/test/ python/psycopg2/test/
-          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/python/examples/asyncpg/src/ python/asyncpg/src/
-          rsync -av --delete --exclude='*no_connector*' /tmp/python/examples/asyncpg/test/ python/asyncpg/test/
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/connectors/python/connector/examples/psycopg/src/ python/psycopg/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/connectors/python/connector/examples/psycopg/test/ python/psycopg/test/
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/connectors/python/connector/examples/psycopg2/src/ python/psycopg2/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/connectors/python/connector/examples/psycopg2/test/ python/psycopg2/test/
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/connectors/python/connector/examples/asyncpg/src/ python/asyncpg/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/connectors/python/connector/examples/asyncpg/test/ python/asyncpg/test/
 
       - name: Sync Node.js examples
         run: |
-          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/nodejs/packages/node-postgres/example/src/ javascript/node-postgres/src/
-          rsync -av --delete --exclude='*no_connector*' /tmp/nodejs/packages/node-postgres/example/test/ javascript/node-postgres/test/
-          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/nodejs/packages/postgres-js/example/src/ javascript/postgres-js/src/
-          rsync -av --delete --exclude='*no_connector*' /tmp/nodejs/packages/postgres-js/example/test/ javascript/postgres-js/test/
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/connectors/node/node-postgres/example/src/ javascript/node-postgres/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/connectors/node/node-postgres/example/test/ javascript/node-postgres/test/
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/connectors/node/postgres-js/example/src/ javascript/postgres-js/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/connectors/node/postgres-js/example/test/ javascript/postgres-js/test/
 
       - name: Sync Java examples
         run: |
-          rsync -av --delete --exclude='*NoConnector*' --exclude='README.md' /tmp/jdbc/examples/pgjdbc/src/ java/pgjdbc/src/
+          rsync -av --delete --exclude='*NoConnector*' --exclude='README.md' /tmp/connectors/java/jdbc/examples/pgjdbc/src/ java/pgjdbc/src/
+
+      - name: Sync Go examples
+        run: |
+          rsync -av --delete --exclude='README.md' /tmp/connectors/go/pgx/example/src/ go/pgx/src/
+          rsync -av --delete --exclude='README.md' /tmp/connectors/go/pgx/example/test/ go/pgx/test/
+          # Update import paths in test files from connector repo to samples repo
+          find go/pgx/test -name '*.go' -exec sed -i 's|github.com/awslabs/aurora-dsql-connectors/go/pgx/example/src|github.com/aws-samples/aurora-dsql-samples/go/pgx/src|g' {} +
 
       - name: Create Pull Request
         id: cpr

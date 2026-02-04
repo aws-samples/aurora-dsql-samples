@@ -3,19 +3,10 @@ name: JavaScript SDK cluster management integration tests
 permissions: {}
 
 on:
+  workflow_call: {}
+  workflow_dispatch:
   push:
     branches: ["main"]
-    paths:
-      - "javascript/cluster_management/**"
-      - ".github/workflows/javascript-cm-integ-tests.yml"
-
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "javascript/cluster_management/**"
-      - ".github/workflows/javascript-cm-integ-tests.yml"
-
-  workflow_dispatch:
 
 jobs:
   test:
