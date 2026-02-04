@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.100"
 aws-config = "1.8"
-aws-sdk-dsql = "1.49"
+aws-sdk-dsql = "1.50"
 tokio = { version = "1", features = ["full"] }
 
 # Define each example as a separate binary. This ensures customers can easily execute individual examples without
