@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-dsql": "^3.982.0",
+    "@aws-sdk/client-dsql": "^3.983.0",
     "assert": "^2.1.0"
   },
   "devDependencies": {
