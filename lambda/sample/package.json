@@ -5,7 +5,7 @@
   "main": "lambda.mjs",
   "type": "module",
   "dependencies": {
-    "@aws-sdk/dsql-signer": "^3.705.0",
+    "@aws-sdk/dsql-signer": "^3.982.0",
     "pg": "^8.13.1",
     "assert": "2.1.0"
   }
