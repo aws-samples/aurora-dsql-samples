@@ -133,7 +133,7 @@ The example includes two changelog formats:
 
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
 - [Liquibase Documentation](https://docs.liquibase.com/)
-- [Aurora DSQL Connector for JDBC](https://github.com/awslabs/aurora-dsql-jdbc-connector)
+- [Aurora DSQL Connector for JDBC](https://github.com/awslabs/aurora-dsql-connectors/tree/main/java/jdbc)
 
 ---
 
