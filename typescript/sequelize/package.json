@@ -12,7 +12,7 @@
         "test": "npm run clean && npm run build && jest dist/test"
     },
     "dependencies": {
-        "@aws/aurora-dsql-node-postgres-connector": "^0.1.7",
+        "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
         "pg": "^8.18.0",
         "pg-hstore": "^2.3.4",
         "pg-native": "^3.2.0",
