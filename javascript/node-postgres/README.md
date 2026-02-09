@@ -90,7 +90,7 @@ The example contains comments explaining the code and the operations being perfo
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-* [Aurora DSQL Node.js Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node/node-postgres)
+* [Aurora DSQL Node.js Connector for node-postgres](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node/node-postgres)
 * [node-postgres Documentation](https://node-postgres.com/)
 
 **Note:** The connector automatically extracts the region from the cluster endpoint and defaults to the `postgres` database.

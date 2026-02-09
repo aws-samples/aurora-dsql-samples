@@ -99,7 +99,7 @@ interactions.
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-* [Aurora DSQL Node.js Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node/postgres-js)
+* [Aurora DSQL Node.js Connector for Postgres.js](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node/postgres-js)
 * [Postgres.js Documentation](https://github.com/porsager/postgres)
 
 **Note:** The connector automatically extracts the region from the cluster endpoint and defaults to the `postgres` database.
