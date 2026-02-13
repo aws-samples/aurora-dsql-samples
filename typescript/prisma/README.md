@@ -65,7 +65,7 @@ npm run dsql-migrate prisma/veterinary-schema.prisma \
 
 ## About the Sample
 
-The sample uses the [Aurora DSQL Connector](https://github.com/awslabs/aurora-dsql-nodejs-connector) for automatic IAM authentication and connection pooling. It demonstrates:
+The sample uses the [Aurora DSQL Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node) for automatic IAM authentication and connection pooling. It demonstrates:
 
 - Connecting to Aurora DSQL using Prisma with IAM authentication
 - CRUD operations using Prisma's type-safe client
@@ -136,7 +136,7 @@ npm run prisma:migrate-down
 
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
 - [Unsupported PostgreSQL Features in DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-unsupported-features.html)
-- [Aurora DSQL Node.js Connector](https://github.com/awslabs/aurora-dsql-nodejs-connector)
+- [Aurora DSQL Node.js Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node)
 - [Prisma Documentation](https://www.prisma.io/docs)
 - [@aws/aurora-dsql-prisma-tools](https://www.npmjs.com/package/@aws/aurora-dsql-prisma-tools)
 
