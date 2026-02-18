@@ -107,7 +107,7 @@ The example is designed to work with both admin and non-admin users:
 ## Additional resources
 
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-- [Amazon Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-jdbc-connector)
+- [Amazon Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/java/jdbc)
 - [Spring Boot Documentation](https://spring.io/projects/spring-boot)
 - [Spring Data JDBC](https://spring.io/projects/spring-data-jdbc)
 - [HikariCP](https://github.com/brettwooldridge/HikariCP)

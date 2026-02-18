@@ -91,7 +91,7 @@ The example contains comments explaining the code and the operations being perfo
 
 ### Connecting to DSQL
 
-DSQL is PostgreSQL-compatible, so use the `postgres` dialect. The [Aurora DSQL Connector for node-postgres](https://github.com/awslabs/aurora-dsql-nodejs-connector/blob/main/packages/node-postgres/README.md) handles IAM token generation automatically. Inject the connector into Sequelize via the `dialectModule` option.
+DSQL is PostgreSQL-compatible, so use the `postgres` dialect. The [Aurora DSQL Connector for node-postgres](https://github.com/awslabs/aurora-dsql-connectors/blob/main/node/node-postgres/README.md) handles IAM token generation automatically. Inject the connector into Sequelize via the `dialectModule` option.
 
 ```ts
 import { AuroraDSQLClient } from '@aws/aurora-dsql-node-postgres-connector';
@@ -247,7 +247,7 @@ For more details on concurrency control in Aurora DSQL, see [Concurrency control
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-* [Aurora DSQL Connector for node-postgres](https://github.com/awslabs/aurora-dsql-nodejs-connector/blob/main/packages/node-postgres/README.md)
+* [Aurora DSQL Connector for node-postgres](https://github.com/awslabs/aurora-dsql-connectors/blob/main/node/node-postgres/README.md)
 * [Sequelize Documentation](https://sequelize.org/docs/v6/)
 * [AWS SDK for JavaScript Documentation](https://docs.aws.amazon.com/sdk-for-javascript/)
 ---

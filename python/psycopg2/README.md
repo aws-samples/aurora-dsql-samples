@@ -11,7 +11,7 @@ you to interact with PostgreSQL databases using Python code.
 
 ## About the code example
 
-This example uses the [Aurora DSQL Python Connector](https://github.com/awslabs/aurora-dsql-python-connector) which automatically handles IAM token generation for authentication.
+This example uses the [Aurora DSQL Python Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/python/connector) which automatically handles IAM token generation for authentication.
 
 The example demonstrates a flexible connection approach that works for both admin and non-admin users:
 
@@ -99,7 +99,7 @@ The example contains comments explaining the code and the operations being perfo
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-* [Aurora DSQL Python Connector](https://github.com/awslabs/aurora-dsql-python-connector)
+* [Aurora DSQL Python Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/python/connector)
 * [Psycopg2 Documentation](https://www.psycopg.org/docs/)
 
 **Note:** The connector automatically extracts the region from the cluster endpoint, defaults to the `postgres` database, and handles SSL configuration.
