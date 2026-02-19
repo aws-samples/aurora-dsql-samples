@@ -2,3 +2,5 @@
 pythonpath = [
   "src"
 ]
+# Prevent interpreter shutdown race condition with connection pools
+faulthandler_timeout = 10

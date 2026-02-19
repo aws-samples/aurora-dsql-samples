@@ -109,7 +109,7 @@ The example contains comments explaining the code and the operations being perfo
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-* [Amazon Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-jdbc-connector)
+* [Amazon Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/java/jdbc)
 * [pgJDBC Documentation](https://jdbc.postgresql.org/documentation/)
 * [AWS SDK for Java Documentation](https://docs.aws.amazon.com/sdk-for-java/)
 
