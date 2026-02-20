@@ -22,7 +22,7 @@
         "@types/jest": "^30.0.0",
         "@types/node": "^25.3.0",
         "prettier": "^3.8.1",
-        "prisma": "^7.4.0",
+        "prisma": "^7.4.1",
         "ts-jest": "^29.4.1",
         "tsx": "^4.20.3",
         "typescript": "^5.8.3"
