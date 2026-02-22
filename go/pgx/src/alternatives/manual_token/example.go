@@ -71,6 +71,22 @@ func GenerateDbConnectAuthToken(
 	return token, nil
 }
 
+// CreateConnectionURL builds a PostgreSQL connection URL from configuration.
+func CreateConnectionURL(dbConfig Config) string {
+	var sb strings.Builder
+	sb.WriteString("postgres://")
+	sb.WriteString(dbConfig.User)
+	sb.WriteString("@")
+	sb.WriteString(dbConfig.Host)
+	sb.WriteString(":")
+	sb.WriteString(dbConfig.Port)
+	sb.WriteString("/")
+	sb.WriteString(dbConfig.Database)
+	sb.WriteString("?sslmode=verify-full")
+	sb.WriteString("&sslnegotiation=direct")
+	return sb.String()
+}
+
 // execWithOCCRetry executes a SQL statement with retry on OCC conflicts.
 func execWithOCCRetry(ctx context.Context, pool *pgxpool.Pool, sql string, maxRetries int) error {
 	var lastErr error
@@ -87,22 +103,6 @@ func execWithOCCRetry(ctx context.Context, pool *pgxpool.Pool, sql string, maxRe
 		return err
 	}
 	return fmt.Errorf("exec failed after %d retries: %w", maxRetries, lastErr)
-}
-
-// CreateConnectionURL builds a PostgreSQL connection URL from configuration.
-func CreateConnectionURL(dbConfig Config) string {
-	var sb strings.Builder
-	sb.WriteString("postgres://")
-	sb.WriteString(dbConfig.User)
-	sb.WriteString("@")
-	sb.WriteString(dbConfig.Host)
-	sb.WriteString(":")
-	sb.WriteString(dbConfig.Port)
-	sb.WriteString("/")
-	sb.WriteString(dbConfig.Database)
-	sb.WriteString("?sslmode=verify-full")
-	sb.WriteString("&sslnegotiation=direct")
-	return sb.String()
 }
 
 func getEnv(key, defaultValue string) string {
