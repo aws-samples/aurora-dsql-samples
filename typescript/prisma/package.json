@@ -33,7 +33,7 @@
         "@prisma/adapter-pg": "^7.4.1",
         "@prisma/client": "^7.4.1",
         "@types/pg": "^8.15.6",
-        "pg": "^8.18.0"
+        "pg": "^8.19.0"
     },
     "overrides": {
         "lodash": "^4.17.22"
