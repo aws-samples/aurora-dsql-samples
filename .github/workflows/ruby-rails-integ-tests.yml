@@ -1,4 +1,4 @@
-name: Ruby pg integration tests
+name: Ruby Rails integration tests
 
 permissions: {}
 
@@ -12,7 +12,7 @@ jobs:
   create-cluster:
     uses: ./.github/workflows/dsql-cluster-create.yml
     with:
-      workflow_name: ruby-pg
+      workflow_name: ruby-rails
     secrets:
       AWS_IAM_ROLE: ${{ secrets.RUBY_IAM_ROLE }}
     permissions:
@@ -27,7 +27,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
-   
+
     - name: Set up Ruby 3.3
       uses: ruby/setup-ruby@v1
       with:
@@ -40,16 +40,18 @@ jobs:
         role-to-assume: ${{ secrets.RUBY_IAM_ROLE }}
         aws-region: ${{ needs.create-cluster.outputs.region }}
 
-    - name: Configure and run integration for ruby-pg
-      working-directory: ./ruby/ruby-pg
+    - name: Configure and run integration for Rails petclinic
+      working-directory: ./ruby/rails/petclinic
       env:
         CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         REGION: ${{ needs.create-cluster.outputs.region }}
         CLUSTER_USER: admin
+        RAILS_ENV: development
       run: |
         bundle install
         wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
-        bundle exec rake test
+        bin/rails db:migrate
+        bin/rails test
 
   delete-cluster:
     if: always() && needs.create-cluster.result == 'success'

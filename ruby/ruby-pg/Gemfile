@@ -2,6 +2,8 @@
 
 source "https://rubygems.org"
 
-gem 'pg', '1.5.9'
-gem 'rspec', '3.13.0'
-gem 'aws-sdk-dsql', '~> 1.6'
+gem "aurora-dsql-ruby-pg"
+gem "pg", "~> 1.5"
+gem "aws-sdk-dsql", "~> 1.6"
+gem "rake"
+gem "rspec", "~> 3.13"
