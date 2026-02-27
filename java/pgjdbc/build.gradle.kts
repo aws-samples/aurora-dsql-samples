@@ -23,7 +23,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:7.0.2")
     implementation("software.amazon.dsql:aurora-dsql-jdbc-connector:1.4.0")
     // AWS SDK dependencies for SDK-only example (ExampleWithNoConnector)
-    implementation("software.amazon.awssdk:dsql:2.42.2")
+    implementation("software.amazon.awssdk:dsql:2.42.3")
     implementation("org.postgresql:postgresql:42.7.10")
 
     testImplementation(platform("org.junit:junit-bom:6.0.3"))
