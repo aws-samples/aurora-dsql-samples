@@ -20,7 +20,7 @@
   "license": "ISC",
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.3.1",
+    "@types/node": "^25.3.2",
     "jest": "^30.2.0",
     "reflect-metadata": "^0.2.2",
     "typescript": "^5.9.3"
