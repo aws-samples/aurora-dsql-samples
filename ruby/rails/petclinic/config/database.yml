@@ -50,7 +50,6 @@ development:
   # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
   sslrootcert: ./root.pem
 
-  aws_rds_iam_auth_token_generator: dsql
   advisory_locks: false
   prepared_statements: false
 

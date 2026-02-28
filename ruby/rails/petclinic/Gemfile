@@ -57,6 +57,4 @@ group :test do
 end
 
 gem "pg", "~> 1.5"
-
-gem "pg-aws_rds_iam", "~> 0.6.0"
-gem "aws-sdk-dsql", "~> 1" 
+gem "aurora-dsql-ruby-pg", require: "aurora_dsql_pg"

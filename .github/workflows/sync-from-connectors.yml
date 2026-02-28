@@ -46,6 +46,11 @@ jobs:
           # Update import paths in test files from connector repo to samples repo
           find go/pgx/test -name '*.go' -exec sed -i 's|github.com/awslabs/aurora-dsql-connectors/go/pgx/example/src|github.com/aws-samples/aurora-dsql-samples/go/pgx/src|g' {} +
 
+      - name: Sync Ruby examples
+        run: |
+          rsync -av --delete --exclude='README.md' /tmp/connectors/ruby/pg/example/src/ ruby/ruby-pg/src/
+          rsync -av --delete /tmp/connectors/ruby/pg/example/test/ ruby/ruby-pg/test/
+
       - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v8
