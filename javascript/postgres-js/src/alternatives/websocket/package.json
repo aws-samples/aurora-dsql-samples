@@ -8,9 +8,9 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@aws-sdk/client-sts": "^3.982.0",
-    "@aws-sdk/types": "^3.914.0",
-    "@aws/aurora-dsql-postgresjs-connector": "^0.2.0",
+    "@aws-sdk/client-sts": "^3.971.0",
+    "@aws-sdk/types": "^3.973.4",
+    "@aws/aurora-dsql-postgresjs-connector": "^0.2.1",
     "buffer": "^6.0.3",
     "net-browserify": "^0.2.4",
     "performance-now": "^2.1.0",
@@ -43,6 +43,7 @@
     "webpack-dev-server": "^5.2.1"
   },
   "overrides": {
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "fast-xml-parser": "^5.4.1"
   }
 }
