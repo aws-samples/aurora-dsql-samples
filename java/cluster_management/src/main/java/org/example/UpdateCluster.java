@@ -17,7 +17,7 @@ public class UpdateCluster {
         try (
                 DsqlClient client = DsqlClient.builder()
                         .region(region)
-                        .credentialsProvider(DefaultCredentialsProvider.create())
+                        .credentialsProvider(DefaultCredentialsProvider.builder().build())
                         .build()
         ) {
             UpdateClusterResponse cluster = example(client, clusterId, false);

@@ -19,7 +19,7 @@ public class DeleteCluster {
         try (
                 DsqlClient client = DsqlClient.builder()
                         .region(region)
-                        .credentialsProvider(DefaultCredentialsProvider.create())
+                        .credentialsProvider(DefaultCredentialsProvider.builder().build())
                         .build()
         ) {
             example(client, clusterId);

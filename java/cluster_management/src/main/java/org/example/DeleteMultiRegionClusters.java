@@ -20,7 +20,7 @@ public class DeleteMultiRegionClusters {
                 .orElseThrow(() -> new IllegalStateException("Expected CLUSTER_2_ID in environment"));
 
         DsqlClientBuilder clientBuilder = DsqlClient.builder()
-                .credentialsProvider(DefaultCredentialsProvider.create());
+                .credentialsProvider(DefaultCredentialsProvider.builder().build());
 
         try (
             DsqlClient client1 = clientBuilder.region(region1).build();

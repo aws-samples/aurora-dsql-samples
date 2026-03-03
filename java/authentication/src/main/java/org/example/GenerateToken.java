@@ -9,7 +9,7 @@ public class GenerateAuthToken {
     public static String generateToken(String yourClusterEndpoint, Region region) {
         DsqlUtilities utilities = DsqlUtilities.builder()
                 .region(region)
-                .credentialsProvider(DefaultCredentialsProvider.create())
+                .credentialsProvider(DefaultCredentialsProvider.builder().build())
                 .build();
 
         // Use `generateDbConnectAuthToken` if you are _not_ logging in as `admin` user 
