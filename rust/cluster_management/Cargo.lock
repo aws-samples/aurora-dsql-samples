@@ -111,9 +111,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-dsql"
-version = "1.52.0"
+version = "1.53.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "451035926a3030a19cb10bfd17b4061681f76d12d9445b3131c8af59eea6155a"
+checksum = "7dbfa36f98149ddc6eb507be37e5995d4be96b5d484462f657bd3b330744b5f2"
 dependencies = [
  "aws-credential-types",
  "aws-runtime",
