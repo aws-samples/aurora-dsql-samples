@@ -1,0 +1,64 @@
+name: PHP authentication integration tests
+
+permissions: {}
+
+on:
+  workflow_call: {}
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: php-authentication
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.PHP_IAM_ROLE }}
+    permissions:
+      id-token: write
+
+  php-authentication-integ-test:
+    needs: create-cluster
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_pgsql, pgsql
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.PHP_IAM_ROLE }}
+          aws-region: ${{ needs.create-cluster.outputs.region }}
+
+      - name: Install dependencies
+        working-directory: ./php/authentication
+        run: composer install --no-interaction
+
+      - name: Run integration tests
+        working-directory: ./php/authentication
+        env:
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          REGION: ${{ needs.create-cluster.outputs.region }}
+        run: ./vendor/bin/phpunit
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, php-authentication-integ-test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.PHP_IAM_ROLE }}
+    permissions:
+      id-token: write
