@@ -31,7 +31,7 @@ class GenerateTokenTest extends TestCase
 
         $token = generateToken($endpoint, $region);
 
-        $dsn = "pgsql:host={$endpoint};port=5432;dbname=postgres;sslmode=verify-full";
+        $dsn = "pgsql:host={$endpoint};port=5432;dbname=postgres;sslmode=verify-full;sslrootcert=system";
         $pdo = new PDO($dsn, 'admin', $token);
 
         $stmt   = $pdo->query('SELECT 1 AS result');
