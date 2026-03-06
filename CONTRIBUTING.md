@@ -36,6 +36,21 @@ To send us a pull request, please:
 5. Send us a pull request, answering any default questions in the pull request interface.
 6. Pay attention to any automated CI failures reported in the pull request, and stay involved in the conversation.
 
+### CI and Integration Tests
+
+This repository runs integration tests against a live Aurora DSQL cluster using AWS credentials stored as repository secrets. For security reasons, workflows triggered from forks cannot access these secrets, so **integration tests do not run automatically on fork PRs**. Secret scanning and dependency review checks do run on fork PRs.
+
+**If you have write access to this repository**, create a feature branch directly in this repository and open a PR from that branch. This allows all CI workflows — including integration tests — to run with the required secrets.
+
+```bash
+git checkout -b feature/<short-description>
+# make your changes
+git push origin feature/<short-description>
+# open a PR from feature/<short-description> → main
+```
+
+**If you are an external contributor**, open a PR from your fork as normal and open an issue to discuss any significant work first. A maintainer will review your code and push it to a feature branch in this repository to run the full integration test suite before merging.
+
 GitHub provides additional document on [forking a repository](https://help.github.com/articles/fork-a-repo/) and
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
