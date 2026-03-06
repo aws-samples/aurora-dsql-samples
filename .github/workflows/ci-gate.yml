@@ -26,6 +26,7 @@ jobs:
       javascript-node-postgres: ${{ steps.detect.outputs.javascript-node-postgres }}
       javascript-postgresjs: ${{ steps.detect.outputs.javascript-postgresjs }}
       lambda-nodejs: ${{ steps.detect.outputs.lambda-nodejs }}
+      php-authentication: ${{ steps.detect.outputs.php-authentication }}
       python-asyncpg: ${{ steps.detect.outputs.python-asyncpg }}
       python-cm: ${{ steps.detect.outputs.python-cm }}
       python-psycopg2: ${{ steps.detect.outputs.python-psycopg2 }}
@@ -56,6 +57,7 @@ jobs:
               'javascript-node-postgres': ['javascript/node-postgres/', '.github/workflows/javascript-node-postgres-integ-tests.yml'],
               'javascript-postgresjs': ['javascript/postgres-js/', '.github/workflows/javascript-postgresjs-integ-tests.yml'],
               'lambda-nodejs': ['lambda/', '.github/workflows/lambda-nodejs-integ-tests.yml'],
+              'php-authentication': ['php/authentication/', '.github/workflows/php-authentication-integ-tests.yml'],
               'python-asyncpg': ['python/asyncpg/', '.github/workflows/python-asyncpg-integ-tests.yml'],
               'python-cm': ['python/cluster_management/', '.github/workflows/python-cm-integ-tests.yml'],
               'python-psycopg2': ['python/psycopg2/', '.github/workflows/python-psycopg2-integ-tests.yml'],
@@ -217,6 +219,14 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
+  php-authentication:
+    needs: changes
+    if: needs.changes.outputs.php-authentication == 'true'
+    uses: ./.github/workflows/php-authentication-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   python-asyncpg:
     needs: changes
     if: needs.changes.outputs.python-asyncpg == 'true'
@@ -324,6 +334,7 @@ jobs:
       - javascript-node-postgres
       - javascript-postgresjs
       - lambda-nodejs
+      - php-authentication
       - python-asyncpg
       - python-cm
       - python-psycopg2
