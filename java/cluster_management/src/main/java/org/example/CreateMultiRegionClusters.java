@@ -22,7 +22,7 @@ public class CreateMultiRegionClusters {
         Region witnessRegion = Region.of(System.getenv().getOrDefault("WITNESS_REGION", "us-west-2"));
 
         DsqlClientBuilder clientBuilder = DsqlClient.builder()
-                .credentialsProvider(DefaultCredentialsProvider.create());
+                .credentialsProvider(DefaultCredentialsProvider.builder().build());
 
         try (
             DsqlClient client1 = clientBuilder.region(region1).build();

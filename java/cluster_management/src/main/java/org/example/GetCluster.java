@@ -17,7 +17,7 @@ public class GetCluster {
         try (
                 DsqlClient client = DsqlClient.builder()
                         .region(region)
-                        .credentialsProvider(DefaultCredentialsProvider.create())
+                        .credentialsProvider(DefaultCredentialsProvider.builder().build())
                         .build()
         ) {
             GetClusterResponse cluster = client.getCluster(r -> r.identifier(clusterId));

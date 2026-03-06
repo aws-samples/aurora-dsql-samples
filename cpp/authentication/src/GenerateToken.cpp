@@ -9,8 +9,6 @@ using namespace Aws;
 using namespace Aws::DSQL;
 
 std::string generateToken(String yourClusterEndpoint, String region) {
-    Aws::SDKOptions options;
-    Aws::InitAPI(options);
     DSQLClientConfiguration clientConfig;
     clientConfig.region = region;
     DSQLClient client{clientConfig};
@@ -25,8 +23,15 @@ std::string generateToken(String yourClusterEndpoint, String region) {
     }
 
     std::cout << token << std::endl;
-
-    Aws::ShutdownAPI(options);
     return token;
+}
+
+int main() {
+    Aws::SDKOptions options;
+    Aws::InitAPI(options);
+    // Replace with your cluster endpoint and region
+    std::string token = generateToken("your_cluster_endpoint.dsql.us-east-1.on.aws", "us-east-1");
+    Aws::ShutdownAPI(options);
+    return 0;
 }
 // --8<-- [end:cpp-generate-token]

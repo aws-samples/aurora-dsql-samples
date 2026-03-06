@@ -23,7 +23,7 @@ public class ExampleWithNoConnector {
     public static Connection getConnection(String endpoint, String user, String region) throws SQLException {
         DsqlUtilities utilities = DsqlUtilities.builder()
                 .region(Region.of(region))
-                .credentialsProvider(DefaultCredentialsProvider.create())
+                .credentialsProvider(DefaultCredentialsProvider.builder().build())
                 .build();
 
         // The token expiration time is optional, and the default value is 900 seconds
