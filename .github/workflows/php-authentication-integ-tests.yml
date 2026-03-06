@@ -28,6 +28,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Enable pdo_pgsql extension
+        run: sudo phpenmod pdo_pgsql
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
