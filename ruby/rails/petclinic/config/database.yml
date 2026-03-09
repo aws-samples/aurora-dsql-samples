@@ -15,28 +15,22 @@
 default: &default
   adapter: postgresql
   encoding: unicode
+  database: postgres
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  #connection_retries: 3
+  username: <%= ENV.fetch("CLUSTER_USER") { "admin" } %>
+  host: <%= ENV['CLUSTER_ENDPOINT'] %>
   # Disable prepared statements and advisory locks for Aurora DSQL
   prepared_statements: false
   advisory_locks: false
+  sslnegotiation: direct
+  sslmode: verify-full
+  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
+  sslrootcert: ./root.pem
 
 development:
   <<: *default
-  database: postgres
-
-  # The specified database role being used to connect to PostgreSQL.
-  # To create additional roles in PostgreSQL see `$ createuser --help`.
-  # When left blank, PostgreSQL will use the default role. This is
-  # the same name as the operating system user running Rails.
-  username: <%= ENV.fetch("CLUSTER_USER") { "admin" } %>
-
-  # Connect on a TCP socket. Omitted by default since the client uses a
-  # domain socket that doesn't need configuration. Windows does not have
-  # domain sockets, so uncomment these lines.
-  host: <%= ENV['CLUSTER_ENDPOINT'] %>
 
   <% unless ENV['CLUSTER_USER'] == "admin" %>
   # 'admin' user defaults to the 'public' schema.
@@ -44,21 +38,8 @@ development:
   schema_search_path: myschema
   <% end %>
 
-  sslnegotiation: direct
-  sslmode: verify-full
-  # Provide the path to the root certificate. 
-  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
-  sslrootcert: ./root.pem
-
-  advisory_locks: false
-  prepared_statements: false
-
-# Warning: The database defined as "test" will be erased and
-# re-generated from your development database when you run "rake".
-# Do not set this db to the same as development or production.
 test:
   <<: *default
-  database: petclinic_test
 
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
