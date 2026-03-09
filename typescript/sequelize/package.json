@@ -16,7 +16,7 @@
         "pg": "^8.20.0",
         "pg-hstore": "^2.3.4",
         "pg-native": "^3.7.0",
-        "sequelize": "^6.37.5"
+        "sequelize": "^6.37.8"
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",
