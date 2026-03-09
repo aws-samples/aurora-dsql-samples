@@ -48,7 +48,8 @@ jobs:
         CLUSTER_USER: admin
       run: |
         bundle install
-        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
+        mkdir -p ~/.postgresql
+        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O ~/.postgresql/root.crt
         bundle exec rake test
 
   delete-cluster:

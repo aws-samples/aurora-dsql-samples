@@ -21,7 +21,8 @@ module DsqlTokenAuthentication
   end
 end
 
-ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(DsqlTokenAuthentication)
+# new_client is a class method in Rails 7.2, so prepend on the singleton class
+ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.singleton_class.prepend(DsqlTokenAuthentication)
 
 # Monkey-patches to disable unsupported DSQL features
 
