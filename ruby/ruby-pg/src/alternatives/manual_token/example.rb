@@ -41,7 +41,7 @@ def create_connection(cluster_user, cluster_endpoint, region)
   PG.connect(conn_params)
 end
 
-def example(conn)
+def run_queries(conn)
   # Create table
   conn.transaction do
     conn.exec('CREATE TABLE IF NOT EXISTS owner (
@@ -82,7 +82,7 @@ def main()
     if cluster_user != 'admin'
       conn.exec("SET search_path = myschema")
     end
-    example(conn)
+    run_queries(conn)
     puts "Ruby test passed"
   rescue => error
     puts error.full_message

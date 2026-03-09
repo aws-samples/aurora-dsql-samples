@@ -5,8 +5,6 @@ require "active_record/connection_adapters/postgresql_adapter"
 # Inject DSQL authentication tokens into new database connections.
 # Replaces pg-aws_rds_iam by hooking into the PostgreSQL adapter directly.
 module DsqlTokenAuthentication
-  private
-
   def new_client(conn_params)
     host = conn_params[:host]
     if host&.include?(".dsql.")
