@@ -63,4 +63,3 @@ test:
 #
 production:
   <<: *default
-  database: petclinic_production

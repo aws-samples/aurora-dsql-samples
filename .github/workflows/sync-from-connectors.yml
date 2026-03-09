@@ -48,8 +48,8 @@ jobs:
 
       - name: Sync Ruby examples
         run: |
-          rsync -av --delete --exclude='README.md' /tmp/connectors/ruby/pg/example/src/ ruby/ruby-pg/src/
-          rsync -av --delete /tmp/connectors/ruby/pg/example/test/ ruby/ruby-pg/test/
+          rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/connectors/ruby/pg/example/src/ ruby/ruby-pg/src/
+          rsync -av --delete --exclude='*no_connector*' /tmp/connectors/ruby/pg/example/test/ ruby/ruby-pg/test/
 
       - name: Create Pull Request
         id: cpr

@@ -33,6 +33,7 @@ jobs:
       with:
         ruby-version: '3.3'
         bundler-cache: true
+        working-directory: ruby/rails/petclinic
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v6

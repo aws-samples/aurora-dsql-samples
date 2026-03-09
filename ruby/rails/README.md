@@ -1,14 +1,13 @@
 # Aurora DSQL with Ruby on Rails
 
 This example demonstrates how to use an Aurora DSQL cluster with a Ruby On Rails
-application. Aurora DSQL only supports token-based authentication so we extend the
-[`pg-aws_rds_iam`][rds-plugin-repo] plugin to generate Aurora DSQL auth tokens
-when required.
+application. It uses the [`aurora-dsql-ruby-pg`][connector-gem] connector to
+automatically generate authentication tokens for new database connections.
 
 It also includes changes to ActiveRecord behavior to be compatible with Aurora DSQL
 supported features.
 
-[rds-plugin-repo]: https://github.com/haines/pg-aws_rds_iam
+[connector-gem]: https://rubygems.org/gems/aurora-dsql-ruby-pg
 
 ## Running this example
 See [`petclinic/README.md`](./petclinic/README.md).
@@ -16,55 +15,49 @@ See [`petclinic/README.md`](./petclinic/README.md).
 ## Using Aurora DSQL authentication tokens with Rails
 These are the changes to make to your Rails application to be compatible with Aurora DSQL.
 
-### Add a token generator
-To modify your Rails application to work with Aurora DSQL you should reproduce the
-`DsqlAuthTokenGenerator` in [`adapter.rb`][file-adapter].
+### Add the connector gem
+Add `aurora-dsql-ruby-pg` to your `Gemfile`:
 
 ```ruby
-require "aws-sdk-dsql"
-
-class DsqlAuthTokenGenerator
-  def call(host:, port:, user:)
-    # e.g. host == "<clusterID>.dsql.us-east-1.on.aws"
-    region = host.split(".")[2]
-    raise "Unable to extract AWS region from host '#{host}'" unless region =~ /[\w\d-]+/
-
-    token_generator = Aws::DSQL::AuthTokenGenerator.new(
-      credentials: Aws::CredentialProviderChain.new.resolve,
-    )
-
-    auth_token_params = {
-      endpoint: host,
-      region: region,
-      expires_in: 15 * 60 # 15 minutes, optional
-    }
-
-    case user
-    when "admin"
-      token_generator.generate_db_connect_admin_auth_token(auth_token_params)
-    else
-      token_generator.generate_db_connect_auth_token(auth_token_params)
-    end
-  end
-end
+gem "pg", "~> 1.5"
+gem "aurora-dsql-ruby-pg", "~> 1.0", require: "aurora_dsql_pg"
 ```
 
-`call` will be invoked when a new database connection is requested. It will:
-1. Retrieve credentials for the running environment. The `Aws::CredentialProviderChain` discovers credentials
-   in the order described in [these docs][docs-cred-provider].
-1. Determine which token type to generate based on the database user.
+### Inject DSQL tokens into new connections
+Create an initializer (e.g. [`config/initializers/adapter.rb`][file-adapter]) that
+hooks into the PostgreSQL adapter to generate tokens for each new connection:
+
+```ruby
+require "aurora_dsql_pg"
+require "active_record/connection_adapters/postgresql_adapter"
+
+module DsqlTokenAuthentication
+  def new_client(conn_params)
+    host = conn_params[:host]
+    if host&.include?(".dsql.")
+      region = AuroraDsql::Pg::Util.parse_region(host)
+      conn_params[:password] = AuroraDsql::Pg::Token.generate(
+        host: host,
+        region: region,
+        user: conn_params[:user] || "admin"
+      )
+    end
+    super
+  end
+end
+
+# new_client is a class method in Rails 7.2, so prepend on the singleton class
+ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.singleton_class.prepend(DsqlTokenAuthentication)
+```
+
+`new_client` is called when a new database connection is requested. It will:
+1. Retrieve credentials for the running environment via the default AWS credential provider chain
+   ([docs][docs-cred-provider]).
+2. Determine which token type to generate based on the database user.
 
 The retrieved credentials will need permission to `dsql:DbConnectAdmin` for the `admin` user or
 `dsql:DbConnect` for a custom user. See Aurora DSQL documentation for [IAM role connect][docs-dsql-iam]
 and [authentication token generation][docs-generate-token] for more details.
-
-
-Finally, register the adapter with the `pg-aws_rds_iam` plugin.
-```ruby
-PG::AWS_RDS_IAM.auth_token_generators.add :dsql do
-  DsqlAuthTokenGenerator.new
-end
-```
 
 [file-adapter]: ./petclinic/config/initializers/adapter.rb
 [docs-cred-provider]: https://docs.aws.amazon.com/sdk-for-ruby/v3/developer-guide/credential-providers.html
@@ -82,8 +75,6 @@ module ActiveRecord::ConnectionAdapters::PostgreSQL::SchemaStatements
   def client_min_messages=(level); end
 end
 
-require "active_record/connection_adapters/postgresql_adapter"
-
 class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
   def set_standard_conforming_strings; end
 
@@ -98,35 +89,23 @@ end
 Refer to [`database.yml`](./petclinic/config/database.yml).
 
 ```yml
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  database: postgres
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  username: <%= ENV.fetch("CLUSTER_USER") { "admin" } %>
+  host: <%= ENV['CLUSTER_ENDPOINT'] %>
+  # Disable prepared statements and advisory locks for Aurora DSQL
+  prepared_statements: false
+  advisory_locks: false
+  sslnegotiation: direct
+  sslmode: verify-full
+  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
+  sslrootcert: ./root.pem
+
 development:
   <<: *default
-
-  # Always the database name for Aurora DSQL
-  database: postgres
-
-  # eg: admin or other postgres users
-  username: <postgres username>
-
-  # Set this value based on the access of the configured user,
-  # or omit if running as 'admin' and using the 'public' schema.
-  schema_search_path: myschema
-
-  # Set to Aurora DSQL instance endpoint
-  # Use environment variables, etc for production values!
-  # e.g. {clusterId}.dsql.{region}.on.aws
-  host: foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws
-
-  # Use the custom token generator we created
-  aws_rds_iam_auth_token_generator: dsql
-
-  # Provide the path to the root certificate. 
-  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
-  sslrootcert: <replace with the path to root certificate>
-  sslmode: verify-full
-
-  # More DSQL compatibility tweaks
-  advisory_locks: false
-  prepared_statements: false
 ```
 
 ---
