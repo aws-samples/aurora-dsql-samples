@@ -7,17 +7,22 @@ module DsqlTokenAuthentication
     host = conn_params[:host]
     if host&.include?(".dsql.")
       region = AuroraDsql::Pg::Util.parse_region(host)
-      conn_params[:password] = AuroraDsql::Pg::Token.generate(
-        host: host,
-        region: region,
-        user: conn_params[:user] || "admin"
-      )
+      begin
+        conn_params[:password] = AuroraDsql::Pg::Token.generate(
+          host: host,
+          region: region,
+          user: conn_params[:user] || "admin"
+        )
+      rescue => e
+        Rails.logger.error("Failed to generate DSQL auth token: #{e.message}")
+        raise
+      end
     end
     super
   end
 end
 
-# new_client is a class method in Rails 7.2, so prepend on the singleton class
+# In Rails 7.2, new_client is a class method (not instance), so we prepend on the singleton class to intercept it.
 ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.singleton_class.prepend(DsqlTokenAuthentication)
 
 # Monkey-patches to disable unsupported DSQL features

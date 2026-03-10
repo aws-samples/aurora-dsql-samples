@@ -26,8 +26,8 @@ default: &default
   advisory_locks: false
   sslnegotiation: direct
   sslmode: verify-full
+  # libpq default: ~/.postgresql/root.crt
   # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
-  sslrootcert: ./root.pem
 
 development:
   <<: *default
