@@ -1,13 +1,14 @@
 # Aurora DSQL Pet Clinic
 This example demonstrates how to use an Aurora DSQL cluster with a Ruby On Rails
-application. Aurora DSQL only supports token-based authentication so we extend the
-[`pg-aws_rds_iam`][rds-plugin-repo] plugin to generate Aurora DSQL auth tokens
-when required.
+application. Aurora DSQL only supports token-based authentication so we hook into
+ActiveRecord's PostgreSQL adapter using the [`aurora-dsql-ruby-pg`][connector-repo]
+connector's `Token.generate()` and `Util.parse_region()` APIs to inject DSQL auth
+tokens into new database connections.
 
 It also includes changes to ActiveRecord behavior to be compatible with Aurora DSQL
 supported features.
 
-[rds-plugin-repo]: https://github.com/haines/pg-aws_rds_iam
+[connector-repo]: https://github.com/awslabs/aurora-dsql-connectors/tree/main/ruby/pg
 
 ## ⚠️ Important
 
@@ -91,7 +92,7 @@ Unlike postgres, by default, Aurora DSQL creates a primary key index by includin
 all columns of the table. This makes active record to search using all columns of
 the table instead of just primary key. So the `<Entity>.find(<primary key>)` will not
 work because active record tries to search using all columns in the primary key index.
-`.find_by(<cloumn name>: "<value>")` works fine. To make active record search only
+`.find_by(<column name>: "<value>")` works fine. To make active record search only
 using primary key column by default, we must set the primary key column explicitly 
 in the model as shown below.
 
@@ -107,7 +108,7 @@ Generate the schema from the model files in db/migrate.
 bin/rails db:migrate
 ```
 
-Finally, disable the `plpgsql` extension by modifying the `{app root directory}/db/schema.rb` . In order to disable the plpgsql extension, remove the `enable_extension "plgsql"` line.
+Finally, disable the `plpgsql` extension by modifying the `{app root directory}/db/schema.rb` . In order to disable the plpgsql extension, remove the `enable_extension "plpgsql"` line.
 
 ### 2. Create Owner
 
@@ -137,9 +138,9 @@ Owner.find("<owner id>").destroy
 
 ## Relational Mapping Examples
 
-The pet clinic example code base contains some of the typical ralationships that are often
+The pet clinic example code base contains some of the typical relationships that are often
 used in an ORM type application. This includes representations of one-to-one, one-to-many and
-also many-to-many definitions.The following examples show how to support these scenarios within
+also many-to-many definitions. The following examples show how to support these scenarios within
 Aurora DSQL, and enable building relational structured models in this environment.  The various
 model definitions capturing the relationships can be found in the `app/models` directory.
 

@@ -1,9 +1,9 @@
-# Aurora DSQL with Ruby-pg
+# Aurora DSQL with ruby-pg
 
 ## Overview
 
-This code example demonstrates how to use Ruby-pg to interact with Amazon Aurora DSQL (DSQL). The example shows you how
-to connect to an Aurora DSQL cluster and perform basic database operations.
+This code example demonstrates how to use ruby-pg with Amazon Aurora DSQL.
+The example shows you how to connect to an Aurora DSQL cluster and perform basic database operations.
 
 Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
 your PostgreSQL-compatible applications. Ruby-pg is a popular PostgreSQL adapter for Ruby that allows
@@ -11,15 +11,20 @@ you to interact with PostgreSQL databases using Ruby code.
 
 ## About the code example
 
-The example demonstrates a flexible connection approach that works for both admin and non-admin users:
+This example uses the [Aurora DSQL Ruby-pg Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/ruby/pg) which automatically handles IAM token generation for authentication.
 
-* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication
-  token.
-* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard
-  authentication token. The `myschema` schema needs to be created prior to running the example and the **non-admin user** needs to be granted access to the schema.
+The preferred example (`src/example_preferred.rb`) uses `AuroraDsql::Pg.create_pool()` with automatic
+token management, connection pooling, and OCC retry.
 
-The code automatically detects the user type and adjusts its behavior accordingly.
-The example contains comments explaining the code and the operations being performed.
+An alternative manual token approach is available in `src/alternatives/manual_token/`. This example
+uses the raw `pg` gem with `aws-sdk-dsql` to generate tokens directly, which is useful for custom
+authentication flows or when you need finer-grained control over connections.
+
+The manual token alternative demonstrates a flexible connection approach that works for both admin
+and non-admin users:
+
+* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication token.
+* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard authentication token.
 
 ## ⚠️ Important
 
@@ -30,19 +35,6 @@ The example contains comments explaining the code and the operations being perfo
 * This code is not tested in every AWS Region. For more information, see
   [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
 
-## TLS connection configuration
-
-This example uses direct TLS connections where supported, and verifies the server certificate is trusted. Verified SSL
-connections should be used where possible to ensure data security during transmission.
-
-* Driver versions following the release of PostgreSQL 17 support direct TLS connections, bypassing the traditional
-  PostgreSQL connection preamble
-* Direct TLS connections provide improved connection performance and enhanced security
-* Not all PostgreSQL drivers support direct TLS connections yet, or only in recent versions following PostgreSQL 17
-* Ensure your installed driver version supports direct TLS negotiation, or use a version that is at least as recent as
-  the one used in this sample
-* If your driver doesn't support direct TLS connections, you may need to use the traditional preamble connection instead
-
 ## Run the example
 
 ### Prerequisites
@@ -51,95 +43,86 @@ connections should be used where possible to ensure data security during transmi
   configured as described in the
   [Globally configuring AWS SDKs and tools](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html)
   guide.
-* You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the
-  [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html)
-  guide.
-* If connecting as a non-admin user, ensure the user is linked to an IAM role and is granted access to the `myschema`
-  schema. See the
-  [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
-  guide.
-
-
-### Driver Dependencies
-
-Before using the Ruby-pg driver, ensure you have the following prerequisites installed:
-Ruby: Ensure you have ruby v3+ installed from the [official website](https://www.ruby-lang.org/en/documentation/installation/).
-
-Verify install
+* Ruby 3+ installed from the [official website](https://www.ruby-lang.org/en/documentation/installation/).
 
 ```bash
 ruby --version
 ```
 
-### Libpq library
+* Libpq is required by ruby-pg. It is included with PostgreSQL installations. On systems without
+  PostgreSQL, install it via a package manager:
+  - Amazon Linux: `sudo yum install libpq-devel`
+  - macOS (Homebrew): `brew install libpq`
+  - Or download from the [official website](https://www.postgresql.org/download/)
 
-Libpq is required by Ruby-pg
+  You may need to add libpq to your PATH:
+  ```bash
+  export PATH="$PATH:<your installed location>/libpq/bin"
+  ```
 
-#### Obtaining the libpq library
+* You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the
+  [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html)
+  guide.
+* If connecting as a non-admin user (manual token alternative), ensure the user is linked to an IAM role and is granted
+  access to the `myschema` schema. See the
+  [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
+  guide.
 
-- It is installed with postgres installation. Therefore, if postgres is installed on the system the libpq is present in ../postgres_install_dir/lib, ../postgres_install_dir/include
-- It is installed when psql client program is installed, similarily as with postgres installation. 
-- On some systems libpq can be installed through package manager  e.g.
-  - On Amazon Linux
-    ```
-    sudo yum install libpq-devel
-    ```
-  - On Mac libpq can be installed using brew
-    ```
-    brew install libpq
-    ```
-- The [official website](https://www.postgresql.org/download/) may have a package for libpq or psql (which bundles libpq)
-- Ultimately, build from source which also can be obtained from [official website](https://www.postgresql.org/ftp/source/) 
+### Run the code
 
-#### Add libpq to PATH
+The example demonstrates the following operations:
 
-In some cases, it may be necessary to add the location of the libpq/bin directory to PATH 
+- Opening a connection pool to an Aurora DSQL cluster
+- Creating a table
+- Inserting data with transactional writes
+- Running concurrent queries using the pool
 
-```
-export PATH="$PATH:<your installed location>/libpq/bin"
-```
+**Note:** Running the example will use actual resources in your AWS account and may incur charges.
 
-### Install Ruby-pg, Aurora DSQL SDK and other required dependencies
-
-- All the required dependencies are present in the `Gemfile` file. To get all the required dependencies, run the following command from the directory where the `Gemfile` is present.
+Install dependencies:
 
 ```bash
 bundle install
 ```
 
-### Download the Amazon root certificate from the official trust store
+Set environment variables for your cluster details:
 
-Download the Amazon root certificate from the official trust store:
-
-```
-wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O root.pem
-```
-
-Place the root.pem file in the same directory as the hello_dsql.rb example file or modify the path to it in the example file.
-
-### Set the environmet variables specifying cluster endpoint, region and cluster user 
-
-```
-# e.g. 'admin' or a custom user 
-export CLUSTER_USER=<your cluster user> 
-
+```bash
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your cluster endpoint>"
-
-# e.g. "us-east-1"
-export REGION="<your cluster region>" 
 ```
 
-### Run the example 
+Run the preferred example:
 
-Execute the following command:
+```bash
+ruby src/example_preferred.rb
+```
 
+To run the manual token alternative (requires additional environment variables):
+
+```bash
+export REGION="<your cluster region>"
+export CLUSTER_USER="<your cluster user>"
+
+ruby src/alternatives/manual_token/example.rb
 ```
-ruby hello_dsql.rb
+
+Run tests:
+
+```bash
+bundle exec rake test
 ```
+
+## Additional resources
+
+* [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+* [Aurora DSQL Ruby-pg Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/ruby/pg)
+* [Ruby-pg Documentation](https://deveiate.org/code/pg/)
+
+**Note:** The connector automatically extracts the region from the cluster endpoint and defaults to the `postgres` database.
 
 ---
 
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. 
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 SPDX-License-Identifier: MIT-0

@@ -1,5 +1,9 @@
 require 'rspec/core/rake_task'
 
-desc "Run unit tests in spec/"
-RSpec::Core::RakeTask.new(:spec)
+desc "Run integration tests in test/"
+RSpec::Core::RakeTask.new(:spec) do |t|
+  t.pattern = "test/**/*_test.rb"
+end
+
 task :test => :spec
+task :default => :spec

@@ -32,6 +32,7 @@ jobs:
       python-psycopg3: ${{ steps.detect.outputs.python-psycopg3 }}
       ruby-cm: ${{ steps.detect.outputs.ruby-cm }}
       ruby-pg: ${{ steps.detect.outputs.ruby-pg }}
+      ruby-rails: ${{ steps.detect.outputs.ruby-rails }}
       rust-cm: ${{ steps.detect.outputs.rust-cm }}
       rust-sqlx: ${{ steps.detect.outputs.rust-sqlx }}
       typescript-prisma: ${{ steps.detect.outputs.typescript-prisma }}
@@ -62,6 +63,7 @@ jobs:
               'python-psycopg3': ['python/psycopg/', '.github/workflows/python-psycopg3-integ-tests.yml'],
               'ruby-cm': ['ruby/cluster_management/', '.github/workflows/ruby-cm-integ-tests.yml'],
               'ruby-pg': ['ruby/ruby-pg/', '.github/workflows/ruby-pg-integ-tests.yml'],
+              'ruby-rails': ['ruby/rails/', '.github/workflows/ruby-rails-integ-tests.yml'],
               'rust-cm': ['rust/cluster_management/', '.github/workflows/rust-cm-integ-tests.yml'],
               'rust-sqlx': ['rust/sqlx/', '.github/workflows/rust-sqlx-integ-test.yml'],
               'typescript-prisma': ['typescript/prisma/', '.github/workflows/typescript-prisma-integ-tests.yml'],
@@ -265,6 +267,14 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
+  ruby-rails:
+    needs: changes
+    if: needs.changes.outputs.ruby-rails == 'true'
+    uses: ./.github/workflows/ruby-rails-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   rust-cm:
     needs: changes
     if: needs.changes.outputs.rust-cm == 'true'
@@ -330,6 +340,7 @@ jobs:
       - python-psycopg3
       - ruby-cm
       - ruby-pg
+      - ruby-rails
       - rust-cm
       - rust-sqlx
       - typescript-prisma
