@@ -47,13 +47,6 @@ def example
 
   threads.each(&:join)
   puts "Connection pool with concurrent connections exercised successfully"
-
-  # Clean up
-  pool.with do |conn|
-    conn.transaction do
-      conn.exec("DROP TABLE IF EXISTS example_items")
-    end
-  end
 ensure
   pool&.shutdown
 end
