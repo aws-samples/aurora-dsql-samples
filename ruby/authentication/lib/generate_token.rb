@@ -4,7 +4,7 @@
 require 'aws-sdk-dsql'
 
 def generate_token(your_cluster_endpoint, region)
-  credentials = Aws::SharedCredentials.new()
+  credentials = Aws::CredentialProviderChain.new.resolve
 
   begin
       token_generator = Aws::DSQL::AuthTokenGenerator.new({
