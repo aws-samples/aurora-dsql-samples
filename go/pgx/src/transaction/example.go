@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/dsql"
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/occretry"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Account represents a bank account for the transfer demo.
@@ -167,10 +168,12 @@ func Example() error {
 
 	ctx := context.Background()
 
+	poolCfg, _ := pgxpool.ParseConfig("")
+	poolCfg.MaxConns = 5
+
 	pool, err := dsql.NewPool(ctx, dsql.Config{
-		Host:     clusterEndpoint,
-		MaxConns: 5,
-	})
+		Host: clusterEndpoint,
+	}, poolCfg)
 	if err != nil {
 		return fmt.Errorf("create pool: %w", err)
 	}
