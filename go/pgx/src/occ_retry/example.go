@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/dsql"
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/occretry"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Counter represents a simple counter entity.
@@ -114,10 +115,12 @@ func Example() error {
 
 	ctx := context.Background()
 
+	poolCfg, _ := pgxpool.ParseConfig("")
+	poolCfg.MaxConns = 10
+
 	pool, err := dsql.NewPool(ctx, dsql.Config{
-		Host:     clusterEndpoint,
-		MaxConns: 10,
-	})
+		Host: clusterEndpoint,
+	}, poolCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create pool: %w", err)
 	}

@@ -14,16 +14,19 @@ import (
 	"sync"
 
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/dsql"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const numConcurrentQueries = 8
 
 func createPool(ctx context.Context, clusterEndpoint string) (*dsql.Pool, error) {
+	poolCfg, _ := pgxpool.ParseConfig("")
+	poolCfg.MaxConns = 10
+	poolCfg.MinConns = 2
+
 	return dsql.NewPool(ctx, dsql.Config{
-		Host:     clusterEndpoint,
-		MaxConns: 10,
-		MinConns: 2,
-	})
+		Host: clusterEndpoint,
+	}, poolCfg)
 }
 
 // workerResult holds either a successful result or an error from a worker.
