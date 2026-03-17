@@ -1,0 +1,14 @@
+{
+  "name": "dsql-batch-operations",
+  "version": "1.0.0",
+  "description": "Batch DELETE and UPDATE operations for Aurora DSQL",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js"
+  },
+  "dependencies": {
+    "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
+    "pg": "^8.13.0"
+  },
+  "license": "MIT-0"
+}

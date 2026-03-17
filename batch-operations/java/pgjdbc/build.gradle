@@ -1,0 +1,27 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.example.dsql'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.postgresql:postgresql:42.7.4'
+    implementation 'software.amazon.jdbc:aws-advanced-jdbc-wrapper:2.5.4'
+    implementation 'software.amazon.awssdk:dsql:2.31.9'
+    implementation 'software.amazon.awssdk:auth:2.31.9'
+}
+
+application {
+    mainClass = 'com.example.dsql.Main'
+}

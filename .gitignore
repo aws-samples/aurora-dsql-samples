@@ -101,3 +101,5 @@ Icon?
 
 # TypeScript build outputs
 dist/
+.venv/
+batch-operations/python/psycopg2/.venv
