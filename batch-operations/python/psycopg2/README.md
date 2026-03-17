@@ -106,6 +106,15 @@ The demo runs the following sequence:
 6. Repopulate test data
 7. Parallel batch UPDATE (`books` → `archived`) with N workers
 
+## Clean up
+
+After running the demo, drop the test table to avoid unnecessary storage:
+
+```bash
+psql "host=$CLUSTER_ENDPOINT dbname=postgres user=admin sslmode=verify-full sslrootcert=system" \
+  -c "DROP TABLE IF EXISTS batch_test;"
+```
+
 ## Additional resources
 
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/)
