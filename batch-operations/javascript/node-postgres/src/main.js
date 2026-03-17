@@ -9,10 +9,7 @@
  *                [--batch-size 1000] [--num-workers 4]
  */
 
-const { Pool } = require("pg");
-const { getNodePostgresConnectionConfig } = require(
-  "@aws/aurora-dsql-node-postgres-connector"
-);
+const { AuroraDSQLPool } = require("@aws/aurora-dsql-node-postgres-connector");
 const { batchDelete, parallelBatchDelete } = require("./batchDelete");
 const { batchUpdate, parallelBatchUpdate } = require("./batchUpdate");
 const { repopulateTestData } = require("./repopulate");
@@ -44,12 +41,13 @@ function parseArgs() {
 }
 
 function createPool(endpoint, user, numWorkers) {
-  const connectionConfig = getNodePostgresConnectionConfig({
+  return new AuroraDSQLPool({
     host: endpoint,
     user: user,
-    database: "postgres",
+    max: numWorkers,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
   });
-  return new Pool({ ...connectionConfig, ssl: { rejectUnauthorized: true }, max: numWorkers });
 }
 
 async function runOperation(label, fn) {
