@@ -3,18 +3,23 @@
 
 package com.example.dsql;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.sql.DataSource;
-import software.amazon.jdbc.ds.AwsWrapperDataSource;
 
 /**
  * Main entry point for Aurora DSQL batch operations demo (Java).
  *
+ * Uses HikariCP with the Aurora DSQL JDBC Connector for automatic
+ * IAM authentication and connection pooling.
+ *
  * Usage:
- *   java Main --endpoint <cluster-endpoint> [--user admin]
- *             [--batch-size 1000] [--num-workers 4]
+ *   gradle run --args="--endpoint &lt;cluster-endpoint&gt; [--user admin]
+ *              [--batch-size 1000] [--num-workers 4]"
  */
 public class Main {
 
@@ -37,19 +42,27 @@ public class Main {
         return total;
     }
 
-    private static DataSource createDataSource(String endpoint, String user) {
-        AwsWrapperDataSource ds = new AwsWrapperDataSource();
-        ds.setJdbcProtocol("jdbc:postgresql:");
-        ds.setServerName(endpoint);
-        ds.setServerPort("5432");
-        ds.setDatabase("postgres");
-        ds.setUser(user);
-        ds.setSslMode("verify-full");
-        ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
-        Map<String, String> props = new HashMap<>();
-        props.put("sslmode", "verify-full");
-        ds.setTargetDataSourceProperties(props);
-        return ds;
+    /**
+     * Create a HikariCP DataSource configured for Aurora DSQL with automatic
+     * IAM authentication via the Aurora DSQL JDBC Connector.
+     */
+    private static HikariDataSource createDataSource(String endpoint, String user, int numWorkers) {
+        String jdbcUrl = "jdbc:aws-dsql:postgresql://" + endpoint;
+
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(jdbcUrl);
+        config.setUsername(user);
+
+        // Pool sized for parallel workers
+        config.setPoolName("BatchOpsPool");
+        config.setMaximumPoolSize(numWorkers);
+        config.setMinimumIdle(1);
+        config.setConnectionTimeout(30000);
+        config.setMaxLifetime(3300000);  // 55 min (connector handles token refresh)
+        config.setConnectionTestQuery("SELECT 1");
+        config.setAutoCommit(true);
+
+        return new HikariDataSource(config);
     }
 
     private static Map<String, String> parseArgs(String[] args) {
@@ -70,8 +83,8 @@ public class Main {
             }
         }
         if (!config.containsKey("endpoint")) {
-            System.err.println("Usage: java Main --endpoint <cluster-endpoint> "
-                    + "[--user admin] [--batch-size 1000] [--num-workers 4]");
+            System.err.println("Usage: gradle run --args=\"--endpoint <cluster-endpoint> "
+                    + "[--user admin] [--batch-size 1000] [--num-workers 4]\"");
             System.exit(1);
         }
         return config;
@@ -83,7 +96,8 @@ public class Main {
         String user = config.get("user");
         int batchSize = Integer.parseInt(config.get("batch-size"));
         int numWorkers = Integer.parseInt(config.get("num-workers"));
-        DataSource pool = createDataSource(endpoint, user);
+
+        HikariDataSource pool = createDataSource(endpoint, user, numWorkers);
         String table = "batch_test";
 
         try {
@@ -117,6 +131,8 @@ public class Main {
         } catch (OccRetry.MaxRetriesExceededException e) {
             System.err.println("Max retries exceeded: " + e.getMessage());
             System.exit(1);
+        } finally {
+            pool.close();
         }
         System.out.println("\nDemo complete.");
     }
