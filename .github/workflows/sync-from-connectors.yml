@@ -51,6 +51,11 @@ jobs:
           rsync -av --delete --exclude='*no_connector*' --exclude='README.md' /tmp/connectors/ruby/pg/example/src/ ruby/ruby-pg/src/
           rsync -av --delete --exclude='*no_connector*' /tmp/connectors/ruby/pg/example/test/ ruby/ruby-pg/test/
 
+      - name: Sync Dotnet examples
+        run: |
+          rsync -av --delete --exclude='README.md' /tmp/connectors/dotnet/npgsql/example/src/ dotnet/npgsql/src/
+          rsync -av --delete /tmp/connectors/dotnet/npgsql/example/test/ dotnet/npgsql/test/
+
       - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v8

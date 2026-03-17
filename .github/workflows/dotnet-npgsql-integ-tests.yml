@@ -46,7 +46,7 @@ jobs:
         CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         REGION: ${{ needs.create-cluster.outputs.region }}
       run: |
-        dotnet run --framework net9.0
+        dotnet test
 
   delete-cluster:
     if: always() && needs.create-cluster.result == 'success'
