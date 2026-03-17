@@ -105,3 +105,6 @@ dist/
 
 # Nested git directories in sample projects
 sample-amazon-aurora-dsql-agent/.git/
+
+# Python virtual environments
+.venv/
