@@ -53,8 +53,6 @@ def create_pool(endpoint, user, num_workers):
     conn_params = {
         "user": user,
         "host": endpoint,
-        "sslmode": "verify-full",
-        "sslrootcert": "./root.pem",
     }
     return dsql.AuroraDSQLThreadedConnectionPool(
         minconn=num_workers,

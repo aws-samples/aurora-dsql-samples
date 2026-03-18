@@ -1,18 +1,20 @@
 {
-  "name": "dsql-batch-operations",
+  "name": "dsql_nodejs_howto",
   "version": "1.0.0",
-  "description": "Batch DELETE and UPDATE operations for Aurora DSQL",
-  "main": "src/batch_operations/main.js",
+  "description": "How To",
+  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "node src/batch_operations/main.js",
-    "test": "jest --runInBand --detectOpenHandles --forceExit"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --runInBand --detectOpenHandles --forceExit"
   },
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
-    "pg": "^8.13.0"
+    "assert": "2.1.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "jest": "^30.3.0"
-  },
-  "license": "MIT-0"
+  }
 }
