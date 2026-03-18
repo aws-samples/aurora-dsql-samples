@@ -1,111 +1,125 @@
-# Aurora DSQL with Psycopg2
+# Batch Operations with psycopg2
 
 ## Overview
 
-This code example demonstrates how to use Psycopg (version 2) with Amazon Aurora DSQL. The example shows you how to
-connect to an Aurora DSQL cluster and perform basic database operations.
+This code example demonstrates how to perform batch DELETE and UPDATE operations in Amazon Aurora DSQL
+when working with datasets exceeding the 3,000-row transaction mutation limit. The example uses
+[psycopg2](https://www.psycopg.org/docs/) with the
+[Aurora DSQL Python Connector](https://github.com/awslabs/aurora-dsql-python-connector) for automatic
+IAM authentication and connection pooling.
 
-Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
-your PostgreSQL-compatible applications. Psycopg2 is a popular PostgreSQL adapter for Python that allows
-you to interact with PostgreSQL databases using Python code.
+Two patterns are provided:
+
+- **Sequential**: A single-threaded loop that processes rows in configurable-size batches (default 1,000),
+  committing each batch as a separate transaction.
+- **Parallel**: Multiple worker threads each process a disjoint partition of the dataset concurrently using
+  `hashtext()` partitioning, with each worker running its own batch loop.
+
+Both patterns include OCC (Optimistic Concurrency Control) retry logic with exponential backoff.
 
 ## About the code example
 
-This example uses the [Aurora DSQL Python Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/python/connector) which automatically handles IAM token generation for authentication.
+Aurora DSQL limits each transaction to 3,000 row mutations. To DELETE or UPDATE more than 3,000 rows,
+you must split the work into batches, each committed as a separate transaction.
 
-The example demonstrates a flexible connection approach that works for both admin and non-admin users:
+The parallel pattern partitions rows across worker threads using
+`abs(hashtext(id::text)) % num_workers = worker_id`, ensuring workers operate on disjoint sets of rows
+and avoid OCC conflicts with each other.
 
-* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication token.
-* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard authentication token.
+Connection pooling uses `AuroraDSQLThreadedConnectionPool` from the Aurora DSQL Python Connector, which
+automatically handles IAM token refresh for long-running batch jobs.
 
-The code automatically detects the user type and adjusts its behavior accordingly.
+⚠️ **Important**
 
-## ⚠️ Important
+- Running this code might result in charges to your AWS account.
+- Each batch is a separate transaction. A failure mid-way leaves the dataset partially modified.
+  Design your operations to be idempotent where possible.
 
-* Running this code might result in charges to your AWS account.
-* We recommend that you grant your code least privilege. At most, grant only the
-  minimum permissions required to perform the task. For more information, see
-  [Grant least privilege](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege).
-* This code is not tested in every AWS Region. For more information, see
-  [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
+## Prerequisites
 
-## Run the example
+- You must have an AWS account, and have your default credentials and AWS Region configured as described
+  in the [Globally configuring AWS SDKs and tools](https://docs.aws.amazon.com/sdkref/latest/guide/creds-config-files.html) guide.
+- Python 3.8 or later.
+- You must have an Aurora DSQL cluster. For information about creating a cluster, see the
+  [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html) guide.
 
-### Prerequisites
+## Set up
 
-* You must have an AWS account, and have your default credentials and AWS Region
-  configured as described in the
-  [Globally configuring AWS SDKs and tools](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html)
-  guide.
-* [Python 3.8.0](https://www.python.org/) or later.
-* You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the
-  [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html)
-  guide.
-* If connecting as a non-admin user, ensure the user is linked to an IAM role and is granted access to the `myschema`
-  schema. See the
-  [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
-  guide.
-
-### Set up environment for examples
-
-1. Create and activate a Python virtual environment:
+Create and activate a Python virtual environment:
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate  # Linux, macOS
-# or
-.venv\Scripts\activate     # Windows
+source .venv/bin/activate
 ```
 
-2. Install the required packages for running the examples:
+Install the required packages:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Run the code
+## Set up the test table
 
-The example demonstrates the following operations:
+Before running the examples, create and populate the test table. Run each INSERT as a separate
+transaction (each block of 1,000 rows):
 
-- Opening a connection to an Aurora DSQL cluster
-- Creating a table
-- Inserting and querying data
+```bash
+export CLUSTER_ENDPOINT="<your-cluster-endpoint>"
+psql "host=$CLUSTER_ENDPOINT dbname=postgres user=admin sslmode=verify-full" \
+  -f ../../sql/batch_test_setup.sql
+```
 
-The example is designed to work with both admin and non-admin users:
+## Run the example
 
-- When run as an admin user, it uses the `public` schema
-- When run as a non-admin user, it uses the `myschema` schema
-
-**Note:** running the example will use actual resources in your AWS account and may incur charges.
-
-Set environment variables for your cluster details:
+Set environment variables for your cluster:
 
 ```bash
 # e.g. "admin"
-export CLUSTER_USER="<your user>"
+export CLUSTER_USER="admin"
 
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
-export CLUSTER_ENDPOINT="<your endpoint>"
+export CLUSTER_ENDPOINT="<your-cluster-endpoint>"
 ```
 
-Run the example:
+Run the demo:
 
 ```bash
-python src/example_preferred.py
+python src/main.py --endpoint "$CLUSTER_ENDPOINT" --user "$CLUSTER_USER"
 ```
 
-The example contains comments explaining the code and the operations being performed.
+### Command-line options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--endpoint` | (required) | Aurora DSQL cluster endpoint |
+| `--user` | `admin` | Database user |
+| `--batch-size` | `1000` | Rows per batch transaction (must be < 3000) |
+| `--num-workers` | `4` | Number of parallel worker threads |
+
+The demo runs the following sequence:
+
+1. Sequential batch DELETE (all `electronics` rows)
+2. Sequential batch UPDATE (`clothing` → `processed`)
+3. Parallel batch DELETE (all `food` rows) with N workers
+4. Parallel batch UPDATE (`books` → `archived`) with N workers
+
+## Clean up
+
+After running the demo, drop the test table to avoid unnecessary storage:
+
+```bash
+psql "host=$CLUSTER_ENDPOINT dbname=postgres user=admin sslmode=verify-full sslrootcert=system" \
+  -c "DROP TABLE IF EXISTS batch_test;"
+```
 
 ## Additional resources
 
-* [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-* [Aurora DSQL Python Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/python/connector)
-* [Psycopg2 Documentation](https://www.psycopg.org/docs/)
-
-**Note:** The connector automatically extracts the region from the cluster endpoint, defaults to the `postgres` database, and handles SSL configuration.
+- [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/)
+- [Aurora DSQL Python Connector](https://github.com/awslabs/aurora-dsql-python-connector)
+- [Psycopg2 Documentation](https://www.psycopg.org/docs/)
+- [Batch operations in Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/batch-operations.html)
 
 ---
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-
 SPDX-License-Identifier: MIT-0
