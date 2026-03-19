@@ -6,7 +6,7 @@ This code example demonstrates how to perform batch DELETE and UPDATE operations
 when working with datasets exceeding the 3,000-row transaction mutation limit. The example uses
 [psycopg2](https://www.psycopg.org/docs/) with the
 [Aurora DSQL Python Connector](https://github.com/awslabs/aurora-dsql-python-connector) for automatic
-IAM authentication and connection pooling.
+IAM authentication, and connection pooling.
 
 Two patterns are provided:
 

@@ -54,6 +54,19 @@ public class BatchUpdate {
                 if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) throw e;
             }
         }
+
+        // Post-verification: ensure no matching rows remain
+        try (Connection conn = pool.getConnection();
+             Statement stmt = conn.createStatement();
+             var rs = stmt.executeQuery("SELECT COUNT(*) FROM " + table + " WHERE " + condition)) {
+            if (rs.next()) {
+                int remaining = rs.getInt(1);
+                if (remaining > 0) {
+                    System.out.println("WARNING: " + remaining + " rows still match condition after updating " + totalUpdated + " rows");
+                }
+            }
+        }
+
         return totalUpdated;
     }
 
@@ -125,6 +138,19 @@ public class BatchUpdate {
         }
 
         System.out.println("Parallel update complete: " + total + " rows updated by " + numWorkers + " workers");
+
+        // Post-verification: ensure no matching rows remain (uses original condition, not partitioned)
+        try (Connection conn = pool.getConnection();
+             Statement stmt = conn.createStatement();
+             var rs = stmt.executeQuery("SELECT COUNT(*) FROM " + table + " WHERE " + condition)) {
+            if (rs.next()) {
+                int remaining = rs.getInt(1);
+                if (remaining > 0) {
+                    System.out.println("WARNING: " + remaining + " rows still match condition after updating " + total + " rows");
+                }
+            }
+        }
+
         return total;
     }
 

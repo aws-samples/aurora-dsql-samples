@@ -30,7 +30,7 @@ CREATE TABLE batch_test (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create an asynchronous index on the category column.
+-- Create an index on the category column.
 CREATE INDEX ASYNC idx_batch_test_category ON batch_test (category);
 
 -- =============================================================================

@@ -78,6 +78,18 @@ async function batchUpdate(pool, table, setClause, condition, batchSize = 1000, 
     }
   }
 
+  // Post-verification: ensure no matching rows remain
+  const verifyClient = await pool.connect();
+  try {
+    const res = await verifyClient.query(`SELECT COUNT(*) FROM ${table} WHERE ${condition}`);
+    const remaining = parseInt(res.rows[0].count, 10);
+    if (remaining > 0) {
+      console.log(`WARNING: ${remaining} rows still match condition after updating ${totalUpdated} rows`);
+    }
+  } finally {
+    verifyClient.release();
+  }
+
   return totalUpdated;
 }
 
@@ -156,6 +168,19 @@ async function parallelBatchUpdate(
   const results = await Promise.all(workers);
   const total = results.reduce((sum, n) => sum + n, 0);
   console.log(`Parallel update complete: ${total} rows updated by ${numWorkers} workers`);
+
+  // Post-verification: ensure no matching rows remain (uses original condition, not partitioned)
+  const verifyClient = await pool.connect();
+  try {
+    const res = await verifyClient.query(`SELECT COUNT(*) FROM ${table} WHERE ${condition}`);
+    const remaining = parseInt(res.rows[0].count, 10);
+    if (remaining > 0) {
+      console.log(`WARNING: ${remaining} rows still match condition after updating ${total} rows`);
+    }
+  } finally {
+    verifyClient.release();
+  }
+
   return total;
 }
 
