@@ -111,4 +111,17 @@ def parallel_batch_update(
 
     total = sum(results)
     print(f"Parallel update complete: {total} rows updated by {num_workers} workers")
+
+    # Post-verification: ensure no matching rows remain (uses original condition, not partitioned)
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM {table} WHERE {condition}")
+            remaining = cur.fetchone()[0]
+        conn.commit()
+        if remaining > 0:
+            print(f"WARNING: {remaining} rows still match condition after updating {total} rows")
+    finally:
+        pool.putconn(conn)
+
     return total

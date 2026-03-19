@@ -83,4 +83,16 @@ def batch_delete(pool, table, condition, batch_size=1000, max_retries=3, base_de
         finally:
             pool.putconn(conn)
 
+    # Post-verification: ensure no matching rows remain
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM {table} WHERE {condition}")
+            remaining = cur.fetchone()[0]
+        conn.commit()
+        if remaining > 0:
+            print(f"WARNING: {remaining} rows still match condition after deleting {total_deleted} rows")
+    finally:
+        pool.putconn(conn)
+
     return total_deleted

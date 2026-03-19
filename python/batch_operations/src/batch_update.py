@@ -83,4 +83,16 @@ def batch_update(pool, table, set_clause, condition, batch_size=1000, max_retrie
         finally:
             pool.putconn(conn)
 
+    # Post-verification: ensure no matching rows remain
+    conn = pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM {table} WHERE {condition}")
+            remaining = cur.fetchone()[0]
+        conn.commit()
+        if remaining > 0:
+            print(f"WARNING: {remaining} rows still match condition after updating {total_updated} rows")
+    finally:
+        pool.putconn(conn)
+
     return total_updated

@@ -72,6 +72,18 @@ async function batchDelete(pool, table, condition, batchSize = 1000, maxRetries 
     }
   }
 
+  // Post-verification: ensure no matching rows remain
+  const verifyClient = await pool.connect();
+  try {
+    const res = await verifyClient.query(`SELECT COUNT(*) FROM ${table} WHERE ${condition}`);
+    const remaining = parseInt(res.rows[0].count, 10);
+    if (remaining > 0) {
+      console.log(`WARNING: ${remaining} rows still match condition after deleting ${totalDeleted} rows`);
+    }
+  } finally {
+    verifyClient.release();
+  }
+
   return totalDeleted;
 }
 
@@ -144,6 +156,19 @@ async function parallelBatchDelete(
   const results = await Promise.all(workers);
   const total = results.reduce((sum, n) => sum + n, 0);
   console.log(`Parallel delete complete: ${total} rows deleted by ${numWorkers} workers`);
+
+  // Post-verification: ensure no matching rows remain (uses original condition, not partitioned)
+  const verifyClient = await pool.connect();
+  try {
+    const res = await verifyClient.query(`SELECT COUNT(*) FROM ${table} WHERE ${condition}`);
+    const remaining = parseInt(res.rows[0].count, 10);
+    if (remaining > 0) {
+      console.log(`WARNING: ${remaining} rows still match condition after deleting ${total} rows`);
+    }
+  } finally {
+    verifyClient.release();
+  }
+
   return total;
 }
 

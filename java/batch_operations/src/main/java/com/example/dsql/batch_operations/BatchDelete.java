@@ -53,6 +53,19 @@ public class BatchDelete {
                 if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) throw e;
             }
         }
+
+        // Post-verification: ensure no matching rows remain
+        try (Connection conn = pool.getConnection();
+             Statement stmt = conn.createStatement();
+             var rs = stmt.executeQuery("SELECT COUNT(*) FROM " + table + " WHERE " + condition)) {
+            if (rs.next()) {
+                int remaining = rs.getInt(1);
+                if (remaining > 0) {
+                    System.out.println("WARNING: " + remaining + " rows still match condition after deleting " + totalDeleted + " rows");
+                }
+            }
+        }
+
         return totalDeleted;
     }
 
@@ -123,6 +136,19 @@ public class BatchDelete {
         }
 
         System.out.println("Parallel delete complete: " + total + " rows deleted by " + numWorkers + " workers");
+
+        // Post-verification: ensure no matching rows remain (uses original condition, not partitioned)
+        try (Connection conn = pool.getConnection();
+             Statement stmt = conn.createStatement();
+             var rs = stmt.executeQuery("SELECT COUNT(*) FROM " + table + " WHERE " + condition)) {
+            if (rs.next()) {
+                int remaining = rs.getInt(1);
+                if (remaining > 0) {
+                    System.out.println("WARNING: " + remaining + " rows still match condition after deleting " + total + " rows");
+                }
+            }
+        }
+
         return total;
     }
 
