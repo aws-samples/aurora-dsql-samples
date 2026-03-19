@@ -53,6 +53,7 @@ def create_pool(endpoint, user, num_workers):
     conn_params = {
         "user": user,
         "host": endpoint,
+        "connect_timeout": 10,
     }
     return dsql.AuroraDSQLThreadedConnectionPool(
         minconn=num_workers,
