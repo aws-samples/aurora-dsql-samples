@@ -1,12 +1,12 @@
 module github.com/aws-samples/aurora-dsql-samples/go/pgx
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.12
 	github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.1.20
 	github.com/awslabs/aurora-dsql-connectors/go/pgx v0.3.0
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.1
 )
 
 require (
