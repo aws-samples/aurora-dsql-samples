@@ -57,6 +57,7 @@ public class ProductService {
         maxAttempts = 4,
         backoff = @Backoff(delay = 100, multiplier = 2, random = true)
     )
+    @Transactional
     public void updateStock(UUID productId, int quantity) {
         Product product = getProduct(productId);
         int newStock = product.getStock() + quantity;
