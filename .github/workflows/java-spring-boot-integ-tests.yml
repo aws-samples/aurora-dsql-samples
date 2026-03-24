@@ -1,5 +1,4 @@
 name: Java Spring Boot integration tests
-
 permissions: { }
 
 on:
@@ -18,12 +17,11 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
-  test-gradle:
+  test-maven:
     needs: create-cluster
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -34,7 +32,7 @@ jobs:
           java-version: "17"
           distribution: "corretto"
           architecture: x64
-          cache: gradle
+          cache: maven
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -42,18 +40,17 @@ jobs:
           role-to-assume: ${{ secrets.JAVA_IAM_ROLE }}
           aws-region: ${{ needs.create-cluster.outputs.region }}
 
-      - name: Run Gradle integration test
+      - name: Run Maven integration tests
         working-directory: ./java/spring_boot
         env:
           CLUSTER_USER: admin
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
           REGION: ${{ needs.create-cluster.outputs.region }}
-          EXIT_AFTER_TEST: true
-        run: ./gradlew bootRun
+        run: mvn -B test
 
   delete-cluster:
     if: always() && needs.create-cluster.result == 'success'
-    needs: [create-cluster, test-gradle]
+    needs: [create-cluster, test-maven]
     uses: ./.github/workflows/dsql-cluster-delete.yml
     with:
       cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
