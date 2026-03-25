@@ -1,0 +1,34 @@
+{
+    "name": "drizzle-example",
+    "version": "1.0.0",
+    "main": "dist/src/index.js",
+    "scripts": {
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "migrate:generate": "drizzle-kit generate",
+        "build": "tsc",
+        "sample": "tsx src/index.ts",
+        "pretest": "npm run build",
+        "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
+    },
+    "devDependencies": {
+        "@types/jest": "^30.0.0",
+        "@types/node": "^25.5.0",
+        "@types/pg": "^8.18.0",
+        "drizzle-kit": "^0.31.0",
+        "jest": "^30.3.0",
+        "prettier": "^3.8.1",
+        "ts-jest": "^29.4.1",
+        "tsx": "^4.20.3",
+        "typescript": "^5.8.3"
+    },
+    "dependencies": {
+        "@aws-sdk/dsql-signer": "^3.1009.0",
+        "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
+        "drizzle-orm": "^0.44.0",
+        "pg": "^8.20.0"
+    },
+    "engines": {
+        "node": ">=20.0.0"
+    }
+}
