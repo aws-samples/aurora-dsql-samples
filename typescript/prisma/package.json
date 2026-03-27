@@ -25,7 +25,7 @@
         "prisma": "^7.5.0",
         "ts-jest": "^29.4.1",
         "tsx": "^4.20.3",
-        "typescript": "^5.8.3"
+        "typescript": "^6.0.2"
     },
     "dependencies": {
         "@aws-sdk/dsql-signer": "^3.1018.0",
