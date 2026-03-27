@@ -99,5 +99,11 @@ Icon?
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
 
+# Python
+__pycache__/
+*.pyc
+
 # TypeScript build outputs
 dist/
+.venv/
+batch-operations/python/psycopg2/.venv
