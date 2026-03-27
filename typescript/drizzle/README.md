@@ -62,7 +62,7 @@ await pool.end();
 
 When using Drizzle ORM with Aurora DSQL:
 
-1. **Use UUID for IDs** — DSQL doesn't support sequences:
+1. **Use UUID for IDs** — Aurora DSQL supports [sequences and identity columns](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html) (with `CACHE` specified), but the `SERIAL` pseudo-type is not available. UUIDs with `gen_random_uuid()` are the [recommended default](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns-working-with.html) for primary keys because they don't require coordination across the distributed system:
 
    ```typescript
    import { pgTable, uuid } from "drizzle-orm/pg-core";
@@ -73,7 +73,7 @@ When using Drizzle ORM with Aurora DSQL:
    });
    ```
 
-2. **No foreign key constraints** — DSQL doesn't support foreign keys. Use Drizzle's `relations()` API for application-level relationship handling:
+2. **No foreign key constraints** — Aurora DSQL supports JOIN operations and table relationships, but does not enforce foreign key constraints. Use Drizzle's `relations()` API for application-level relationship handling:
 
    ```typescript
    import { relations } from "drizzle-orm";
@@ -86,7 +86,7 @@ When using Drizzle ORM with Aurora DSQL:
    }));
    ```
 
-3. **Custom migration runner** — Drizzle's built-in `migrate()` creates its tracking table using `SERIAL`, which DSQL does not support. This sample includes a custom migration runner (`src/migrate.ts`) that uses UUID primary keys instead:
+3. **Custom migration runner** — Drizzle's built-in `migrate()` creates its tracking table using `SERIAL`, which is not available in Aurora DSQL. This sample includes a custom migration runner (`src/migrate.ts`) that uses UUID primary keys instead:
 
    ```typescript
    import { applyMigrations } from "./migrate";
@@ -124,7 +124,8 @@ DROP TABLE IF EXISTS "vet";
 ## Additional Resources
 
 - [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-- [Unsupported PostgreSQL Features in DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-unsupported-features.html)
+- [Sequences and identity columns in Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html)
+- [Migrating from PostgreSQL to Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-migration-guide.html)
 - [Aurora DSQL Node.js Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node)
 - [Drizzle ORM Documentation](https://orm.drizzle.team/docs/overview)
 - [Drizzle ORM PostgreSQL Guide](https://orm.drizzle.team/docs/get-started-postgresql)

@@ -1,10 +1,10 @@
 /**
  * Custom migration runner for Aurora DSQL.
  *
- * Drizzle's built-in migrate() creates a tracking table using SERIAL,
- * which DSQL does not support. This module provides a DSQL-compatible
- * alternative that reads migration files from the drizzle/ folder and
- * tracks applied migrations in a custom table using UUID primary keys.
+ * Drizzle's built-in migrate() creates a tracking table using the SERIAL
+ * pseudo-type, which is not available in Aurora DSQL. This module provides
+ * a DSQL-compatible alternative that reads migration files from the
+ * drizzle/ folder and tracks applied migrations using UUID primary keys.
  */
 import fs from "node:fs";
 import path from "node:path";

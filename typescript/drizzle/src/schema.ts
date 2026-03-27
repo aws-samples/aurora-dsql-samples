@@ -1,7 +1,9 @@
 /**
  * Drizzle ORM schema for the veterinary domain model.
  *
- * Aurora DSQL does not support the SERIAL pseudo-type or foreign key constraints.
+ * Aurora DSQL supports sequences and identity columns (with CACHE specified),
+ * but the SERIAL pseudo-type is not available. Foreign key constraints are
+ * not enforced.
  * UUIDs with gen_random_uuid() are the recommended primary key type, and
  * relationships are managed at the application level using Drizzle relations.
  */
