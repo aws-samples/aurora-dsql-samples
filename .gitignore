@@ -101,3 +101,6 @@ Icon?
 
 # TypeScript build outputs
 dist/
+
+# Nested git directories in sample projects
+sample-amazon-aurora-dsql-agent/.git/

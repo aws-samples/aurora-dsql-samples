@@ -8,7 +8,7 @@ To get started with Aurora DSQL, create clusters and more information, please re
 
 ## How this repository is organized
 
-The subdirectories contain code examples for connecting and using Aurora DSQL in each programming language and ORM framework. The examples demonstrate the most common uses, such as installing clients, handling authentication, performing CRUD operations, and more. Please refer to the [documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/known-issues.html) for a full list of differences and limitations.
+The subdirectories contain code examples for connecting and using Aurora DSQL in each programming language and ORM framework, as well as end-to-end sample applications. The examples demonstrate the most common uses, such as installing clients, handling authentication, performing CRUD operations, and more. Please refer to the [documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/known-issues.html) for a full list of differences and limitations.
 
 |  Language   |                      Client / ORM                       |
 |:-----------:|:-------------------------------------------------------:|
@@ -56,6 +56,10 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |   Python    |         [generate_token](python/authentication)         |
 |    Ruby     |          [generate_token](ruby/authentication)          |
 |    Rust     |          [generate_token](rust/authentication)          |
+
+|                          Sample Applications                          |
+|:---------------------------------------------------------------------:|
+| [Amazon Aurora DSQL Agent](sample-amazon-aurora-dsql-agent) — A sample application showing how to build an AI agent that queries Aurora DSQL using natural language, powered by Strands Agents, Bedrock AgentCore Gateway (MCP), and AgentCore Runtime (A2A) |
 
 Each example includes language and client-specific instructions as well as instructions to invoke example code.
 
