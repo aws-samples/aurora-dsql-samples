@@ -23,7 +23,7 @@
     "@types/node": "^25.5.0",
     "jest": "^30.3.0",
     "reflect-metadata": "^0.2.2",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   },
   "dependencies": {
     "@aws-sdk/dsql-signer": "^3.1018.0",
