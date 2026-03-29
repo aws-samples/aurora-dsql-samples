@@ -6,7 +6,7 @@ require_relative "../src/example_preferred"
 
 RSpec.describe "example_preferred" do
   before(:all) do
-    skip "CLUSTER_ENDPOINT required for integration test" unless ENV["CLUSTER_ENDPOINT"]
+    raise "CLUSTER_ENDPOINT is required" unless ENV["CLUSTER_ENDPOINT"]
   end
 
   it "runs the preferred example without error" do
