@@ -230,48 +230,48 @@ def create_a2a_app(config: dict, region: str) -> FastAPI:
         logger.info("Available MCP tools: %s", [t.tool_name for t in tools])
 
         schema = fetch_schema(mcp_client, tools)
+
+        # Step 3: Create the Strands Agent with dynamic schema
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(schema=schema)
+        model = BedrockModel(model_id=MODEL_ID, region_name=region)
+        strands_agent = Agent(
+            name="Grid Database Agent",
+            description=(
+                "Grid Investigation Database Agent. Connects to Aurora DSQL via "
+                "AgentCore Gateway MCP, generates parameterized SQL, queries grid "
+                "operational data across 6 tables, correlates results, and produces "
+                "root-cause analyses for electrical distribution network incidents."
+            ),
+            model=model,
+            tools=tools,
+            system_prompt=system_prompt,
+        )
+        logger.info("Database Agent created with dynamic schema and %d tools.", len(tools))
+
+        # Step 4: Wrap in A2AServer
+        # Use the AgentCore runtime URL if deployed, otherwise local
+        runtime_url = os.environ.get(
+            "AGENTCORE_RUNTIME_URL", f"http://127.0.0.1:{A2A_PORT}/"
+        )
+        logger.info("Runtime URL: %s", runtime_url)
+
+        a2a_server = A2AServer(
+            agent=strands_agent,
+            http_url=runtime_url,
+            serve_at_root=True,
+        )
+
+        # Step 5: Mount on FastAPI
+        app = FastAPI()
+
+        @app.get("/ping")
+        def ping():
+            return {"status": "healthy"}
+
+        app.mount("/", a2a_server.to_fastapi_app())
     except Exception:
         mcp_client.__exit__(None, None, None)
         raise
-
-    # Step 3: Create the Strands Agent with dynamic schema
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(schema=schema)
-    model = BedrockModel(model_id=MODEL_ID, region_name=region)
-    strands_agent = Agent(
-        name="Grid Database Agent",
-        description=(
-            "Grid Investigation Database Agent. Connects to Aurora DSQL via "
-            "AgentCore Gateway MCP, generates parameterized SQL, queries grid "
-            "operational data across 6 tables, correlates results, and produces "
-            "root-cause analyses for electrical distribution network incidents."
-        ),
-        model=model,
-        tools=tools,
-        system_prompt=system_prompt,
-    )
-    logger.info("Database Agent created with dynamic schema and %d tools.", len(tools))
-
-    # Step 4: Wrap in A2AServer
-    # Use the AgentCore runtime URL if deployed, otherwise local
-    runtime_url = os.environ.get(
-        "AGENTCORE_RUNTIME_URL", f"http://127.0.0.1:{A2A_PORT}/"
-    )
-    logger.info("Runtime URL: %s", runtime_url)
-
-    a2a_server = A2AServer(
-        agent=strands_agent,
-        http_url=runtime_url,
-        serve_at_root=True,
-    )
-
-    # Step 5: Mount on FastAPI
-    app = FastAPI()
-
-    @app.get("/ping")
-    def ping():
-        return {"status": "healthy"}
-
-    app.mount("/", a2a_server.to_fastapi_app())
 
     return app
 
