@@ -69,6 +69,7 @@ root.pem
 # Test output
 TEST-*.xml
 *.txt
+!requirements.txt
 
 # JVM crash logs
 hs_err_pid*
