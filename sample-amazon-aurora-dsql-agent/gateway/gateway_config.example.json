@@ -11,7 +11,7 @@
     "scope": "<scope>"
   },
   "a2a": {
-    "agent_id": "<agent-id>",
+    "agent_arn": "arn:aws:bedrock-agentcore:<region>:<account-id>:runtime/<agent-name>",
     "agent_name": "<agent-name>",
     "endpoint_url": "https://<a2a-endpoint-url>"
   }

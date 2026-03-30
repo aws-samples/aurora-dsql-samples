@@ -1,6 +1,6 @@
 """
 Update the existing Gateway target with new tool schemas.
-Replaces the 6 hardcoded tools with the dynamic query_grid_database + get_schema tools.
+Replaces any existing tools with the dynamic query_grid_database + get_schema tools.
 
 Uses the bedrock_agentcore_starter_toolkit GatewayClient (same as setup_gateway.py).
 

@@ -9,7 +9,7 @@ Electrical grid operators need to quickly diagnose faults, outages, and anomalie
 This agent lets operators ask plain-English questions and get a correlated root-cause analysis in seconds. Under the hood it:
 
 1. Parses the operator's question to extract the feeder ID and time window.
-2. Calls the right combination of MCP tools (sensor readings, switching logs, transformer inspections, weather data, maintenance history) backed by Aurora DSQL.
+2. Generates the right combination of parameterized SQL queries (sensor readings, switching logs, transformer inspections, weather data, maintenance history) via the `query_grid_database` MCP tool backed by Aurora DSQL.
 3. Correlates findings across all six tables and produces a timeline, contributing factors, root-cause assessment, and recommended corrective actions.
 
 ### Example queries
@@ -129,7 +129,7 @@ This inserts 15 incidents, 15 feeder events, 10 switching events, 6 transformer 
 
 The setup script handles everything: creates IAM roles (Lambda + Gateway), deploys the
 Lambda, creates the AgentCore Gateway with Cognito OAuth, and registers the Lambda as an
-MCP target with all six tool schemas.
+MCP target with the tool schemas.
 
 ```bash
 cd gateway

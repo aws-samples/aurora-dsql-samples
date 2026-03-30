@@ -21,7 +21,6 @@ import logging
 import os
 import signal
 import sys
-import time
 
 import uvicorn
 from fastapi import FastAPI
@@ -37,11 +36,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-
-# Reconnection constants
-RECONNECT_BASE_DELAY = 1  # seconds
-RECONNECT_MAX_DELAY = 30  # seconds
-RECONNECT_MAX_RETRIES = 5
 
 # Model configuration
 MODEL_ID = "global.anthropic.claude-sonnet-4-6"
@@ -172,44 +166,6 @@ def connect_mcp(config: dict, region: str) -> MCPClient:
     )
 
 
-def reconnect_mcp(config: dict, region: str, old_client: MCPClient | None) -> MCPClient | None:
-    """Attempt MCP reconnection with exponential backoff.
-
-    Returns new MCPClient if successful, None if all retries exhausted.
-    """
-    delay = RECONNECT_BASE_DELAY
-    for attempt in range(1, RECONNECT_MAX_RETRIES + 1):
-        logger.warning(
-            "MCP reconnection attempt %d/%d (delay: %.1fs)",
-            attempt, RECONNECT_MAX_RETRIES, delay,
-        )
-        try:
-            if old_client:
-                try:
-                    old_client.__exit__(None, None, None)
-                except Exception:
-                    pass
-
-            new_client = connect_mcp(config, region)
-            new_client.__enter__()
-            tools = get_all_tools(new_client)
-            logger.info(
-                "MCP reconnection succeeded on attempt %d. Tools: %s",
-                attempt, [t.tool_name for t in tools],
-            )
-            return new_client
-        except Exception as exc:
-            logger.error("MCP reconnection attempt %d failed: %s", attempt, exc)
-            if attempt < RECONNECT_MAX_RETRIES:
-                time.sleep(delay)
-                delay = min(delay * 2, RECONNECT_MAX_DELAY)
-
-    logger.critical(
-        "MCP reconnection failed after %d attempts.", RECONNECT_MAX_RETRIES,
-    )
-    return None
-
-
 def find_tool_name(tools: list, suffix: str) -> str:
     """Find the full MCP tool name that ends with the given suffix.
 
@@ -268,11 +224,15 @@ def create_a2a_app(config: dict, region: str) -> FastAPI:
     mcp_client = connect_mcp(config, region)
     mcp_client.__enter__()
 
-    # Step 2: Fetch tools and live schema
-    tools = get_all_tools(mcp_client)
-    logger.info("Available MCP tools: %s", [t.tool_name for t in tools])
+    try:
+        # Step 2: Fetch tools and live schema
+        tools = get_all_tools(mcp_client)
+        logger.info("Available MCP tools: %s", [t.tool_name for t in tools])
 
-    schema = fetch_schema(mcp_client, tools)
+        schema = fetch_schema(mcp_client, tools)
+    except Exception:
+        mcp_client.__exit__(None, None, None)
+        raise
 
     # Step 3: Create the Strands Agent with dynamic schema
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(schema=schema)
