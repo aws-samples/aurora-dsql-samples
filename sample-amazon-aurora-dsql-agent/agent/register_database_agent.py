@@ -112,7 +112,7 @@ def update_config_with_endpoint(config: dict, region: str) -> dict:
         or ""
     )
     # Strip whitespace/newlines that may come from CLI output
-    agent_arn = agent_arn.strip()
+    agent_arn = "".join(agent_arn.split())
 
     if not agent_arn:
         logger.warning("Could not extract agent_arn from status output")
