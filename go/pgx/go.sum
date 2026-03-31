@@ -28,8 +28,8 @@ github.com/aws/aws-sdk-go-v2/service/sts v1.41.9 h1:Cng+OOwCHmFljXIxpEVXAGMnBia8
 github.com/aws/aws-sdk-go-v2/service/sts v1.41.9/go.mod h1:LrlIndBDdjA/EeXeyNBle+gyCwTlizzW5ycgWnvIxkk=
 github.com/aws/smithy-go v1.24.2 h1:FzA3bu/nt/vDvmnkg+R8Xl46gmzEDam6mZ1hzmwXFng=
 github.com/aws/smithy-go v1.24.2/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
-github.com/awslabs/aurora-dsql-connectors/go/pgx v0.3.0 h1:pzBoEujBt4kQu7pcz1PBoE2ZJbN8NrnHmFSETeIWm2o=
-github.com/awslabs/aurora-dsql-connectors/go/pgx v0.3.0/go.mod h1:nA8lipsaKhjSa30d6M54B/1wsP2MtltFgeIGTGYx2C8=
+github.com/awslabs/aurora-dsql-connectors/go/pgx v0.4.0 h1:UjpuXzE2RNl74wPQtU3dm+tpXQU9oIqUHF7jM9cxzB0=
+github.com/awslabs/aurora-dsql-connectors/go/pgx v0.4.0/go.mod h1:nA8lipsaKhjSa30d6M54B/1wsP2MtltFgeIGTGYx2C8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
