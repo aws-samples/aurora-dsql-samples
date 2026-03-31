@@ -116,7 +116,7 @@ psql "host=<cluster-id>.dsql.us-east-1.on.aws port=5432 dbname=postgres user=adm
 ### Load sample data
 
 ```bash
-pip install psycopg2-binary boto3
+pip install aurora-dsql-python-connector psycopg2-binary boto3
 
 python infra/load_sample_data.py --endpoint <cluster-id>.dsql.us-east-1.on.aws
 ```
@@ -361,6 +361,7 @@ aws iam detach-role-policy --role-name grid-investigation-lambda-role \
 aws iam delete-role --role-name grid-investigation-lambda-role
 
 aws iam delete-role-policy --role-name grid-investigation-gateway-role --policy-name LambdaInvokeAccess
+# LambdaInvokePolicy may also exist if created by the toolkit's fix_iam_permissions() — ignore errors if not found
 aws iam delete-role-policy --role-name grid-investigation-gateway-role --policy-name LambdaInvokePolicy
 aws iam delete-role --role-name grid-investigation-gateway-role
 

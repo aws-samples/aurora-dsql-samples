@@ -1,6 +1,6 @@
 """
 AWS Lambda function for Bedrock AgentCore Gateway.
-Provides a single dynamic SQL execution tool backed by Aurora DSQL.
+Provides dynamic SQL execution and schema introspection tools backed by Aurora DSQL.
 
 The agent generates parameterized SQL based on schema context in its system prompt.
 This Lambda validates and executes the SQL safely.
@@ -100,7 +100,10 @@ def validate_sql(sql: str) -> None:
     # Extract table names from FROM and JOIN clauses
     # NOTE: This regex-based approach covers common query patterns but is not a full SQL
     # parser. Complex constructs (e.g. nested subqueries in SELECT lists, lateral joins)
-    # may not be fully validated. For production use, consider a proper SQL parser.
+    # may not be fully validated. Additionally, dangerous PostgreSQL functions (e.g.
+    # pg_sleep, current_setting) are not blocked — for production use, consider adding a
+    # function allowlist/blocklist or using a proper SQL parser. Using a non-admin DSQL
+    # user (dsql:DbConnect instead of dsql:DbConnectAdmin) also reduces blast radius.
     # Value-level injection is already prevented by psycopg2's parameterized queries.
     table_refs = re.findall(
         r"\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)\b", stripped, re.IGNORECASE

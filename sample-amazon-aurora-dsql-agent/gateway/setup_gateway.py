@@ -102,7 +102,7 @@ TOOL_SCHEMAS = [
 # IAM helpers
 # ---------------------------------------------------------------------------
 
-def create_lambda_role(iam, account_id: str, region: str, dsql_endpoint: str) -> str:
+def create_lambda_role(iam, account_id: str, region: str) -> str:
     """Create the Lambda execution role with DSQL + CloudWatch permissions."""
     trust = {
         "Version": "2012-10-17",
@@ -278,7 +278,7 @@ def setup(args):
         print(f"Using existing Lambda: {lambda_arn}")
     else:
         print("Step 1b: Creating Lambda IAM role...")
-        lambda_role_arn = create_lambda_role(iam, account_id, args.region, args.dsql_endpoint)
+        lambda_role_arn = create_lambda_role(iam, account_id, args.region)
 
         # --- Step 2: Deploy Lambda ---
         print("Step 2: Deploying Lambda...")

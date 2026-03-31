@@ -1,30 +1,23 @@
 """
 Load sample data into the grid investigation DSQL database.
-Uses psycopg2 + boto3 DSQL IAM auth token.
+Uses aurora-dsql-python-connector for managed IAM auth.
 
 Usage:
   python infra/load_sample_data.py --endpoint <cluster-id>.dsql.us-east-1.on.aws
 """
 
 import argparse
-import boto3
-import psycopg2
+import aurora_dsql_psycopg2 as dsql
 
 REGION = "us-east-1"
 
 
 def get_connection(endpoint: str):
-    client = boto3.client("dsql", region_name=REGION)
-    token = client.generate_db_connect_admin_auth_token(
-        Hostname=endpoint, Region=REGION
-    )
-    return psycopg2.connect(
+    return dsql.connect(
         host=endpoint,
-        port=5432,
+        region=REGION,
         user="admin",
-        password=token,
         dbname="postgres",
-        sslmode="require",
     )
 
 
