@@ -5,15 +5,20 @@
 package com.example.dsql;
 
 import com.example.dsql.model.Product;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,6 +34,16 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class SpringBootIntegrationTest {
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public RestTemplateBuilder restTemplateBuilder() {
+            return new RestTemplateBuilder()
+                    .requestFactory(() -> new HttpComponentsClientHttpRequestFactory(
+                            HttpClients.createDefault()));
+        }
+    }
 
     @Autowired
     private TestRestTemplate restTemplate;
