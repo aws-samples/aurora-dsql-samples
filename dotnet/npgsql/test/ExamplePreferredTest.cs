@@ -14,7 +14,8 @@ public class ExamplePreferredTest
     {
         var endpoint = Environment.GetEnvironmentVariable("CLUSTER_ENDPOINT")
             ?? throw new InvalidOperationException("CLUSTER_ENDPOINT environment variable is required.");
+        var user = Environment.GetEnvironmentVariable("CLUSTER_USER") ?? "admin";
 
-        await ExamplePreferred.RunAsync(endpoint);
+        await ExamplePreferred.RunAsync(endpoint, user);
     }
 }
