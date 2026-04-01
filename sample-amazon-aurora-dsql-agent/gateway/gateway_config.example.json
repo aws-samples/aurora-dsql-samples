@@ -1,0 +1,18 @@
+{
+  "gateway_url": "https://<gateway-id>.gateway.agentcore.<region>.amazonaws.com",
+  "gateway_id": "<gateway-id>",
+  "gateway_arn": "arn:aws:bedrock-agentcore:<region>:<account-id>:gateway/<gateway-id>",
+  "lambda_arn": "arn:aws:lambda:<region>:<account-id>:function:grid-investigation-tools",
+  "region": "us-east-1",
+  "client_info": {
+    "client_id": "<cognito-client-id>",
+    "client_secret": "<cognito-client-secret>",
+    "token_endpoint": "https://<domain>.auth.<region>.amazoncognito.com/oauth2/token",
+    "scope": "<scope>"
+  },
+  "a2a": {
+    "agent_arn": "arn:aws:bedrock-agentcore:<region>:<account-id>:runtime/<agent-name>",
+    "agent_name": "<agent-name>",
+    "endpoint_url": "https://<a2a-endpoint-url>"
+  }
+}
