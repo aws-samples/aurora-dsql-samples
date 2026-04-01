@@ -1,120 +1,295 @@
-# Aurora DSQL with Spring Boot
+# Building a Spring Boot REST API with Amazon Aurora DSQL
+
+Level 300 | Estimated reading time: 15 minutes | Estimated deployment time: 30 minutes
+
+## Introduction
+
+Building globally distributed applications that require low latency writes across multiple AWS Regions has traditionally meant choosing between consistency and availability. Teams often face the operational burden of managing database replication, handling failover, and coordinating writes across regions, all while keeping their application code simple.
+
+Amazon Aurora DSQL is a serverless, distributed SQL database that provides active-active writes across multiple AWS Regions with strong consistency. It offers PostgreSQL compatibility, so you can use familiar tools and drivers without learning a new query language.
+
+In this post, we walk you through building a Spring Boot REST API that integrates with Aurora DSQL. You'll learn how to configure the [Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/java/jdbc) for seamless IAM authentication and implement optimistic concurrency control — patterns that are essential for building reliable applications on Aurora DSQL.
 
 ## Overview
 
-This example demonstrates how to connect to Aurora DSQL using Spring Boot with HikariCP connection pooling. The example
-shows you how to connect to an Aurora DSQL cluster and perform basic database operations.
+This post is intended for developers and solutions architects who are familiar with Java, Spring Boot, and relational databases. By the end of this walkthrough, you'll have a working REST API that demonstrates the following:
 
-Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
-your PostgreSQL-compatible applications.
+- Setting up Aurora DSQL with the Aurora DSQL JDBC Connector
+- Handling optimistic concurrency control with retry logic
+- Building a RESTful product inventory API using Spring Boot
 
-This example uses the Aurora DSQL JDBC Connector to handle IAM authentication automatically.
+## Solution overview
 
-## About the code example
+Traditional databases often struggle with global distribution and active-active writes. Aurora DSQL addresses these challenges by providing:
 
-The example demonstrates a flexible connection approach that works for both admin and non-admin users:
+- **Serverless architecture** – No infrastructure to manage
+- **Active-active writes** – Write to any Region simultaneously
+- **PostgreSQL compatibility** – Use familiar tools and drivers
+- **Built-in high availability** – Automatic failover and replication
 
-* When connecting as an **admin user**, the example uses the `public` schema.
-* When connecting as a **non-admin user**, the example uses a custom `myschema` schema.
+The following diagram illustrates the architecture of the sample application.
 
-The code automatically detects the user type and adjusts its behavior accordingly.
+![Architecture Diagram](image.png)
 
-## ⚠️ Important
+*Figure 1: Spring Boot application connecting to Amazon Aurora DSQL with the Aurora DSQL JDBC Connector, and HikariCP connection pooling.*
 
-* Running this code might result in charges to your AWS account.
-* We recommend that you grant your code least privilege. At most, grant only the
-  minimum permissions required to perform the task. For more information, see
-  [Grant least privilege](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege).
-* This code is not tested in every AWS Region. For more information, see
-  [AWS Regional Services](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services).
+The application uses the following components:
 
-## TLS connection configuration
+- **Spring Boot 3.3** – REST API framework
+- **HikariCP** – Connection pooling
+- **Aurora DSQL JDBC Connector** – IAM authentication, token refresh, TLS encryption, and database connectivity
 
-This example uses direct TLS connections where supported, and verifies the server certificate is trusted. Verified SSL
-connections should be used where possible to ensure data security during transmission.
+## Prerequisites
 
-* Driver versions following the release of PostgreSQL 17 support direct TLS connections, bypassing the traditional
-  PostgreSQL connection preamble
-* Direct TLS connections provide improved connection performance and enhanced security
-* Not all PostgreSQL drivers support direct TLS connections yet, or only in recent versions following PostgreSQL 17
-* Ensure your installed driver version supports direct TLS negotiation, or use a version that is at least as recent as
-  the one used in this sample
-* If your driver doesn't support direct TLS connections, you may need to use the traditional preamble connection instead
+Before you begin, make sure you have the following:
 
-## Run the example
+- An AWS account with an Aurora DSQL cluster created (check the [Aurora DSQL documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/) for current region availability)
+- AWS CLI configured with credentials
+- Java 17 or higher installed
+- Maven 3.6 or higher installed
+- An IAM user or role with the minimum permissions shown below
 
-### Prerequisites
+IAM Policy (minimum permissions):
 
-* You must have an AWS account, and have your default credentials and AWS Region
-  configured as described in the
-  [Globally configuring AWS SDKs and tools](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html)
-  guide.
-* Java Development Kit (JDK): Ensure you have JDK 17+ installed.
-
-  To verify Java is installed, run:
-
-   ```bash
-   java -version
-   ```
-
-*  _Gradle_: A Gradle wrapper is included with the example. If you prefer to use a system installation of Gradle, you
-  can download it from the [official website](https://gradle.org/install/).
-* AWS SDK: Ensure that you set up the latest version of the AWS Java
-  SDK from the [official website](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/setup.html).
-* You must have an Aurora DSQL cluster. For information about creating an Aurora DSQL cluster, see the
-  [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html)
-  guide.
-* If connecting as a non-admin user, ensure the user is linked to an IAM role and is granted access to the `myschema`
-  schema. See the
-  [Using database roles with IAM roles](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html)
-  guide.
-
-### Configuration
-
-Set the following environment variables:
-
-```bash
-# e.g. "admin"
-export CLUSTER_USER="<your user>"
-  
-# e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
-export CLUSTER_ENDPOINT="<your endpoint>"
-
-# Optional: Only necessary if you want the application to exit after running the
-# example code instead of continuing to serve the HTTP API.
-export EXIT_AFTER_TEST="true"
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["dsql:DbConnectAdmin"],
+      "Resource": "arn:aws:dsql:<region>:<account-id>:cluster/<cluster-id>"
+    }
+  ]
+}
 ```
 
-### Run the code
+> ⚠️ Replace `<region>`, `<account-id>`, and `<cluster-id>` with your actual values. For production workloads, follow the principle of least privilege and scope permissions to specific clusters.
 
-The example demonstrates the following operations:
+## Walkthrough
 
-- Opening a connection to an Aurora DSQL cluster
-- Creating a table
-- Inserting and querying data
+### Step 1: Create your Aurora DSQL cluster
 
-The example is designed to work with both admin and non-admin users:
+1. Navigate to the [Aurora DSQL console](https://console.aws.amazon.com/dsql).
+2. Choose **Create cluster**.
+3. Choose your Region configuration (single-Region or multi-Region).
+4. Enter a name for your cluster. Cluster settings are optional to configure.
+5. Note your cluster endpoint after the cluster is ready.
 
-- When run as an admin user, it uses the `public` schema
-- When run as a non-admin user, it uses the `myschema` schema
+### Step 2: Set up the project
 
-**Note:** running the example will use actual resources in your AWS account and may incur charges.
+Clone the sample repository:
 
 ```bash
-./gradlew bootRun
+git clone https://github.com/aws-samples/sample-spring-boot-aurora-dsql
+cd sample-spring-boot-aurora-dsql
 ```
 
-## Additional resources
+Update `src/main/resources/application.properties` with your DSQL endpoint:
 
-- [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-- [Amazon Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/java/jdbc)
-- [Spring Boot Documentation](https://spring.io/projects/spring-boot)
-- [Spring Data JDBC](https://spring.io/projects/spring-data-jdbc)
-- [HikariCP](https://github.com/brettwooldridge/HikariCP)
-- [AWS SDK for Java Documentation](https://docs.aws.amazon.com/sdk-for-java/)
+```properties
+# The Aurora DSQL JDBC Connector handles IAM auth, token refresh, and SSL automatically
+spring.datasource.url=jdbc:aws-dsql:postgresql://<your-endpoint>.dsql.<region>.on.aws
+spring.datasource.driver-class-name=software.amazon.dsql.jdbc.DSQLConnector
 
----
+# IAM user or role name for authentication
+spring.datasource.username=<username>
 
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# AWS Region where your DSQL cluster is deployed
+spring.cloud.aws.region.static=<region>
+```
 
-SPDX-License-Identifier: MIT-0
+The application uses the [Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/java/jdbc) which automatically handles IAM authentication, token refresh, and TLS encryption.
+
+### Step 3: Handle optimistic concurrency
+
+Aurora DSQL uses optimistic concurrency control instead of traditional locking. Optimistic concurrency control allows multiple transactions to proceed without locking resources, checking for conflicts only at commit time. When concurrent transactions conflict, one receives a `40001` SQL state error. We handle this with Spring Retry:
+
+```java
+@Retryable(
+    retryFor = OptimisticLockingFailureException.class,
+    maxAttempts = 4,
+    backoff = @Backoff(
+        delay = 100,
+        multiplier = 2,
+        random = true
+    ))
+@Transactional
+public void updateStock(UUID productId, int quantity) {
+    Product product = productRepository.findById(productId)
+        .orElseThrow(() -> new ProductNotFoundException(productId));
+    product.setStock(product.getStock() + quantity);
+    productRepository.save(product);
+}
+```
+
+The `@Retryable` annotation automatically retries the operation when a concurrency conflict occurs:
+
+- **Conflict detection** – Spring translates the `40001` SQL state to `OptimisticLockingFailureException`
+- **Automatic retry** – If a conflict occurs, the method retries up to 4 times
+- **Exponential backoff** – Wait times increase exponentially (100ms → 200ms → 400ms → 800ms)
+- **Jitter** – Random delays prevent multiple retries from colliding again (known as the 'thundering herd' problem)
+
+This pattern is essential for any operation that modifies data in Aurora DSQL, ensuring your application handles concurrent updates gracefully.
+
+### Step 4: Build the REST API
+
+The sample application includes a product inventory API that provides standard CRUD operations:
+
+```java
+@RestController
+@RequestMapping("/api/products")
+public class ProductController {
+
+    @PostMapping
+    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+        Product created = productService.createProduct(product);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Product>> getAllProducts() {
+        return ResponseEntity.ok(productService.getAllProducts());
+    }
+
+    @PatchMapping("/{id}/stock")
+    public ResponseEntity<Map<String, String>> updateStock(
+            @PathVariable UUID id,
+            @RequestParam int quantity) {
+        productService.updateStock(id, quantity);
+        return ResponseEntity.ok(Map.of("message", "Stock updated"));
+    }
+}
+```
+
+### Step 5: Run and test the application
+
+Build and run the application:
+
+```bash
+mvn clean install
+mvn spring-boot:run
+```
+
+Initialize the database schema:
+
+```bash
+curl -X POST http://localhost:8080/api/products/init
+```
+
+Expected response: `HTTP/1.1 200 OK`
+
+Create a product:
+
+```bash
+curl -X POST http://localhost:8080/api/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Sample Product",
+    "description": "A sample product for testing",
+    "price": 29.99,
+    "stock": 100
+  }'
+```
+
+Expected response:
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Sample Product",
+  "description": "A sample product for testing",
+  "price": 29.99,
+  "stock": 100
+}
+```
+
+Retrieve all products:
+
+```bash
+curl http://localhost:8080/api/products
+```
+
+Expected response:
+
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Sample Product",
+    "description": "A sample product for testing",
+    "price": 29.99,
+    "stock": 100
+  }
+]
+```
+
+Update stock:
+
+```bash
+curl -X PATCH "http://localhost:8080/api/products/<product-id>/stock?quantity=50"
+```
+
+Expected response:
+
+```json
+{
+  "message": "Stock updated"
+}
+```
+
+## Key takeaways
+
+The following are key considerations when building applications with Aurora DSQL:
+
+1. **Aurora DSQL JDBC Connector** – The [Aurora DSQL JDBC Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/java/jdbc) handles IAM-based authentication, automatic token refresh, and TLS encryption. This eliminates the need for manual password management, token rotation logic, and SSL configuration.
+
+2. **Optimistic concurrency** – Aurora DSQL uses optimistic concurrency control, which requires implementing retry logic but enables better scalability than pessimistic locking.
+
+3. **Connection pooling** – Proper HikariCP configuration ensures efficient connection reuse and optimal performance.
+
+## Security considerations
+
+When deploying this application in a production environment, consider the following security best practices:
+
+- **Network isolation** – Deploy your Spring Boot application within a VPC and use VPC endpoints to connect to Aurora DSQL without traversing the public internet.
+- **Least privilege IAM** – Scope your IAM policy to the specific Aurora DSQL cluster ARN. Use `dsql:DbConnect` instead of `dsql:DbConnectAdmin` for application users that don't need administrative access.
+- **Secrets management** – Ensure your AWS credentials are managed through IAM roles for Amazon EC2, Amazon ECS task roles, or IAM Roles Anywhere rather than long-lived access keys.
+
+## Production considerations
+
+The patterns in this post provide a foundation for production applications. For a production deployment, also consider:
+
+- **Observability** – Add Amazon CloudWatch metrics for connection pool utilization, token refresh success/failure rates, and retry counts. Use structured logging with correlation IDs for request tracing.
+- **Health checks** – Implement a Spring Boot Actuator health indicator that verifies database connectivity, so your load balancer can detect unhealthy instances.
+- **Connection pool tuning** – Adjust HikariCP's `maximumPoolSize`, `minimumIdle`, and `connectionTimeout` based on your expected concurrency. Monitor pool metrics to right-size these values.
+- **Cost awareness** – Aurora DSQL pricing is based on read and write operations. Review the [Aurora DSQL pricing page](https://aws.amazon.com/aurora/dsql/pricing/) to understand cost implications for your workload.
+
+## Clean up
+
+To avoid incurring future charges, delete the resources you created:
+
+1. Delete the Aurora DSQL cluster from the AWS Console.
+2. Remove any IAM roles or policies created for this walkthrough.
+3. Delete the Spring Boot application artifacts.
+
+## Conclusion
+
+In this post, we demonstrated how to build a Spring Boot REST API that integrates with Amazon Aurora DSQL. By using the Aurora DSQL JDBC Connector for IAM authentication and TLS encryption, and implementing optimistic concurrency control with Spring Retry, you can build scalable, globally distributed applications without the operational overhead of traditional databases.
+
+The sample code provides foundational patterns for authentication, concurrency control, and error handling that you can adapt to your own applications. Whether you're building a new application or evaluating Aurora DSQL for an existing workload, these patterns help you take advantage of the serverless, multi-Region capabilities of Aurora DSQL.
+
+We welcome your feedback — try the sample application and let us know your experience in the comments, or contribute to the GitHub repository.
+
+To learn more:
+
+- [Amazon Aurora DSQL User Guide](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/)
+- [Sample code on GitHub](https://github.com/aws-samples/sample-spring-boot-aurora-dsql)
+- [Getting started with Amazon Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html)
+- [Amazon Aurora DSQL pricing](https://aws.amazon.com/aurora/dsql/pricing/)
+
+## About the authors
+
+**Mirron Panicker** is a Technical Account Manager at AWS, where he partners with enterprise customers to optimize and modernize their cloud workloads. Mirron specializes in container technologies, helping teams adopt and scale containerized architectures on AWS.
+
+**John Thach** is a Technical Account Manager at AWS. He works with enterprise customers to help them architect and optimize their workloads on AWS. John specializes in cloud operations and infrastructure design, helping teams build resilient, scalable systems.
