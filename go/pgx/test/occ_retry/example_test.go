@@ -7,6 +7,7 @@ package occ_retry_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -48,17 +49,23 @@ func TestIsOCCError(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "OC000 mutation conflict in message",
-			err:      errors.New("ERROR: OC000 - transaction conflict detected"),
+			name: "OC000 mutation conflict",
+			err: &pgconn.PgError{
+				Code:    "OC000",
+				Message: "transaction conflict detected",
+			},
 			expected: true,
 		},
 		{
-			name:     "OC001 schema conflict in message",
-			err:      errors.New("ERROR: OC001 - schema changed during transaction"),
+			name: "OC001 schema conflict",
+			err: &pgconn.PgError{
+				Code:    "OC001",
+				Message: "schema changed during transaction",
+			},
 			expected: true,
 		},
 		{
-			name: "pgconn.PgError with SQLSTATE 40001",
+			name: "SQLSTATE 40001 serialization failure",
 			err: &pgconn.PgError{
 				Code:    "40001",
 				Message: "could not serialize access",
@@ -66,7 +73,7 @@ func TestIsOCCError(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "pgconn.PgError with different SQLSTATE",
+			name: "different SQLSTATE",
 			err: &pgconn.PgError{
 				Code:    "23505",
 				Message: "unique violation",
@@ -74,8 +81,13 @@ func TestIsOCCError(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "wrapped OC000 error",
-			err:  errors.New("query failed: OC000 conflict"),
+			name:     "plain error with OCC code in message is not detected",
+			err:      errors.New("query failed: OC000 conflict"),
+			expected: false,
+		},
+		{
+			name: "wrapped PgError is detected",
+			err:  fmt.Errorf("query failed: %w", &pgconn.PgError{Code: "OC000"}),
 			expected: true,
 		},
 	}
