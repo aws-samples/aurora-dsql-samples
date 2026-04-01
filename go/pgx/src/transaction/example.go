@@ -28,6 +28,7 @@ import (
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/dsql"
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/occretry"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Account represents a bank account for the transfer demo.
@@ -39,20 +40,29 @@ type Account struct {
 
 // createSchema sets up the accounts table with UUID primary key.
 // It drops and recreates the table to ensure a clean state.
-// Uses occretry.ExecWithRetry for OCC errors that may occur after schema changes.
-func createSchema(ctx context.Context, pool *dsql.Pool) error {
+// Uses occretry.Retry for OCC errors that may occur after schema changes.
+func createSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	config := occretry.DefaultConfig()
+	config.MaxRetries = 5
+
 	// Drop existing table to ensure clean state
-	if err := occretry.ExecWithRetry(ctx, pool, `DROP TABLE IF EXISTS account`, 5); err != nil {
+	if err := occretry.Retry(ctx, config, func() error {
+		_, err := pool.Exec(ctx, `DROP TABLE IF EXISTS account`)
+		return err
+	}); err != nil {
 		return fmt.Errorf("drop account table: %w", err)
 	}
 
-	if err := occretry.ExecWithRetry(ctx, pool, `
-		CREATE TABLE account (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			name VARCHAR(255) NOT NULL,
-			balance INT NOT NULL DEFAULT 0
-		)
-	`, 5); err != nil {
+	if err := occretry.Retry(ctx, config, func() error {
+		_, err := pool.Exec(ctx, `
+			CREATE TABLE account (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				name VARCHAR(255) NOT NULL,
+				balance INT NOT NULL DEFAULT 0
+			)
+		`)
+		return err
+	}); err != nil {
 		return fmt.Errorf("create account table: %w", err)
 	}
 
@@ -61,7 +71,7 @@ func createSchema(ctx context.Context, pool *dsql.Pool) error {
 
 // seedAccounts creates test accounts and returns their IDs.
 // Uses occretry.WithRetry for OCC errors that may occur after schema changes.
-func seedAccounts(ctx context.Context, pool *dsql.Pool) (aliceID, bobID string, err error) {
+func seedAccounts(ctx context.Context, pool *pgxpool.Pool) (aliceID, bobID string, err error) {
 	// Use WithRetry for inserts after schema changes (may get OC001)
 	err = occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx,
@@ -88,7 +98,7 @@ func seedAccounts(ctx context.Context, pool *dsql.Pool) (aliceID, bobID string, 
 
 // transferFunds demonstrates a transactional money transfer between accounts.
 // Uses occretry.WithRetry for automatic OCC conflict handling.
-func transferFunds(ctx context.Context, pool *dsql.Pool, fromID, toID string, amount int) error {
+func transferFunds(ctx context.Context, pool *pgxpool.Pool, fromID, toID string, amount int) error {
 	var newFromBalance int
 
 	return occretry.WithRetry(ctx, pool, occretry.DefaultConfig(), func(tx pgx.Tx) error {
@@ -118,7 +128,7 @@ func transferFunds(ctx context.Context, pool *dsql.Pool, fromID, toID string, am
 
 // transferFundsWithCallback demonstrates using pgx.BeginTxFunc for cleaner transaction handling.
 // Note: This does not include OCC retry - use occretry.WithRetry for production code.
-func transferFundsWithCallback(ctx context.Context, pool *dsql.Pool, fromID, toID string, amount int) error {
+func transferFundsWithCallback(ctx context.Context, pool *pgxpool.Pool, fromID, toID string, amount int) error {
 	return pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
 		var newFromBalance int
 		err := tx.QueryRow(ctx,
@@ -146,14 +156,14 @@ func transferFundsWithCallback(ctx context.Context, pool *dsql.Pool, fromID, toI
 }
 
 // getBalance retrieves an account's current balance.
-func getBalance(ctx context.Context, pool *dsql.Pool, accountID string) (int, error) {
+func getBalance(ctx context.Context, pool *pgxpool.Pool, accountID string) (int, error) {
 	var balance int
 	err := pool.QueryRow(ctx, `SELECT balance FROM account WHERE id = $1`, accountID).Scan(&balance)
 	return balance, err
 }
 
 // cleanup removes test data.
-func cleanup(ctx context.Context, pool *dsql.Pool) error {
+func cleanup(ctx context.Context, pool *pgxpool.Pool) error {
 	_, err := pool.Exec(ctx, `DELETE FROM account WHERE name IN ('Alice', 'Bob')`)
 	return err
 }
@@ -167,10 +177,12 @@ func Example() error {
 
 	ctx := context.Background()
 
+	poolCfg, _ := pgxpool.ParseConfig("")
+	poolCfg.MaxConns = 5
+
 	pool, err := dsql.NewPool(ctx, dsql.Config{
-		Host:     clusterEndpoint,
-		MaxConns: 5,
-	})
+		Host: clusterEndpoint,
+	}, poolCfg)
 	if err != nil {
 		return fmt.Errorf("create pool: %w", err)
 	}
