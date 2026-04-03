@@ -21,30 +21,34 @@ def run_example():
     print("Starting SQLAlchemy DSQL Example...")
     engine = create_dsql_engine()
 
-    print("Dropping existing tables (if any)...")
-    with engine.connect() as conn:
-        Base.metadata.drop_all(conn)
-        conn.commit()
+    try:
+        print("Dropping existing tables (if any)...")
+        with engine.connect() as conn:
+            Base.metadata.drop_all(conn)
+            conn.commit()
 
-    print("Creating tables...")
-    with engine.connect() as conn:
-        Base.metadata.create_all(conn)
-        conn.commit()
+        print("Creating tables...")
+        with engine.connect() as conn:
+            Base.metadata.create_all(conn)
+            conn.commit()
 
-    with Session(engine) as session:
-        populate(session)
-        verify_pets(session)
-        verify_owners(session)
-        verify_vets(session)
-        cleanup(session)
-        print("Example completed successfully!")
+        with Session(engine) as session:
+            populate(session)
+            verify_pets(session)
+            verify_owners(session)
+            verify_vets(session)
+            cleanup(session)
+            print("Example completed successfully!")
 
-    print("Dropping tables...")
-    with engine.connect() as conn:
-        Base.metadata.drop_all(conn)
-        conn.commit()
-
-    engine.dispose()
+        print("Dropping tables...")
+        with engine.connect() as conn:
+            Base.metadata.drop_all(conn)
+            conn.commit()
+    except Exception as e:
+        print(f"Error: {e}")
+        raise
+    finally:
+        engine.dispose()
 
 
 def populate(session: Session):

@@ -4,9 +4,15 @@
 """
 SQLAlchemy ORM models for the veterinary domain.
 
-Aurora DSQL uses UUIDs as the recommended primary key type and does not
-enforce foreign key constraints. Relationships are managed at the ORM
-level using explicit primaryjoin with foreign() annotations.
+Aurora DSQL recommends UUIDs as the primary key type. Foreign key
+constraints are not supported, so ForeignKey() cannot be used in column
+definitions. Without ForeignKey(), SQLAlchemy cannot auto-detect join
+conditions between tables. To define relationships, we use
+relationship() with explicit primaryjoin and foreign() annotations.
+The foreign() annotation tells SQLAlchemy which column is the
+referencing side of the join, replacing the role ForeignKey() normally
+plays. See: https://docs.sqlalchemy.org/en/20/orm/join_conditions.html
+#creating-custom-foreign-conditions
 """
 
 from datetime import date
