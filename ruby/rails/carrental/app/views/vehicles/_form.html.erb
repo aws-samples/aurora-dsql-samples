@@ -1,0 +1,59 @@
+<div class="form-card">
+  <%= form_with(model: vehicle) do |form| %>
+    <% if vehicle.errors.any? %>
+      <div class="error-messages">
+        <h3><%= pluralize(vehicle.errors.count, "error") %> prohibited this vehicle from being saved:</h3>
+        <ul>
+          <% vehicle.errors.each do |error| %>
+            <li><%= error.full_message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div class="form-group">
+      <%= form.label :make %>
+      <%= form.text_field :make, placeholder: "e.g., Toyota" %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :model %>
+      <%= form.text_field :model, placeholder: "e.g., Camry" %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :year %>
+      <%= form.number_field :year, placeholder: "e.g., 2024", min: 1901, max: 2030 %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :color %>
+      <%= form.text_field :color, placeholder: "e.g., Silver" %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :license_plate %>
+      <%= form.text_field :license_plate, placeholder: "e.g., ABC-1234" %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :daily_rate, "Daily Rate ($)" %>
+      <%= form.number_field :daily_rate, placeholder: "e.g., 45.00", step: 0.01, min: 0 %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :status %>
+      <%= form.select :status, %w[available rented maintenance] %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :mileage %>
+      <%= form.number_field :mileage, placeholder: "e.g., 12500", min: 0 %>
+    </div>
+
+    <div class="form-actions">
+      <%= form.submit class: "btn btn-primary" %>
+      <%= link_to "Cancel", vehicles_path, class: "btn btn-secondary" %>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,9 @@
+<% content_for(:title) { "New Vehicle" } %>
+
+<div class="page-header">
+  <h1>New Vehicle</h1>
+</div>
+
+<%= render "form", vehicle: @vehicle %>
+
+<p style="margin-top: 20px;"><%= link_to "← Back to Vehicles", vehicles_path %></p>
