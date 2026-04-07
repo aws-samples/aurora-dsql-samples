@@ -1,0 +1,9 @@
+<% content_for(:title) { "Edit Reservation" } %>
+
+<div class="page-header">
+  <h1>Edit Reservation</h1>
+</div>
+
+<%= render "form", reservation: @reservation %>
+
+<p style="margin-top: 20px;"><%= link_to "← Back to Reservations", reservations_path %></p>

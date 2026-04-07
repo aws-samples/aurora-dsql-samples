@@ -1,0 +1,42 @@
+<% content_for(:title) { "Reservation Details" } %>
+
+<div class="page-header">
+  <h1>Reservation Details</h1>
+  <div class="actions">
+    <%= link_to "Edit", edit_reservation_path(@reservation), class: "btn btn-secondary" %>
+    <%= button_to "Delete", reservation_path(@reservation), method: :delete, class: "btn btn-danger", data: { turbo_confirm: "Are you sure?" } %>
+  </div>
+</div>
+
+<div class="detail-card">
+  <dl>
+    <dt>Customer</dt>
+    <dd><%= @reservation.customer ? link_to(@reservation.customer.name, @reservation.customer) : content_tag(:em, "Deleted Customer") %></dd>
+
+    <dt>Vehicle</dt>
+    <dd><%= @reservation.vehicle ? link_to(@reservation.vehicle.display_name, @reservation.vehicle) : content_tag(:em, "Deleted Vehicle") %></dd>
+
+    <dt>Start Date</dt>
+    <dd><%= @reservation.start_date.strftime("%B %d, %Y") %></dd>
+
+    <dt>End Date</dt>
+    <dd><%= @reservation.end_date.strftime("%B %d, %Y") %></dd>
+
+    <dt>Duration</dt>
+    <dd><%= (@reservation.end_date - @reservation.start_date).to_i %> days</dd>
+
+    <dt>Daily Rate</dt>
+    <dd><%= @reservation.vehicle ? "$#{number_with_precision(@reservation.vehicle.daily_rate, precision: 2)}" : "—" %></dd>
+
+    <dt>Total Price</dt>
+    <dd><strong>$<%= number_with_precision(@reservation.total_price, precision: 2) %></strong></dd>
+
+    <dt>Status</dt>
+    <dd><span class="badge badge-<%= @reservation.status %>"><%= @reservation.status %></span></dd>
+
+    <dt>Created</dt>
+    <dd><%= @reservation.created_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
+  </dl>
+</div>
+
+<p style="margin-top: 20px;"><%= link_to "← Back to Reservations", reservations_path %></p>

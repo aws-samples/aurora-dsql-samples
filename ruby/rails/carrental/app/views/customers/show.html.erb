@@ -1,0 +1,58 @@
+<% content_for(:title) { @customer.name } %>
+
+<div class="page-header">
+  <h1><%= @customer.name %></h1>
+  <div class="actions">
+    <%= link_to "Edit", edit_customer_path(@customer), class: "btn btn-secondary" %>
+    <%= button_to "Delete", customer_path(@customer), method: :delete, class: "btn btn-danger", data: { turbo_confirm: "Are you sure?" } %>
+  </div>
+</div>
+
+<div class="detail-card">
+  <dl>
+    <dt>Name</dt>
+    <dd><%= @customer.name %></dd>
+
+    <dt>Email</dt>
+    <dd><%= @customer.email %></dd>
+
+    <dt>Phone</dt>
+    <dd><%= @customer.phone || "—" %></dd>
+
+    <dt>License Number</dt>
+    <dd><%= @customer.license_number %></dd>
+
+    <dt>Created</dt>
+    <dd><%= @customer.created_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
+  </dl>
+</div>
+
+<% if @reservations.any? %>
+  <h2 style="margin-bottom: 16px;">Reservations</h2>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Status</th>
+          <th>Total Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @reservations.each do |reservation| %>
+          <tr>
+            <td><%= reservation.vehicle ? link_to(reservation.vehicle.display_name, reservation.vehicle) : content_tag(:em, "Deleted Vehicle") %></td>
+            <td><%= reservation.start_date.strftime("%b %d, %Y") %></td>
+            <td><%= reservation.end_date.strftime("%b %d, %Y") %></td>
+            <td><span class="badge badge-<%= reservation.status %>"><%= reservation.status %></span></td>
+            <td>$<%= number_with_precision(reservation.total_price, precision: 2) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<p style="margin-top: 20px;"><%= link_to "← Back to Customers", customers_path %></p>
