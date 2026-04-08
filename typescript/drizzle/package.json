@@ -25,7 +25,7 @@
     "dependencies": {
         "@aws-sdk/dsql-signer": "^3.1017.0",
         "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
-        "drizzle-orm": "^0.45.1",
+        "drizzle-orm": "^0.45.2",
         "pg": "^8.20.0"
     },
     "overrides": {
