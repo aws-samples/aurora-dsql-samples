@@ -6,7 +6,8 @@ require "rails/test_help"
 
 module ActiveSupport
   class TestCase
-    # Disable parallel tests for DSQL integration
-    # Disable fixtures since we test against live DSQL
+    # Aurora DSQL does not support SAVEPOINT, which Rails uses for
+    # transactional tests. Disable them so each test manages its own data.
+    self.use_transactional_tests = false
   end
 end
