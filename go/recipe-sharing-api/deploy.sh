@@ -43,10 +43,10 @@ Usage: $(basename "$0") [OPTIONS]
 Required:
   --account          AWS account ID (12 digits)
   --region           AWS region (e.g., us-east-1)
-  --allowed-ip       Public IP address allowed to access the API
   --dsql-cluster-id  Amazon Aurora DSQL cluster identifier
 
 Optional:
+  --allowed-ip       IP address or CIDR block allowed to access the API (e.g., 203.0.113.0/24)
   --stack-name       AWS CloudFormation stack name (default: recipe-share-stack)
   --help             Show this help message
 
@@ -55,6 +55,12 @@ Example:
     --account 123456789012 \\
     --region us-east-1 \\
     --allowed-ip \$(curl -s https://checkip.amazonaws.com) \\
+    --dsql-cluster-id abc123xyz456
+
+  # Deploy without IP restriction (API is publicly accessible):
+  ./deploy.sh \\
+    --account 123456789012 \\
+    --region us-east-1 \\
     --dsql-cluster-id abc123xyz456
 EOF
   exit 1
@@ -81,12 +87,11 @@ done
 MISSING=0
 if [[ -z "$ACCOUNT" ]];         then err "Missing --account";         MISSING=1; fi
 if [[ -z "$REGION" ]];          then err "Missing --region";          MISSING=1; fi
-if [[ -z "$ALLOWED_IP" ]];      then err "Missing --allowed-ip";      MISSING=1; fi
 if [[ -z "$DSQL_CLUSTER_ID" ]]; then err "Missing --dsql-cluster-id"; MISSING=1; fi
 if [[ $MISSING -eq 1 ]]; then echo; usage; fi
 
-# Append /32 CIDR suffix if not already present.
-if [[ "$ALLOWED_IP" != *"/"* ]]; then
+# Append /32 CIDR suffix to a bare IP address (skip if already a CIDR block or empty).
+if [[ -n "$ALLOWED_IP" ]] && [[ "$ALLOWED_IP" != *"/"* ]]; then
   ALLOWED_IP="${ALLOWED_IP}/32"
 fi
 
@@ -105,7 +110,7 @@ info "  Recipe Sharing API - Deployment"
 info "============================================="
 info "Account:           ${ACCOUNT}"
 info "Region:            ${REGION}"
-info "Allowed IP:        ${ALLOWED_IP}"
+info "Allowed IP:        ${ALLOWED_IP:-<unrestricted>}"
 info "DSQL Cluster ID:   ${DSQL_CLUSTER_ID}"
 info "DSQL Endpoint:     ${DSQL_ENDPOINT}"
 info "Stack Name:        ${STACK_NAME}"
@@ -127,6 +132,16 @@ if ! command -v go &>/dev/null; then
   exit 1
 fi
 
+if ! command -v zip &>/dev/null; then
+  err "zip is not installed. Install it with your package manager (e.g., yum install zip, apt install zip, brew install zip)."
+  exit 1
+fi
+
+if ! command -v jq &>/dev/null; then
+  err "jq is not installed. Install it with your package manager (e.g., yum install jq, apt install jq, brew install jq)."
+  exit 1
+fi
+
 # Verify Go version is 1.24 or later.
 GO_VERSION=$(go version | sed 's/.*go\([0-9]*\.[0-9]*\).*/\1/')
 GO_MAJOR=$(echo "$GO_VERSION" | cut -d. -f1)
@@ -145,17 +160,36 @@ fi
 ok "Prerequisites verified (AWS CLI, Go ${GO_VERSION}, valid credentials)"
 
 # ---------------------------------------------------------------------------
-# Step 2: Build the Go binary for Lambda (Linux/ARM64)
+# Step 2: Resolve Go module dependencies
+# ---------------------------------------------------------------------------
+info "Resolving Go module dependencies..."
+if ! go mod tidy 2>/dev/null; then
+  warn "go mod tidy failed with default proxy, retrying with GOPROXY=direct..."
+  GOPROXY=direct go mod tidy
+fi
+ok "Dependencies resolved"
+
+# ---------------------------------------------------------------------------
+# Step 3: Build the Go binary for Lambda (Linux/ARM64)
 # ---------------------------------------------------------------------------
 info "Building Go binary for Linux/ARM64..."
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc \
+
+# Try the default Go module proxy first. If it is unreachable (corporate
+# firewalls, air-gapped environments, etc.), fall back to direct connections.
+if ! GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc \
   -ldflags="-s -w" \
   -o "${BINARY_NAME}" \
-  ./cmd/lambda/
+  ./cmd/lambda/ 2>/dev/null; then
+  warn "Build failed with default proxy, retrying with GOPROXY=direct..."
+  GOPROXY=direct GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc \
+    -ldflags="-s -w" \
+    -o "${BINARY_NAME}" \
+    ./cmd/lambda/
+fi
 ok "Binary built: ${BINARY_NAME}"
 
 # ---------------------------------------------------------------------------
-# Step 3: Package the binary into a ZIP file
+# Step 4: Package the binary into a ZIP file
 # ---------------------------------------------------------------------------
 info "Packaging deployment ZIP..."
 zip -j "${ZIP_NAME}" "${BINARY_NAME}" >/dev/null
@@ -163,7 +197,7 @@ rm -f "${BINARY_NAME}"
 ok "Package created: ${ZIP_NAME}"
 
 # ---------------------------------------------------------------------------
-# Step 4: Create the S3 bucket if it does not exist
+# Step 5: Create the S3 bucket if it does not exist
 # ---------------------------------------------------------------------------
 info "Checking S3 deployment bucket..."
 if ! aws s3api head-bucket --bucket "$S3_BUCKET" --region "$REGION" 2>/dev/null; then
@@ -184,7 +218,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 5: Upload the deployment ZIP to S3
+# Step 6: Upload the deployment ZIP to S3
 # ---------------------------------------------------------------------------
 info "Uploading deployment package to S3..."
 aws s3 cp "${ZIP_NAME}" "s3://${S3_BUCKET}/${S3_KEY}" --region "$REGION" >/dev/null
@@ -192,7 +226,7 @@ rm -f "${ZIP_NAME}"
 ok "Package uploaded to s3://${S3_BUCKET}/${S3_KEY}"
 
 # ---------------------------------------------------------------------------
-# Step 6: Deploy the AWS CloudFormation stack
+# Step 7: Deploy the AWS CloudFormation stack
 # ---------------------------------------------------------------------------
 info "Deploying AWS CloudFormation stack: ${STACK_NAME}..."
 aws cloudformation deploy \
@@ -211,7 +245,7 @@ aws cloudformation deploy \
 ok "CloudFormation stack deployed"
 
 # ---------------------------------------------------------------------------
-# Step 7: Retrieve and display stack outputs
+# Step 8: Retrieve and display stack outputs
 # ---------------------------------------------------------------------------
 info "Retrieving stack outputs..."
 OUTPUTS=$(aws cloudformation describe-stacks \
