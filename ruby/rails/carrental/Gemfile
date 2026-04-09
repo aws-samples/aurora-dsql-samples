@@ -30,26 +30,21 @@ gem "tzinfo-data", platforms: %i[windows jruby]
 gem "bootsnap", require: false
 
 # =============================================================================
-# Database — Amazon Aurora DSQL (PostgreSQL-compatible) for production
+# Database — Amazon Aurora DSQL (PostgreSQL-compatible)
 # =============================================================================
 
-group :production do
-  # PostgreSQL driver for Ruby
-  gem "pg", "~> 1.5"
+# PostgreSQL driver for Ruby
+gem "pg", "~> 1.5"
 
-  # AWS official connector for Aurora DSQL — handles IAM token generation,
-  # SSL configuration, and connection management
-  # https://github.com/awslabs/aurora-dsql-connectors/tree/main/ruby/pg
-  gem "aurora-dsql-ruby-pg", "~> 1.0", require: "aurora_dsql_pg"
-end
+# AWS official connector for Aurora DSQL — handles IAM token generation,
+# SSL configuration, and connection management
+# https://github.com/awslabs/aurora-dsql-connectors/tree/main/ruby/pg
+gem "aurora-dsql-ruby-pg", "~> 1.0", require: "aurora_dsql_pg"
 
-# =============================================================================
-# Development and Test — SQLite3 for local development
-# =============================================================================
+# Use SQLite3 for local development (no PostgreSQL required)
+gem "sqlite3", "~> 2.0"
 
 group :development, :test do
-  # SQLite3 for local development (no PostgreSQL required)
-  gem "sqlite3", "~> 2.0"
 
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[mri windows], require: "debug/prelude"
