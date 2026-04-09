@@ -1,0 +1,81 @@
+name: PHP PDO_PGSQL integration tests
+
+permissions: {}
+
+on:
+  workflow_call: {}
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: php-pdo-pgsql
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.PHP_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  php-pdo-pgsql-integ-test:
+    needs: create-cluster
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: pdo_pgsql
+        coverage: none
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: ${{ secrets.PHP_IAM_ROLE }}
+        aws-region: ${{ needs.create-cluster.outputs.region }}
+
+    - name: Download DSQL certificate
+      run: |
+        mkdir -p ~/.postgresql
+        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O ~/.postgresql/root.crt
+
+    - name: Install dependencies
+      working-directory: ./php/pdo-pgsql
+      run: composer install --no-interaction --prefer-dist
+
+    - name: Run example_preferred.php
+      working-directory: ./php/pdo-pgsql
+      env:
+        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        REGION: ${{ needs.create-cluster.outputs.region }}
+      run: |
+        echo "Testing example_preferred.php..."
+        php src/example_preferred.php
+
+    - name: Run manual_token.php
+      working-directory: ./php/pdo-pgsql
+      env:
+        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        REGION: ${{ needs.create-cluster.outputs.region }}
+      run: |
+        echo "Testing manual_token.php..."
+        php src/alternatives/manual_token/manual_token.php
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, php-pdo-pgsql-integ-test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.PHP_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
