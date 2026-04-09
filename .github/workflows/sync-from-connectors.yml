@@ -56,6 +56,10 @@ jobs:
           rsync -av --delete --exclude='README.md' /tmp/connectors/dotnet/npgsql/example/src/ dotnet/npgsql/src/
           rsync -av --delete /tmp/connectors/dotnet/npgsql/example/test/ dotnet/npgsql/test/
 
+      - name: Sync PHP examples
+        run: |
+          rsync -av --delete --exclude='README.md' --exclude='composer.json' /tmp/connectors/php/pdo_pgsql/example/src/ php/pdo-pgsql/src/
+
       - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v8

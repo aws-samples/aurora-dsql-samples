@@ -1,0 +1,10 @@
+{
+    "name": "aws-samples/aurora-dsql-pdo-pgsql-sample",
+    "description": "Sample code for Aurora DSQL PDO_PGSQL connector",
+    "type": "project",
+    "license": "Apache-2.0",
+    "require": {
+        "php": ">=8.2",
+        "awslabs/aurora-dsql-pdo-pgsql": "^0.1"
+    }
+}
