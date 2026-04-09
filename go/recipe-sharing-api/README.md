@@ -33,7 +33,7 @@ Gin HTTP Server (port 8080) → SQLite
                                               └─────────────────────┘
 ```
 
-API Gateway uses a resource policy to restrict access to a single IP address specified at deployment time.
+API Gateway uses a resource policy to restrict access to a specified IP address or CIDR block when the `--allowed-ip` flag is provided at deployment time. Without it, the API is publicly accessible.
 
 ---
 
@@ -159,8 +159,8 @@ Save the `identifier` from the response.
 |------|----------|-------------|
 | `--account` | Yes | 12-digit AWS account ID |
 | `--region` | Yes | AWS region (e.g., `us-east-1`) |
-| `--allowed-ip` | Yes | Public IP allowed to access the API (auto-appends `/32`) |
 | `--dsql-cluster-id` | Yes | Amazon Aurora DSQL cluster identifier |
+| `--allowed-ip` | No | IP address or CIDR block allowed to access the API (auto-appends `/32` to bare IPs). Omit for unrestricted access. |
 | `--stack-name` | No | CloudFormation stack name (default: `recipe-share-stack`) |
 
 The script validates prerequisites, cross-compiles the Go binary for Linux/ARM64, uploads it to Amazon S3, and deploys via AWS CloudFormation. On completion it prints the API Gateway endpoint URL.

@@ -21,7 +21,10 @@ Parameters:
 
   AllowedIP:
     Type: String
-    Description: Public IP address (CIDR) allowed to access the API (e.g., 203.0.113.42/32)
+    Default: ''
+    Description: >-
+      IP address or CIDR block allowed to access the API (e.g., 203.0.113.42/32
+      or 10.0.0.0/8). Leave empty for unrestricted access.
 
   LambdaS3Bucket:
     Type: String
@@ -30,6 +33,9 @@ Parameters:
   LambdaS3Key:
     Type: String
     Description: S3 key for the Lambda deployment ZIP file
+
+Conditions:
+  HasAllowedIP: !Not [!Equals [!Ref AllowedIP, '']]
 
 Resources:
 
@@ -104,7 +110,8 @@ Resources:
           DB_TYPE: dsql
 
   # -----------------------------------------------------------------------
-  # Amazon API Gateway REST API with IP-based resource policy
+  # Amazon API Gateway REST API
+  # When an allowed IP/CIDR is provided, a resource policy restricts access.
   # -----------------------------------------------------------------------
   RestApi:
     Type: AWS::ApiGateway::RestApi
@@ -113,23 +120,25 @@ Resources:
       EndpointConfiguration:
         Types:
           - REGIONAL
-      Policy:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal: '*'
-            Action: execute-api:Invoke
-            Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AccountId}:*/*'
-            Condition:
-              IpAddress:
-                aws:SourceIp: !Ref AllowedIP
-          - Effect: Deny
-            Principal: '*'
-            Action: execute-api:Invoke
-            Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AccountId}:*/*'
-            Condition:
-              NotIpAddress:
-                aws:SourceIp: !Ref AllowedIP
+      Policy: !If
+        - HasAllowedIP
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal: '*'
+              Action: execute-api:Invoke
+              Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AccountId}:*/*'
+              Condition:
+                IpAddress:
+                  aws:SourceIp: !Ref AllowedIP
+            - Effect: Deny
+              Principal: '*'
+              Action: execute-api:Invoke
+              Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AccountId}:*/*'
+              Condition:
+                NotIpAddress:
+                  aws:SourceIp: !Ref AllowedIP
+        - !Ref 'AWS::NoValue'
 
   # Catch-all proxy resource to forward all paths to Lambda
   ProxyResource:
