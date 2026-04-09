@@ -1,0 +1,71 @@
+name: Ruby Rails Car Rental integration tests
+
+permissions: {}
+
+on:
+  workflow_call: {}
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ruby/rails/carrental/**'
+      - '.github/workflows/ruby-rails-carrental-integ-tests.yml'
+
+jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: ruby-rails-carrental
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.RUBY_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  test:
+    needs: create-cluster
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Ruby 3.3
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.3'
+        bundler-cache: true
+        working-directory: ruby/rails/carrental
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: ${{ secrets.RUBY_IAM_ROLE }}
+        aws-region: ${{ needs.create-cluster.outputs.region }}
+
+    - name: Configure and run integration tests for Rails car rental
+      working-directory: ./ruby/rails/carrental
+      env:
+        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        REGION: ${{ needs.create-cluster.outputs.region }}
+        CLUSTER_USER: admin
+        RAILS_ENV: test
+      run: |
+        bundle install
+        mkdir -p ~/.postgresql
+        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O ~/.postgresql/root.crt
+        bin/rails db:migrate
+        bin/rails test
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.RUBY_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials

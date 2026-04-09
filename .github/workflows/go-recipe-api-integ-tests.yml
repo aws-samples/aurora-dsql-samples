@@ -1,0 +1,65 @@
+name: Go Recipe API integration tests
+
+permissions: {}
+
+on:
+  workflow_call: {}
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'go/recipe-sharing-api/**'
+      - '.github/workflows/go-recipe-api-integ-tests.yml'
+
+jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: go-recipe-api
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.GO_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  test:
+    needs: create-cluster
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+    env:
+      GOPROXY: direct
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25'
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: ${{ secrets.GO_IAM_ROLE }}
+        aws-region: ${{ needs.create-cluster.outputs.region }}
+
+    - name: Run integration tests
+      working-directory: ./go/recipe-sharing-api
+      env:
+        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        REGION: ${{ needs.create-cluster.outputs.region }}
+      run: |
+        go test -v ./test/...
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.GO_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
