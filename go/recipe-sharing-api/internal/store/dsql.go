@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws-samples/recipe-share-dsql-go/internal/model"
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/dsql"
+	"github.com/awslabs/aurora-dsql-connectors/go/pgx/occretry"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +21,7 @@ const schemaName = "recipe_share"
 // DSQLStore implements the Store interface using Amazon Aurora DSQL.
 type DSQLStore struct {
 	pool *pgxpool.Pool
+	db   occretry.DB
 }
 
 // NewDSQLStore creates a connection pool to Amazon Aurora DSQL using IAM
@@ -44,7 +46,8 @@ func NewDSQLStore(ctx context.Context, endpoint string) (*DSQLStore, error) {
 		return nil, fmt.Errorf("create Aurora DSQL connection pool: %w", err)
 	}
 
-	return &DSQLStore{pool: pool}, nil
+	db := occretry.New(pool, occretry.DefaultConfig())
+	return &DSQLStore{pool: pool, db: db}, nil
 }
 
 // InitSchema creates the recipe_share schema and tables if they do not exist.
@@ -87,10 +90,12 @@ func (s *DSQLStore) InitSchema(ctx context.Context) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`, schemaName),
+		fmt.Sprintf("CREATE INDEX ASYNC IF NOT EXISTS idx_recipes_chef_id ON %s.recipes(chef_id)", schemaName),
+		fmt.Sprintf("CREATE INDEX ASYNC IF NOT EXISTS idx_ratings_recipe_id ON %s.ratings(recipe_id)", schemaName),
 	}
 
 	for _, stmt := range statements {
-		if _, err := s.pool.Exec(ctx, stmt); err != nil {
+		if _, err := s.db.Exec(ctx, stmt); err != nil {
 			return fmt.Errorf("init schema: %w", err)
 		}
 	}
@@ -109,7 +114,7 @@ func (s *DSQLStore) Close() error {
 
 // ListChefs returns all chefs from Amazon Aurora DSQL ordered by creation date.
 func (s *DSQLStore) ListChefs(ctx context.Context) ([]model.Chef, error) {
-	rows, err := s.pool.Query(ctx,
+	rows, err := s.db.Query(ctx,
 		fmt.Sprintf(`SELECT id, name, email, specialty, bio, created_at, updated_at
 		 FROM %s.chefs ORDER BY created_at DESC`, schemaName))
 	if err != nil {
@@ -131,7 +136,7 @@ func (s *DSQLStore) ListChefs(ctx context.Context) ([]model.Chef, error) {
 // GetChef returns a single chef by ID from Amazon Aurora DSQL, or nil if not found.
 func (s *DSQLStore) GetChef(ctx context.Context, id string) (*model.Chef, error) {
 	var c model.Chef
-	err := s.pool.QueryRow(ctx,
+	err := s.db.QueryRow(ctx,
 		fmt.Sprintf(`SELECT id, name, email, specialty, bio, created_at, updated_at
 		 FROM %s.chefs WHERE id = $1`, schemaName), id).
 		Scan(&c.ID, &c.Name, &c.Email, &c.Specialty, &c.Bio, &c.CreatedAt, &c.UpdatedAt)
@@ -151,7 +156,7 @@ func (s *DSQLStore) GetChefWithRecipes(ctx context.Context, id string) (*model.C
 		return nil, err
 	}
 
-	rows, err := s.pool.Query(ctx,
+	rows, err := s.db.Query(ctx,
 		fmt.Sprintf(`SELECT id, chef_id, title, description, ingredients, instructions,
 		        prep_time, cook_time, servings, difficulty, cuisine, status,
 		        created_at, updated_at
@@ -191,7 +196,7 @@ func (s *DSQLStore) CreateChef(ctx context.Context, input model.CreateChefInput)
 		UpdatedAt: now,
 	}
 
-	_, err := s.pool.Exec(ctx,
+	_, err := s.db.Exec(ctx,
 		fmt.Sprintf(`INSERT INTO %s.chefs (id, name, email, specialty, bio, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`, schemaName),
 		c.ID, c.Name, c.Email, c.Specialty, c.Bio, c.CreatedAt, c.UpdatedAt)
@@ -202,39 +207,53 @@ func (s *DSQLStore) CreateChef(ctx context.Context, input model.CreateChefInput)
 }
 
 // UpdateChef applies partial updates to an existing chef in Amazon Aurora DSQL.
+// The read-modify-write is wrapped in a transaction with OCC retry.
 func (s *DSQLStore) UpdateChef(ctx context.Context, id string, input model.UpdateChefInput) (*model.Chef, error) {
-	chef, err := s.GetChef(ctx, id)
-	if err != nil || chef == nil {
-		return nil, err
-	}
-
-	if input.Name != nil {
-		chef.Name = *input.Name
-	}
-	if input.Email != nil {
-		chef.Email = *input.Email
-	}
-	if input.Specialty != nil {
-		chef.Specialty = *input.Specialty
-	}
-	if input.Bio != nil {
-		chef.Bio = *input.Bio
-	}
-	chef.UpdatedAt = time.Now().UTC()
-
-	_, err = s.pool.Exec(ctx,
-		fmt.Sprintf(`UPDATE %s.chefs SET name = $1, email = $2, specialty = $3, bio = $4, updated_at = $5
-		 WHERE id = $6`, schemaName),
-		chef.Name, chef.Email, chef.Specialty, chef.Bio, chef.UpdatedAt, id)
+	var chef *model.Chef
+	err := s.db.WithTransaction(ctx, func(tx pgx.Tx) error {
+		var c model.Chef
+		err := tx.QueryRow(ctx,
+			fmt.Sprintf(`SELECT id, name, email, specialty, bio, created_at, updated_at
+			 FROM %s.chefs WHERE id = $1`, schemaName), id).
+			Scan(&c.ID, &c.Name, &c.Email, &c.Specialty, &c.Bio, &c.CreatedAt, &c.UpdatedAt)
+		if err == pgx.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("get chef: %w", err)
+		}
+		if input.Name != nil {
+			c.Name = *input.Name
+		}
+		if input.Email != nil {
+			c.Email = *input.Email
+		}
+		if input.Specialty != nil {
+			c.Specialty = *input.Specialty
+		}
+		if input.Bio != nil {
+			c.Bio = *input.Bio
+		}
+		c.UpdatedAt = time.Now().UTC()
+		_, err = tx.Exec(ctx,
+			fmt.Sprintf(`UPDATE %s.chefs SET name = $1, email = $2, specialty = $3, bio = $4, updated_at = $5
+			 WHERE id = $6`, schemaName),
+			c.Name, c.Email, c.Specialty, c.Bio, c.UpdatedAt, id)
+		if err != nil {
+			return fmt.Errorf("update chef: %w", err)
+		}
+		chef = &c
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("update chef: %w", err)
+		return nil, err
 	}
 	return chef, nil
 }
 
 // DeleteChef removes a chef by ID from Amazon Aurora DSQL.
 func (s *DSQLStore) DeleteChef(ctx context.Context, id string) error {
-	_, err := s.pool.Exec(ctx,
+	_, err := s.db.Exec(ctx,
 		fmt.Sprintf(`DELETE FROM %s.chefs WHERE id = $1`, schemaName), id)
 	if err != nil {
 		return fmt.Errorf("delete chef: %w", err)
@@ -272,7 +291,7 @@ func (s *DSQLStore) ListRecipes(ctx context.Context, filter model.RecipeFilter) 
 	}
 	query += " ORDER BY created_at DESC"
 
-	rows, err := s.pool.Query(ctx, query, args...)
+	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list recipes: %w", err)
 	}
@@ -295,7 +314,7 @@ func (s *DSQLStore) ListRecipes(ctx context.Context, filter model.RecipeFilter) 
 // GetRecipe returns a single recipe by ID from Amazon Aurora DSQL, or nil if not found.
 func (s *DSQLStore) GetRecipe(ctx context.Context, id string) (*model.Recipe, error) {
 	var r model.Recipe
-	err := s.pool.QueryRow(ctx,
+	err := s.db.QueryRow(ctx,
 		fmt.Sprintf(`SELECT id, chef_id, title, description, ingredients, instructions,
 		        prep_time, cook_time, servings, difficulty, cuisine, status,
 		        created_at, updated_at
@@ -375,7 +394,7 @@ func (s *DSQLStore) CreateRecipe(ctx context.Context, input model.CreateRecipeIn
 		UpdatedAt:    now,
 	}
 
-	_, err := s.pool.Exec(ctx,
+	_, err := s.db.Exec(ctx,
 		fmt.Sprintf(`INSERT INTO %s.recipes (id, chef_id, title, description, ingredients, instructions,
 		                      prep_time, cook_time, servings, difficulty, cuisine, status,
 		                      created_at, updated_at)
@@ -390,61 +409,80 @@ func (s *DSQLStore) CreateRecipe(ctx context.Context, input model.CreateRecipeIn
 }
 
 // UpdateRecipe applies partial updates to an existing recipe in Amazon Aurora DSQL.
+// The read-modify-write is wrapped in a transaction with OCC retry.
 func (s *DSQLStore) UpdateRecipe(ctx context.Context, id string, input model.UpdateRecipeInput) (*model.Recipe, error) {
-	recipe, err := s.GetRecipe(ctx, id)
-	if err != nil || recipe == nil {
-		return nil, err
-	}
-
-	if input.Title != nil {
-		recipe.Title = *input.Title
-	}
-	if input.Description != nil {
-		recipe.Description = *input.Description
-	}
-	if input.Ingredients != nil {
-		recipe.Ingredients = *input.Ingredients
-	}
-	if input.Instructions != nil {
-		recipe.Instructions = *input.Instructions
-	}
-	if input.PrepTime != nil {
-		recipe.PrepTime = *input.PrepTime
-	}
-	if input.CookTime != nil {
-		recipe.CookTime = *input.CookTime
-	}
-	if input.Servings != nil {
-		recipe.Servings = *input.Servings
-	}
-	if input.Difficulty != nil {
-		recipe.Difficulty = *input.Difficulty
-	}
-	if input.Cuisine != nil {
-		recipe.Cuisine = *input.Cuisine
-	}
-	if input.Status != nil {
-		recipe.Status = *input.Status
-	}
-	recipe.UpdatedAt = time.Now().UTC()
-
-	_, err = s.pool.Exec(ctx,
-		fmt.Sprintf(`UPDATE %s.recipes SET title = $1, description = $2, ingredients = $3, instructions = $4,
-		        prep_time = $5, cook_time = $6, servings = $7, difficulty = $8, cuisine = $9,
-		        status = $10, updated_at = $11
-		 WHERE id = $12`, schemaName),
-		recipe.Title, recipe.Description, recipe.Ingredients, recipe.Instructions,
-		recipe.PrepTime, recipe.CookTime, recipe.Servings, recipe.Difficulty, recipe.Cuisine,
-		recipe.Status, recipe.UpdatedAt, id)
+	var recipe *model.Recipe
+	err := s.db.WithTransaction(ctx, func(tx pgx.Tx) error {
+		var r model.Recipe
+		err := tx.QueryRow(ctx,
+			fmt.Sprintf(`SELECT id, chef_id, title, description, ingredients, instructions,
+			        prep_time, cook_time, servings, difficulty, cuisine, status,
+			        created_at, updated_at
+			 FROM %s.recipes WHERE id = $1`, schemaName), id).
+			Scan(&r.ID, &r.ChefID, &r.Title, &r.Description,
+				&r.Ingredients, &r.Instructions, &r.PrepTime, &r.CookTime,
+				&r.Servings, &r.Difficulty, &r.Cuisine, &r.Status,
+				&r.CreatedAt, &r.UpdatedAt)
+		if err == pgx.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("get recipe: %w", err)
+		}
+		if input.Title != nil {
+			r.Title = *input.Title
+		}
+		if input.Description != nil {
+			r.Description = *input.Description
+		}
+		if input.Ingredients != nil {
+			r.Ingredients = *input.Ingredients
+		}
+		if input.Instructions != nil {
+			r.Instructions = *input.Instructions
+		}
+		if input.PrepTime != nil {
+			r.PrepTime = *input.PrepTime
+		}
+		if input.CookTime != nil {
+			r.CookTime = *input.CookTime
+		}
+		if input.Servings != nil {
+			r.Servings = *input.Servings
+		}
+		if input.Difficulty != nil {
+			r.Difficulty = *input.Difficulty
+		}
+		if input.Cuisine != nil {
+			r.Cuisine = *input.Cuisine
+		}
+		if input.Status != nil {
+			r.Status = *input.Status
+		}
+		r.UpdatedAt = time.Now().UTC()
+		_, err = tx.Exec(ctx,
+			fmt.Sprintf(`UPDATE %s.recipes SET title = $1, description = $2, ingredients = $3, instructions = $4,
+			        prep_time = $5, cook_time = $6, servings = $7, difficulty = $8, cuisine = $9,
+			        status = $10, updated_at = $11
+			 WHERE id = $12`, schemaName),
+			r.Title, r.Description, r.Ingredients, r.Instructions,
+			r.PrepTime, r.CookTime, r.Servings, r.Difficulty, r.Cuisine,
+			r.Status, r.UpdatedAt, id)
+		if err != nil {
+			return fmt.Errorf("update recipe: %w", err)
+		}
+		recipe = &r
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("update recipe: %w", err)
+		return nil, err
 	}
 	return recipe, nil
 }
 
 // DeleteRecipe removes a recipe by ID from Amazon Aurora DSQL.
 func (s *DSQLStore) DeleteRecipe(ctx context.Context, id string) error {
-	_, err := s.pool.Exec(ctx,
+	_, err := s.db.Exec(ctx,
 		fmt.Sprintf(`DELETE FROM %s.recipes WHERE id = $1`, schemaName), id)
 	if err != nil {
 		return fmt.Errorf("delete recipe: %w", err)
@@ -458,7 +496,7 @@ func (s *DSQLStore) DeleteRecipe(ctx context.Context, id string) error {
 
 // ListRatings returns all ratings for a given recipe from Amazon Aurora DSQL.
 func (s *DSQLStore) ListRatings(ctx context.Context, recipeID string) ([]model.Rating, error) {
-	rows, err := s.pool.Query(ctx,
+	rows, err := s.db.Query(ctx,
 		fmt.Sprintf(`SELECT id, recipe_id, chef_id, score, comment, created_at, updated_at
 		 FROM %s.ratings WHERE recipe_id = $1 ORDER BY created_at DESC`, schemaName), recipeID)
 	if err != nil {
@@ -490,7 +528,7 @@ func (s *DSQLStore) CreateRating(ctx context.Context, recipeID string, input mod
 		UpdatedAt: now,
 	}
 
-	_, err := s.pool.Exec(ctx,
+	_, err := s.db.Exec(ctx,
 		fmt.Sprintf(`INSERT INTO %s.ratings (id, recipe_id, chef_id, score, comment, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`, schemaName),
 		r.ID, r.RecipeID, r.ChefID, r.Score, r.Comment, r.CreatedAt, r.UpdatedAt)
