@@ -1,0 +1,9 @@
+<% content_for(:title) { "Edit Customer" } %>
+
+<div class="page-header">
+  <h1>Edit Customer</h1>
+</div>
+
+<%= render "form", customer: @customer %>
+
+<p style="margin-top: 20px;"><%= link_to "← Back to Customers", customers_path %></p>

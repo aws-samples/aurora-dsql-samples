@@ -1,0 +1,70 @@
+<% content_for(:title) { @vehicle.display_name } %>
+
+<div class="page-header">
+  <h1><%= @vehicle.display_name %></h1>
+  <div class="actions">
+    <%= link_to "Edit", edit_vehicle_path(@vehicle), class: "btn btn-secondary" %>
+    <%= button_to "Delete", vehicle_path(@vehicle), method: :delete, class: "btn btn-danger", data: { turbo_confirm: "Are you sure?" } %>
+  </div>
+</div>
+
+<div class="detail-card">
+  <dl>
+    <dt>Make</dt>
+    <dd><%= @vehicle.make %></dd>
+
+    <dt>Model</dt>
+    <dd><%= @vehicle.model %></dd>
+
+    <dt>Year</dt>
+    <dd><%= @vehicle.year %></dd>
+
+    <dt>Color</dt>
+    <dd><%= @vehicle.color || "—" %></dd>
+
+    <dt>License Plate</dt>
+    <dd><%= @vehicle.license_plate %></dd>
+
+    <dt>Daily Rate</dt>
+    <dd>$<%= number_with_precision(@vehicle.daily_rate, precision: 2) %></dd>
+
+    <dt>Status</dt>
+    <dd><span class="badge badge-<%= @vehicle.status %>"><%= @vehicle.status %></span></dd>
+
+    <dt>Mileage</dt>
+    <dd><%= number_with_delimiter(@vehicle.mileage) %> miles</dd>
+
+    <dt>Created</dt>
+    <dd><%= @vehicle.created_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
+  </dl>
+</div>
+
+<% if @reservations.any? %>
+  <h2 style="margin-bottom: 16px;">Reservations</h2>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Status</th>
+          <th>Total Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @reservations.each do |reservation| %>
+          <tr>
+            <td><%= reservation.customer ? link_to(reservation.customer.name, reservation.customer) : content_tag(:em, "Deleted Customer") %></td>
+            <td><%= reservation.start_date.strftime("%b %d, %Y") %></td>
+            <td><%= reservation.end_date.strftime("%b %d, %Y") %></td>
+            <td><span class="badge badge-<%= reservation.status %>"><%= reservation.status %></span></td>
+            <td>$<%= number_with_precision(reservation.total_price, precision: 2) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<p style="margin-top: 20px;"><%= link_to "← Back to Vehicles", vehicles_path %></p>

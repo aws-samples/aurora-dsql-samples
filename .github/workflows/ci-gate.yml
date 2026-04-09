@@ -20,6 +20,7 @@ jobs:
       dotnet-npgsql: ${{ steps.detect.outputs.dotnet-npgsql }}
       go-cm: ${{ steps.detect.outputs.go-cm }}
       go-pgx: ${{ steps.detect.outputs.go-pgx }}
+      go-recipe-api: ${{ steps.detect.outputs.go-recipe-api }}
       java-cm: ${{ steps.detect.outputs.java-cm }}
       java-pgjdbc: ${{ steps.detect.outputs.java-pgjdbc }}
       java-spring-boot: ${{ steps.detect.outputs.java-spring-boot }}
@@ -35,6 +36,7 @@ jobs:
       ruby-cm: ${{ steps.detect.outputs.ruby-cm }}
       ruby-pg: ${{ steps.detect.outputs.ruby-pg }}
       ruby-rails: ${{ steps.detect.outputs.ruby-rails }}
+      ruby-rails-carrental: ${{ steps.detect.outputs.ruby-rails-carrental }}
       rust-cm: ${{ steps.detect.outputs.rust-cm }}
       rust-sqlx: ${{ steps.detect.outputs.rust-sqlx }}
       typescript-prisma: ${{ steps.detect.outputs.typescript-prisma }}
@@ -52,6 +54,7 @@ jobs:
               'dotnet-npgsql': ['dotnet/npgsql/'],
               'go-cm': ['go/cluster_management/'],
               'go-pgx': ['go/dsql-pgx-connector/'],
+              'go-recipe-api': ['go/recipe-sharing-api/'],
               'java-cm': ['java/cluster_management/'],
               'java-pgjdbc': ['java/pgjdbc/'],
               'java-spring-boot': ['java/spring_boot/'],
@@ -66,7 +69,8 @@ jobs:
               'python-psycopg3': ['python/psycopg/'],
               'ruby-cm': ['ruby/cluster_management/'],
               'ruby-pg': ['ruby/ruby-pg/'],
-              'ruby-rails': ['ruby/rails/'],
+              'ruby-rails': ['ruby/rails/petclinic/'],
+              'ruby-rails-carrental': ['ruby/rails/carrental/'],
               'rust-cm': ['rust/cluster_management/'],
               'rust-sqlx': ['rust/sqlx/'],
               'typescript-prisma': ['typescript/prisma/'],
@@ -162,6 +166,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.go-pgx == 'true'
     uses: ./.github/workflows/go-pgx-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  go-recipe-api:
+    needs: changes
+    if: needs.changes.outputs.go-recipe-api == 'true'
+    uses: ./.github/workflows/go-recipe-api-integ-tests.yml
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
@@ -278,6 +290,14 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
+  ruby-rails-carrental:
+    needs: changes
+    if: needs.changes.outputs.ruby-rails-carrental == 'true'
+    uses: ./.github/workflows/ruby-rails-carrental-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   rust-cm:
     needs: changes
     if: needs.changes.outputs.rust-cm == 'true'
@@ -338,6 +358,7 @@ jobs:
       - dotnet-npgsql
       - go-cm
       - go-pgx
+      - go-recipe-api
       - java-cm
       - java-pgjdbc
       - java-spring-boot
@@ -353,6 +374,7 @@ jobs:
       - ruby-cm
       - ruby-pg
       - ruby-rails
+      - ruby-rails-carrental
       - rust-cm
       - rust-sqlx
       - typescript-prisma

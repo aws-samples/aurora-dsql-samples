@@ -1,0 +1,39 @@
+<div class="form-card">
+  <%= form_with(model: customer) do |form| %>
+    <% if customer.errors.any? %>
+      <div class="error-messages">
+        <h3><%= pluralize(customer.errors.count, "error") %> prohibited this customer from being saved:</h3>
+        <ul>
+          <% customer.errors.each do |error| %>
+            <li><%= error.full_message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div class="form-group">
+      <%= form.label :name %>
+      <%= form.text_field :name, placeholder: "e.g., Jane Smith" %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :email %>
+      <%= form.email_field :email, placeholder: "e.g., jane@example.com" %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :phone %>
+      <%= form.telephone_field :phone, placeholder: "e.g., 555-0101" %>
+    </div>
+
+    <div class="form-group">
+      <%= form.label :license_number, "Driver's License Number" %>
+      <%= form.text_field :license_number, placeholder: "e.g., DL-2024-001" %>
+    </div>
+
+    <div class="form-actions">
+      <%= form.submit class: "btn btn-primary" %>
+      <%= link_to "Cancel", customers_path, class: "btn btn-secondary" %>
+    </div>
+  <% end %>
+</div>
