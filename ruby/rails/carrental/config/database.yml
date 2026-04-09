@@ -32,7 +32,7 @@ test:
   sslmode: verify-full
   sslnegotiation: direct
   schema_search_path: car_rental,public
-  sslrootcert: <%= ENV.fetch("SSL_CERT_FILE", "/usr/local/share/amazon-root-ca.pem") %>
+  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
 
 # ---------------------------------------------------------------------------
 # Production — Amazon Aurora DSQL (PostgreSQL-compatible)
@@ -61,4 +61,4 @@ production:
   sslmode: verify-full
   sslnegotiation: direct
   schema_search_path: car_rental,public
-  sslrootcert: <%= ENV.fetch("SSL_CERT_FILE", "/usr/local/share/amazon-root-ca.pem") %>
+  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
