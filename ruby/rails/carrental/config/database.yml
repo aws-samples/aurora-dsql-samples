@@ -16,13 +16,23 @@ development:
   timeout: 5000
 
 # ---------------------------------------------------------------------------
-# Test — SQLite3 for test suite
+# Test — Amazon Aurora DSQL (PostgreSQL-compatible)
 # ---------------------------------------------------------------------------
 test:
-  adapter: sqlite3
-  database: db/car_rental_test.sqlite3
+  adapter: postgresql
+  encoding: unicode
+  host: <%= ENV.fetch("CLUSTER_ENDPOINT", "localhost") %>
+  port: 5432
+  database: postgres
+  username: <%= ENV.fetch("CLUSTER_USER", "admin") %>
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   timeout: 5000
+  prepared_statements: false
+  advisory_locks: false
+  sslmode: verify-full
+  sslnegotiation: direct
+  schema_search_path: car_rental,public
+  sslrootcert: <%= ENV.fetch("SSL_CERT_FILE", "/usr/local/share/amazon-root-ca.pem") %>
 
 # ---------------------------------------------------------------------------
 # Production — Amazon Aurora DSQL (PostgreSQL-compatible)
