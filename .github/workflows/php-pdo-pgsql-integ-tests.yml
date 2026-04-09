@@ -41,6 +41,11 @@ jobs:
         role-to-assume: ${{ secrets.PHP_IAM_ROLE }}
         aws-region: ${{ needs.create-cluster.outputs.region }}
 
+    - name: Download DSQL certificate
+      run: |
+        mkdir -p ~/.postgresql
+        wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O ~/.postgresql/root.crt
+
     - name: Install dependencies
       working-directory: ./php/pdo-pgsql
       run: composer install --no-interaction --prefer-dist
