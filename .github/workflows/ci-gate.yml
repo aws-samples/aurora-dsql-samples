@@ -43,7 +43,7 @@ jobs:
       typescript-sequelize: ${{ steps.detect.outputs.typescript-sequelize }}
       typescript-type-orm: ${{ steps.detect.outputs.typescript-type-orm }}
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         id: detect
         with:
           script: |
@@ -382,7 +382,7 @@ jobs:
       - typescript-type-orm
     if: always()
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         with:
           script: |
             const needs = ${{ toJSON(needs) }};
