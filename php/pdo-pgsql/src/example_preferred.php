@@ -10,17 +10,28 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Aws\AuroraDsql\PdoPgsql\AuroraDsql;
 use Aws\AuroraDsql\PdoPgsql\DsqlConfig;
 
+// Works with both admin and non-admin users:
+// - Admin users operate in the default "public" schema
+// - Non-admin users operate in a custom "myschema" schema
 function main(): void
 {
     $clusterEndpoint = getenv('CLUSTER_ENDPOINT') ?: throw new RuntimeException(
         'CLUSTER_ENDPOINT environment variable is required'
     );
+    $clusterUser = getenv('CLUSTER_USER') ?: 'admin';
+
+    // Determine schema based on user type
+    $schema = $clusterUser === 'admin' ? 'public' : 'myschema';
 
     $config = new DsqlConfig(
         host: $clusterEndpoint,
+        user: $clusterUser,
         occMaxRetries: 3,
     );
     $pdo = AuroraDsql::connect($config);
+
+    // Set search_path for the appropriate schema
+    $pdo->exec("SET search_path = '{$schema}'");
 
     // Simple read
     $stmt = $pdo->query('SELECT 1 AS result');
