@@ -20,7 +20,7 @@ classifiers = [
 
 dependencies = [
     "aurora-dsql-python-connector",
-    "boto3>=1.35.74",
+    "boto3>=1.42.88",
     "asyncpg>=0.31.0",
 ]
 
