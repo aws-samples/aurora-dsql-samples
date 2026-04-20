@@ -13,7 +13,7 @@
     "@aws/aurora-dsql-postgresjs-connector": "^0.2.1",
     "assert": "2.1.0",
     "postgres": "^3.4.9",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "jest": "^30.3.0"
