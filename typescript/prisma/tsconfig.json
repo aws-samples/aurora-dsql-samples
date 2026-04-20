@@ -2,6 +2,7 @@
     "compilerOptions": {
         "target": "es2022",
         "module": "commonjs",
+        "moduleResolution": "bundler",
         "lib": ["es2022"],
         "outDir": "./dist",
         "rootDir": ".",
@@ -22,7 +23,6 @@
         "declarationMap": true,
         "sourceMap": true,
         "removeComments": true,
-        "baseUrl": ".",
         "paths": {
             "@generated/*": ["./generated/*"]
         }
