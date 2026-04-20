@@ -1,0 +1,45 @@
+{
+  "name": "sample-prisma-dsql-multi-region",
+  "version": "1.0.0",
+  "description": "Prisma ORM + Aurora DSQL multi-region active-active pattern",
+  "main": "dist/src/server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prebuild": "npm run prisma:generate",
+    "build": "tsc",
+    "start": "node dist/src/server.js",
+    "dev": "ts-node src/server.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate-up": "PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy",
+    "prisma:migrate-down": "npx prisma db execute --file prisma/migrations/0_init/down.sql",
+    "test:failover": "ts-node src/test-failover.ts",
+    "validate": "aurora-dsql-prisma validate prisma/schema.prisma",
+    "dsql-transform": "aurora-dsql-prisma transform",
+    "dsql-migrate": "aurora-dsql-prisma migrate"
+  },
+  "dependencies": {
+    "@aws/aurora-dsql-node-postgres-connector": "^0.1.0",
+    "@aws-sdk/dsql-signer": "^3.1006.0",
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "^7.4.2",
+    "@types/pg": "^8.11.0",
+    "express": "^4.21.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@aws/aurora-dsql-prisma-tools": "^0.1.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^25.4.0",
+    "prettier": "^3.8.1",
+    "prisma": "^7.4.2",
+    "typescript": "^5.8.3",
+    "ts-node": "^10.9.0"
+  },
+  "overrides": {
+    "lodash": "^4.17.22"
+  }
+}
