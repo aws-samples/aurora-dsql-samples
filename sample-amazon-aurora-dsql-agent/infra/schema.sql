@@ -78,3 +78,25 @@ CREATE INDEX ASYNC IF NOT EXISTS idx_transformer_feeder         ON transformer_i
 CREATE INDEX ASYNC IF NOT EXISTS idx_weather_feeder_time        ON incident_weather (feeder_id, recorded_at);
 CREATE INDEX ASYNC IF NOT EXISTS idx_incidents_feeder           ON grid_incidents (feeder_id, started_at);
 CREATE INDEX ASYNC IF NOT EXISTS idx_maintenance_feeder         ON maintenance_log (feeder_id, scheduled_at);
+
+-- ---------------------------------------------------------------------------
+-- Non-admin read-only role for the Lambda function (least privilege)
+-- The Lambda connects as 'grid_reader' with dsql:DbConnect (not DbConnectAdmin).
+-- This is the primary security boundary — even if SQL validation is bypassed,
+-- the database enforces SELECT-only access on these tables.
+--
+-- After creating this role, grant it to the Lambda's IAM role:
+--   AWS IAM GRANT grid_reader TO 'arn:aws:iam::<ACCOUNT_ID>:role/grid-investigation-lambda-role';
+-- ---------------------------------------------------------------------------
+-- Create the read-only role. DSQL does not support PL/pgSQL (DO $$ blocks),
+-- so there is no IF NOT EXISTS equivalent. If the role already exists from a
+-- previous run, this statement will error — that is safe to ignore.
+CREATE ROLE grid_reader WITH LOGIN;
+GRANT SELECT ON grid_incidents TO grid_reader;
+GRANT SELECT ON feeder_events TO grid_reader;
+GRANT SELECT ON switching_events TO grid_reader;
+GRANT SELECT ON transformer_inspections TO grid_reader;
+GRANT SELECT ON incident_weather TO grid_reader;
+GRANT SELECT ON maintenance_log TO grid_reader;
+-- NOTE: information_schema is readable by all roles in DSQL by default,
+-- so no explicit grant is needed for the get_schema tool.

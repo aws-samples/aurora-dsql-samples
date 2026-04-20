@@ -146,7 +146,7 @@ This creates:
 
 | Resource | Name |
 |----------|------|
-| Lambda role | `grid-investigation-lambda-role` (trust: `lambda.amazonaws.com`, policy: `dsql:DbConnectAdmin` + CloudWatch) |
+| Lambda role | `grid-investigation-lambda-role` (trust: `lambda.amazonaws.com`, policy: `dsql:DbConnect` + CloudWatch) |
 | Gateway role | `grid-investigation-gateway-role` (trust: `bedrock-agentcore.amazonaws.com`, policy: `lambda:InvokeFunction`) |
 | Lambda | `grid-investigation-tools` (Python 3.12, 512 MB, 30s timeout) |
 | Gateway | `grid-investigation-gateway` (Cognito OAuth + semantic search enabled) |
@@ -179,6 +179,23 @@ context in its system prompt and generates parameterized SQL dynamically.
 - Multi-statement queries (`;` followed by another statement) are blocked.
 - Results are capped at 500 rows with an auto-appended `LIMIT`.
 - All parameters are passed via psycopg2's parameterized query interface (not string interpolation).
+
+### Security hardening
+
+This sample includes several security measures suitable for production use:
+
+- **Least-privilege database role**: The Lambda connects as `grid_reader` (non-admin) with `dsql:DbConnect` — not `dsql:DbConnectAdmin`. The role only has `SELECT` grants on the 6 allowed tables. This is the primary security boundary.
+- **SQL comment stripping**: Comments (`--` and `/* */`) are stripped before validation to prevent hiding forbidden keywords.
+- **Function blocklist**: Dangerous PostgreSQL functions (`pg_sleep`, `pg_read_file`, `dblink`, etc.) are explicitly blocked.
+- **Input length limits**: SQL queries are capped at 2,000 characters; user questions are capped at 2,000 characters before reaching the LLM.
+- **Validation failure logging**: All SQL validation failures are logged with the rejected query for monitoring and alerting.
+- **Network binding**: The A2A server defaults to `127.0.0.1` for local development (safe by default). AgentCore Runtime passes `--host 0.0.0.0` where network isolation is handled by the platform.
+- **IAM policy scoping**: The sample IAM policy (`infra/iam_policy.json`) uses wildcard resources for convenience. For production, scope each resource to specific ARNs:
+  - DSQL: `arn:aws:dsql:<REGION>:<ACCOUNT_ID>:cluster/<CLUSTER_ID>`
+  - Bedrock: `arn:aws:bedrock:<REGION>::foundation-model/<MODEL_ID>`
+  - Logs: `arn:aws:logs:<REGION>:<ACCOUNT_ID>:log-group:/aws/lambda/<FUNCTION_NAME>:*`
+  - See the Lambda CDK sample for an example of proper resource scoping.
+- **Rate limiting**: For production, add rate limiting at the API Gateway or A2A endpoint layer to limit abuse.
 
 ### Package and update Lambda dependencies
 
@@ -226,9 +243,9 @@ aws lambda invoke \
   /tmp/test_out.json && cat /tmp/test_out.json | python3 -m json.tool
 ```
 
-### (Optional) least-privilege database role
+### Set up the least-privilege database role
 
-By default the Lambda connects as `admin`. For production, create a read-only database role:
+The Lambda connects as `grid_reader`, a non-admin role with SELECT-only grants. This role is defined in `infra/schema.sql` and is created when you apply the schema. You need to grant it to the Lambda's IAM role:
 
 ```bash
 export PGPASSWORD=$(aws dsql generate-db-connect-admin-auth-token \
@@ -239,14 +256,10 @@ psql "host=<cluster-id>.dsql.us-east-1.on.aws port=5432 dbname=postgres user=adm
 ```
 
 ```sql
-CREATE ROLE grid_app WITH LOGIN;
-AWS IAM GRANT grid_app TO 'arn:aws:iam::<account-id>:role/grid-investigation-lambda-role';
-GRANT USAGE ON SCHEMA public TO grid_app;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO grid_app;
+AWS IAM GRANT grid_reader TO 'arn:aws:iam::<account-id>:role/grid-investigation-lambda-role';
 ```
 
-Then update `handler.py` to use `user="grid_app"` and change the IAM policy from
-`dsql:DbConnectAdmin` to `dsql:DbConnect`.
+This is the primary security boundary — even if SQL validation is bypassed, the database enforces SELECT-only access on the allowed tables.
 
 ---
 
@@ -286,6 +299,9 @@ For local development and testing, you can run the Database Agent directly inste
 ```bash
 python agent/database_agent.py [--region us-east-1] [--config gateway/gateway_config.json]
 ```
+
+The server binds to `127.0.0.1` by default (local-only access). When deployed to
+AgentCore Runtime, the platform passes `--host 0.0.0.0` to enable container routing.
 
 The Database Agent will:
 1. Connect to the AgentCore Gateway via MCP (using Cognito OAuth from `gateway_config.json`)
@@ -350,6 +366,11 @@ To avoid ongoing charges, delete the resources created in this walkthrough:
 ```bash
 # Delete the AgentCore agent (also removes memory, execution role, and S3 artifacts)
 agentcore destroy -a grid_database_agent
+
+# IMPORTANT: Remove the cached agentcore config — it stores the old agent ID.
+# If you skip this and redeploy, `agentcore launch` will try to update the
+# deleted agent and fail with ResourceNotFoundException.
+rm -f .bedrock_agentcore.yaml
 
 # Delete the Lambda function
 aws lambda delete-function --function-name grid-investigation-tools --region us-east-1
