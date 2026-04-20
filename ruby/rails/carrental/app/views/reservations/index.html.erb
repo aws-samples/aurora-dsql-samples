@@ -1,0 +1,39 @@
+<% content_for(:title) { "Reservations" } %>
+
+<div class="page-header">
+  <h1>Reservations</h1>
+  <%= link_to "New Reservation", new_reservation_path, class: "btn btn-primary" %>
+</div>
+
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>Customer</th>
+        <th>Vehicle</th>
+        <th>Start Date</th>
+        <th>End Date</th>
+        <th>Status</th>
+        <th>Total Price</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @reservations.each do |reservation| %>
+        <tr>
+          <td><%= reservation.customer ? link_to(reservation.customer.name, reservation.customer) : content_tag(:em, "Deleted Customer") %></td>
+          <td><%= reservation.vehicle ? link_to(reservation.vehicle.display_name, reservation.vehicle) : content_tag(:em, "Deleted Vehicle") %></td>
+          <td><%= reservation.start_date.strftime("%b %d, %Y") %></td>
+          <td><%= reservation.end_date.strftime("%b %d, %Y") %></td>
+          <td><span class="badge badge-<%= reservation.status %>"><%= reservation.status %></span></td>
+          <td>$<%= number_with_precision(reservation.total_price, precision: 2) %></td>
+          <td class="actions">
+            <%= link_to "View", reservation, class: "btn btn-secondary btn-sm" %>
+            <%= link_to "Edit", edit_reservation_path(reservation), class: "btn btn-secondary btn-sm" %>
+            <%= button_to "Delete", reservation_path(reservation), method: :delete, class: "btn btn-danger btn-sm", data: { turbo_confirm: "Are you sure?" } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

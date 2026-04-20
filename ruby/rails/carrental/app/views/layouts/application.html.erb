@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Car Rental — <%= yield(:title) || "Vehicle Fleet" %></title>
+    <meta name="description" content="Car Rental Reservation Application — Ruby on Rails + Amazon Aurora DSQL">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+    <nav class="navbar">
+      <div class="container">
+        <a href="<%= root_path %>" class="navbar-brand">🚗 Car Rental</a>
+        <ul class="navbar-nav">
+          <li><%= link_to "Vehicles", vehicles_path, class: "nav-link #{'active' if controller_name == 'vehicles'}" %></li>
+          <li><%= link_to "Customers", customers_path, class: "nav-link #{'active' if controller_name == 'customers'}" %></li>
+          <li><%= link_to "Reservations", reservations_path, class: "nav-link #{'active' if controller_name == 'reservations'}" %></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main class="container">
+      <% if notice.present? %>
+        <div class="alert alert-success">
+          <%= notice %>
+        </div>
+      <% end %>
+
+      <% if alert.present? %>
+        <div class="alert alert-danger">
+          <%= alert %>
+        </div>
+      <% end %>
+
+      <%= yield %>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Car Rental Reservation App — Built with Ruby on Rails &amp; Amazon Aurora DSQL</p>
+      </div>
+    </footer>
+  </body>
+</html>

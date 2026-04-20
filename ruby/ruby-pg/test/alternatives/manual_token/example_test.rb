@@ -6,9 +6,9 @@ require_relative "../../../src/alternatives/manual_token/example"
 
 RSpec.describe "manual_token example" do
   before(:all) do
-    skip "CLUSTER_ENDPOINT required for integration test" unless ENV["CLUSTER_ENDPOINT"]
-    skip "CLUSTER_USER required for integration test" unless ENV["CLUSTER_USER"]
-    skip "REGION required for integration test" unless ENV["REGION"]
+    raise "CLUSTER_ENDPOINT is required" unless ENV["CLUSTER_ENDPOINT"]
+    raise "CLUSTER_USER is required" unless ENV["CLUSTER_USER"]
+    raise "REGION is required" unless ENV["REGION"]
   end
 
   it "runs the manual token example without error" do

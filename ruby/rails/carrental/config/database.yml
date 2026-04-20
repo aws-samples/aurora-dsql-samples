@@ -1,0 +1,64 @@
+# =============================================================================
+# Database Configuration for the Car Rental Application
+# =============================================================================
+#
+# Development & Test: SQLite3 (no external database required)
+# Production: Amazon Aurora DSQL (PostgreSQL-compatible with IAM auth)
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Development — SQLite3 for local development
+# ---------------------------------------------------------------------------
+development:
+  adapter: sqlite3
+  database: db/car_rental_development.sqlite3
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+
+# ---------------------------------------------------------------------------
+# Test — Amazon Aurora DSQL (PostgreSQL-compatible)
+# ---------------------------------------------------------------------------
+test:
+  adapter: postgresql
+  encoding: unicode
+  host: <%= ENV.fetch("CLUSTER_ENDPOINT", "localhost") %>
+  port: 5432
+  database: postgres
+  username: <%= ENV.fetch("CLUSTER_USER", "admin") %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+  prepared_statements: false
+  advisory_locks: false
+  sslmode: verify-full
+  sslnegotiation: direct
+  schema_search_path: car_rental,public
+  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/
+
+# ---------------------------------------------------------------------------
+# Production — Amazon Aurora DSQL (PostgreSQL-compatible)
+# ---------------------------------------------------------------------------
+#
+# Aurora DSQL requires:
+#   - IAM-based authentication (tokens generated per connection)
+#   - SSL with verify-full mode and direct negotiation
+#   - No prepared statements (not supported by DSQL)
+#   - No advisory locks (not supported by DSQL)
+#
+# The DSQL adapter initializer (config/initializers/dsql_adapter.rb)
+# handles IAM token injection and disables unsupported features.
+# ---------------------------------------------------------------------------
+production:
+  adapter: postgresql
+  encoding: unicode
+  host: <%= ENV.fetch("DSQL_ENDPOINT", "localhost") %>
+  port: 5432
+  database: postgres
+  username: <%= ENV.fetch("DSQL_USER", "admin") %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+  prepared_statements: false
+  advisory_locks: false
+  sslmode: verify-full
+  sslnegotiation: direct
+  schema_search_path: car_rental,public
+  # Amazon's root certs can be fetched from https://www.amazontrust.com/repository/

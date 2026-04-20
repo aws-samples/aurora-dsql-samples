@@ -69,6 +69,7 @@ root.pem
 # Test output
 TEST-*.xml
 *.txt
+!requirements.txt
 
 # JVM crash logs
 hs_err_pid*
@@ -101,3 +102,6 @@ Icon?
 
 # TypeScript build outputs
 dist/
+
+# Nested git directories in sample projects
+sample-amazon-aurora-dsql-agent/.git/

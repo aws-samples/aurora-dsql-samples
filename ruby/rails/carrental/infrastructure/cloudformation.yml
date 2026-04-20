@@ -1,0 +1,696 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Car Rental - Vehicle Rental Reservation Application.
+  Deploys a complete ECS Fargate environment with VPC, ALB, ECR, and all
+  supporting infrastructure. Built with Ruby on Rails and Amazon Aurora DSQL.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+  AwsAccountId:
+    Type: String
+    Description: The 12-digit AWS Account ID to deploy into
+    AllowedPattern: '\d{12}'
+    ConstraintDescription: Must be a valid 12-digit AWS account number
+
+  AwsRegion:
+    Type: String
+    Description: AWS Region to deploy into
+    Default: us-east-1
+    AllowedValues:
+      - us-east-1
+      - us-east-2
+      - us-west-1
+      - us-west-2
+      - eu-west-1
+      - eu-central-1
+      - ap-southeast-1
+      - ap-northeast-1
+
+  VpcCidrBlock:
+    Type: String
+    Description: CIDR block for the new VPC (e.g. 10.0.0.0/16)
+    Default: '10.0.0.0/16'
+    AllowedPattern: '(\d{1,3}\.){3}\d{1,3}/\d{1,2}'
+    ConstraintDescription: Must be a valid CIDR block (e.g. 10.0.0.0/16)
+
+  AllowedPublicIp:
+    Type: String
+    Description: >
+      Your public IPv4 address in CIDR notation that will be allowed to
+      reach the ALB (e.g. 203.0.113.42/32). Use /32 for a single host.
+    AllowedPattern: '(\d{1,3}\.){3}\d{1,3}/\d{1,2}'
+    ConstraintDescription: Must be a valid CIDR (e.g. 203.0.113.42/32)
+
+  ContainerImageTag:
+    Type: String
+    Description: Docker image tag to deploy (set by the deploy script)
+    Default: latest
+
+  DsqlClusterId:
+    Type: String
+    Description: >
+      Aurora DSQL cluster identifier. The deploy script constructs the
+      endpoint as <cluster-id>.dsql.<region>.on.aws and passes it to
+      the container as DSQL_ENDPOINT.
+    AllowedPattern: '[a-z0-9]+'
+    ConstraintDescription: Must be a valid DSQL cluster identifier (lowercase alphanumeric)
+
+  RailsSecretKeyBase:
+    Type: String
+    Description: Rails SECRET_KEY_BASE for the application (required — use deploy.sh to auto-generate)
+    NoEcho: true
+    MinLength: 20
+
+  RailsMasterKey:
+    Type: String
+    Description: Rails RAILS_MASTER_KEY for credentials decryption
+    NoEcho: true
+    Default: ''
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # =========================================================================
+  # VPC
+  # =========================================================================
+  CarRentalVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: car-rental-vpc
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  # =========================================================================
+  # Internet Gateway
+  # =========================================================================
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: car-rental-igw
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref CarRentalVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # =========================================================================
+  # Public Subnets (ALB requires 2 AZs)
+  # =========================================================================
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CarRentalVPC
+      CidrBlock: !Select [0, !Cidr [!Ref VpcCidrBlock, 4, 12]]
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: car-rental-public-subnet-a
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CarRentalVPC
+      CidrBlock: !Select [3, !Cidr [!Ref VpcCidrBlock, 4, 12]]
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: car-rental-public-subnet-b
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CarRentalVPC
+      Tags:
+        - Key: Name
+          Value: car-rental-public-rt
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IGWAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  # =========================================================================
+  # NAT Gateway (in public subnet A)
+  # =========================================================================
+  NATElasticIP:
+    Type: AWS::EC2::EIP
+    DependsOn: IGWAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: car-rental-nat-eip
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NATElasticIP.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: car-rental-nat-gw
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  # =========================================================================
+  # Private Subnets (ECS tasks, one per AZ)
+  # =========================================================================
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CarRentalVPC
+      CidrBlock: !Select [1, !Cidr [!Ref VpcCidrBlock, 4, 12]]
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: car-rental-private-subnet-a
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CarRentalVPC
+      CidrBlock: !Select [2, !Cidr [!Ref VpcCidrBlock, 4, 12]]
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: car-rental-private-subnet-b
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CarRentalVPC
+      Tags:
+        - Key: Name
+          Value: car-rental-private-rt
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  PrivateDefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  PrivateSubnetARTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetBRTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
+  # =========================================================================
+  # Security Groups
+  # =========================================================================
+
+  # --- ECS Tasks Security Group (defined first to avoid circular ref) ---
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Car Rental ECS Fargate tasks
+      VpcId: !Ref CarRentalVPC
+      Tags:
+        - Key: Name
+          Value: car-rental-ecs-sg
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  ECSSecurityGroupEgressAll:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref ECSSecurityGroup
+      IpProtocol: '-1'
+      CidrIp: 0.0.0.0/0
+      Description: Allow all outbound for ECR pulls, DSQL, etc.
+
+  # --- ALB Security Group ---
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Car Rental ALB - allows HTTP from operator IP only
+      VpcId: !Ref CarRentalVPC
+      Tags:
+        - Key: Name
+          Value: car-rental-alb-sg
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  ALBSecurityGroupIngressHTTP:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: !Ref AllowedPublicIp
+      Description: Allow HTTP from operator public IP
+
+  ALBSecurityGroupEgressToECS:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3000
+      ToPort: 3000
+      DestinationSecurityGroupId: !Ref ECSSecurityGroup
+      Description: Allow traffic to ECS tasks on port 3000
+
+  # --- Ingress rule on ECS SG from ALB SG (added after both SGs exist) ---
+  ECSSecurityGroupIngressFromALB:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ECSSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3000
+      ToPort: 3000
+      SourceSecurityGroupId: !Ref ALBSecurityGroup
+      Description: Allow traffic from ALB on port 3000
+
+  # =========================================================================
+  # ECR Repository
+  # =========================================================================
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: car-rental-ecr-repo
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Remove untagged images after 7 days",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 7
+                },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep only last 10 tagged images",
+                "selection": {
+                  "tagStatus": "tagged",
+                  "tagPrefixList": ["v", "latest"],
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  # =========================================================================
+  # IAM Roles
+  # =========================================================================
+
+  # --- ECS Task Execution Role (pulls images, writes logs) ---
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: car-rental-ecr-pull
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetAuthorizationToken
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  # --- ECS Task Role (application runtime permissions) ---
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: car-rental-dsql-access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dsql:DbConnect
+                  - dsql:DbConnectAdmin
+                Resource: !Sub 'arn:aws:dsql:${AwsRegion}:${AwsAccountId}:cluster/${DsqlClusterId}'
+        - PolicyName: car-rental-logs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AwsRegion}:${AwsAccountId}:log-group:/ecs/car-rental/rails:*'
+        - PolicyName: car-rental-ssmmessages
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  # =========================================================================
+  # CloudWatch Log Group
+  # =========================================================================
+  CarRentalLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/car-rental/rails
+      RetentionInDays: 7
+      Tags:
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  # =========================================================================
+  # ECS Cluster
+  # =========================================================================
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      Tags:
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  # =========================================================================
+  # ECS Task Definition
+  # =========================================================================
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: car-rental-task
+      Cpu: '1024'
+      Memory: '2048'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: car-rental-container
+          Image: !Sub '${AwsAccountId}.dkr.ecr.${AwsRegion}.amazonaws.com/car-rental-ecr-repo:${ContainerImageTag}'
+          Essential: true
+          PortMappings:
+            - ContainerPort: 3000
+              Protocol: tcp
+          Environment:
+            - Name: RAILS_ENV
+              Value: production
+            - Name: DSQL_ENDPOINT
+              Value: !Sub '${DsqlClusterId}.dsql.${AwsRegion}.on.aws'
+            - Name: DSQL_USER
+              Value: admin
+            - Name: SECRET_KEY_BASE
+              Value: !Ref RailsSecretKeyBase
+            - Name: RAILS_MASTER_KEY
+              Value: !Ref RailsMasterKey
+            - Name: RAILS_LOG_TO_STDOUT
+              Value: '1'
+            - Name: RAILS_SERVE_STATIC_FILES
+              Value: '1'
+            - Name: AWS_REGION
+              Value: !Ref AwsRegion
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref CarRentalLogGroup
+              awslogs-region: !Ref AwsRegion
+              awslogs-stream-prefix: rails
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:3000/health || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 90
+      Tags:
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  # =========================================================================
+  # Application Load Balancer
+  # =========================================================================
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn: IGWAttachment
+    Properties:
+      Scheme: internet-facing
+      Type: application
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      LoadBalancerAttributes:
+        - Key: routing.http.drop_invalid_header_fields.enabled
+          Value: 'true'
+      Tags:
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref CarRentalVPC
+      Port: 3000
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '30'
+      Tags:
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+
+  # =========================================================================
+  # ECS Service
+  # =========================================================================
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - ALBListener
+      - PrivateDefaultRoute
+    Properties:
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref ECSTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      EnableExecuteCommand: true
+      HealthCheckGracePeriodSeconds: 120
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+          Subnets:
+            - !Ref PrivateSubnetA
+            - !Ref PrivateSubnetB
+      LoadBalancers:
+        - ContainerName: car-rental-container
+          ContainerPort: 3000
+          TargetGroupArn: !Ref ALBTargetGroup
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 0
+        MaximumPercent: 200
+      Tags:
+        - Key: Project
+          Value: car-rental
+        - Key: Environment
+          Value: development
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value: !Ref CarRentalVPC
+
+  PublicSubnetAId:
+    Description: Public Subnet A ID
+    Value: !Ref PublicSubnetA
+
+  PublicSubnetBId:
+    Description: Public Subnet B ID
+    Value: !Ref PublicSubnetB
+
+  PrivateSubnetAId:
+    Description: Private Subnet A ID
+    Value: !Ref PrivateSubnetA
+
+  PrivateSubnetBId:
+    Description: Private Subnet B ID
+    Value: !Ref PrivateSubnetB
+
+  ECRRepositoryUri:
+    Description: ECR Repository URI - push your Docker image here
+    Value: !Sub '${AwsAccountId}.dkr.ecr.${AwsRegion}.amazonaws.com/car-rental-ecr-repo'
+
+  ECSClusterName:
+    Description: ECS Cluster Name
+    Value: !Ref ECSCluster
+
+  ECSServiceName:
+    Description: ECS Service Name
+    Value: !GetAtt ECSService.Name
+
+  LoadBalancerDNS:
+    Description: Application URL - access Car Rental here
+    Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+
+  LoadBalancerArn:
+    Description: ALB ARN
+    Value: !Ref ApplicationLoadBalancer
+
+  TaskExecutionRoleArn:
+    Description: ECS Task Execution Role ARN
+    Value: !GetAtt ECSTaskExecutionRole.Arn
+
+  TaskRoleArn:
+    Description: ECS Task Role ARN
+    Value: !GetAtt ECSTaskRole.Arn
+
+  LogGroupName:
+    Description: CloudWatch Log Group for container logs
+    Value: !Ref CarRentalLogGroup

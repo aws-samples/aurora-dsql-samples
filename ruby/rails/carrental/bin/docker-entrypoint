@@ -1,0 +1,31 @@
+#!/bin/bash -e
+
+# =============================================================================
+# Docker Entrypoint for the Car Rental Application
+# =============================================================================
+#
+# This script runs before the main application process starts.
+# When the command is "rails server", it runs database migrations
+# to ensure the schema is up to date.
+#
+# Uses jemalloc for improved memory allocation performance if available.
+# =============================================================================
+
+# Enable jemalloc for reduced memory usage and latency
+if [ -z "${LD_PRELOAD+x}" ] && [ -f /usr/lib/*/libjemalloc.so.2 ]; then
+  export LD_PRELOAD="$(echo /usr/lib/*/libjemalloc.so.2)"
+fi
+
+# If we're starting the Rails server, prepare the database first.
+# For Aurora DSQL, create the car_rental schema if it doesn't exist,
+# then run pending migrations.
+if [ "${1}" == "./bin/rails" ] && [ "${2}" == "server" ]; then
+  ./bin/rails runner "
+    if ActiveRecord::Base.connection.adapter_name =~ /PostgreSQL/i
+      ActiveRecord::Base.connection.execute('CREATE SCHEMA IF NOT EXISTS car_rental')
+    end
+  " 2>/dev/null || true
+  ./bin/rails db:prepare
+fi
+
+exec "${@}"

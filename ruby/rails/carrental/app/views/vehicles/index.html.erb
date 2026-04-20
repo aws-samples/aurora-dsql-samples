@@ -1,0 +1,40 @@
+<% content_for(:title) { "Vehicles" } %>
+
+<div class="page-header">
+  <h1>Vehicles</h1>
+  <%= link_to "New Vehicle", new_vehicle_path, class: "btn btn-primary" %>
+</div>
+
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>Vehicle</th>
+        <th>Year</th>
+        <th>Color</th>
+        <th>License Plate</th>
+        <th>Daily Rate</th>
+        <th>Status</th>
+        <th>Mileage</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @vehicles.each do |vehicle| %>
+        <tr>
+          <td><%= link_to "#{vehicle.make} #{vehicle.model}", vehicle %></td>
+          <td><%= vehicle.year %></td>
+          <td><%= vehicle.color %></td>
+          <td><%= vehicle.license_plate %></td>
+          <td>$<%= number_with_precision(vehicle.daily_rate, precision: 2) %></td>
+          <td><span class="badge badge-<%= vehicle.status %>"><%= vehicle.status %></span></td>
+          <td><%= number_with_delimiter(vehicle.mileage) %></td>
+          <td class="actions">
+            <%= link_to "Edit", edit_vehicle_path(vehicle), class: "btn btn-secondary btn-sm" %>
+            <%= button_to "Delete", vehicle_path(vehicle), method: :delete, class: "btn btn-danger btn-sm", data: { turbo_confirm: "Are you sure?" } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

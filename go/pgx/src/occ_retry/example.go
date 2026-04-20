@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/dsql"
 	"github.com/awslabs/aurora-dsql-connectors/go/pgx/occretry"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Counter represents a simple counter entity.
@@ -40,17 +41,22 @@ type Counter struct {
 	Value int
 }
 
-func createSchema(ctx context.Context, pool *dsql.Pool) error {
-	return occretry.ExecWithRetry(ctx, pool, `
-		CREATE TABLE IF NOT EXISTS counter (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			name VARCHAR(255) NOT NULL UNIQUE,
-			value INT NOT NULL DEFAULT 0
-		)
-	`, 5)
+func createSchema(ctx context.Context, pool *pgxpool.Pool) error {
+	config := occretry.DefaultConfig()
+	config.MaxRetries = 5
+	return occretry.Retry(ctx, config, func() error {
+		_, err := pool.Exec(ctx, `
+			CREATE TABLE IF NOT EXISTS counter (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				name VARCHAR(255) NOT NULL UNIQUE,
+				value INT NOT NULL DEFAULT 0
+			)
+		`)
+		return err
+	})
 }
 
-func getOrCreateCounter(ctx context.Context, pool *dsql.Pool, name string) (string, error) {
+func getOrCreateCounter(ctx context.Context, pool *pgxpool.Pool, name string) (string, error) {
 	var id string
 
 	err := pool.QueryRow(ctx, `SELECT id FROM counter WHERE name = $1`, name).Scan(&id)
@@ -71,7 +77,7 @@ func getOrCreateCounter(ctx context.Context, pool *dsql.Pool, name string) (stri
 	return id, err
 }
 
-func incrementCounter(ctx context.Context, pool *dsql.Pool, counterID string, amount int) (int, error) {
+func incrementCounter(ctx context.Context, pool *pgxpool.Pool, counterID string, amount int) (int, error) {
 	var newValue int
 
 	// Use occretry.WithRetry for automatic OCC conflict handling
@@ -94,13 +100,13 @@ func incrementCounter(ctx context.Context, pool *dsql.Pool, counterID string, am
 	return newValue, err
 }
 
-func getCounterValue(ctx context.Context, pool *dsql.Pool, counterID string) (int, error) {
+func getCounterValue(ctx context.Context, pool *pgxpool.Pool, counterID string) (int, error) {
 	var value int
 	err := pool.QueryRow(ctx, `SELECT value FROM counter WHERE id = $1`, counterID).Scan(&value)
 	return value, err
 }
 
-func cleanup(ctx context.Context, pool *dsql.Pool) error {
+func cleanup(ctx context.Context, pool *pgxpool.Pool) error {
 	_, err := pool.Exec(ctx, `DELETE FROM counter WHERE name = 'demo-counter'`)
 	return err
 }
@@ -114,10 +120,12 @@ func Example() error {
 
 	ctx := context.Background()
 
+	poolCfg, _ := pgxpool.ParseConfig("")
+	poolCfg.MaxConns = 10
+
 	pool, err := dsql.NewPool(ctx, dsql.Config{
-		Host:     clusterEndpoint,
-		MaxConns: 10,
-	})
+		Host: clusterEndpoint,
+	}, poolCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create pool: %w", err)
 	}
@@ -161,8 +169,8 @@ func Example() error {
 	fmt.Println()
 	fmt.Println("Key takeaways:")
 	fmt.Println("  - Use occretry.IsOCCError to detect OCC conflicts (OC000, OC001)")
+	fmt.Println("  - Use occretry.Retry for any operation that may hit OCC errors")
 	fmt.Println("  - Use occretry.WithRetry for transactional operations")
-	fmt.Println("  - Use occretry.ExecWithRetry for simple DDL/DML statements")
 	fmt.Println("  - Configure retry behavior with occretry.Config")
 
 	return nil

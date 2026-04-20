@@ -1,0 +1,256 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Recipe Sharing API - Go/Gin with Amazon Aurora DSQL.
+  Deploys an Amazon API Gateway REST API backed by an AWS Lambda function
+  that connects to Amazon Aurora DSQL using IAM token-based authentication.
+  Access is restricted to a single IP address via an API Gateway resource policy.
+
+Parameters:
+  AccountId:
+    Type: String
+    Description: AWS account ID (12 digits)
+    AllowedPattern: '^\d{12}$'
+
+  DSQLClusterId:
+    Type: String
+    Description: Amazon Aurora DSQL cluster identifier
+
+  DSQLClusterEndpoint:
+    Type: String
+    Description: Amazon Aurora DSQL cluster endpoint (e.g., abc123.dsql.us-east-1.on.aws)
+
+  AllowedIP:
+    Type: String
+    Default: ''
+    Description: >-
+      IP address or CIDR block allowed to access the API (e.g., 203.0.113.42/32
+      or 10.0.0.0/8). Leave empty for unrestricted access.
+
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket containing the Lambda deployment package
+
+  LambdaS3Key:
+    Type: String
+    Description: S3 key for the Lambda deployment ZIP file
+
+Conditions:
+  HasAllowedIP: !Not [!Equals [!Ref AllowedIP, '']]
+
+Resources:
+
+  # -----------------------------------------------------------------------
+  # Amazon CloudWatch Log Group for the Lambda function
+  # -----------------------------------------------------------------------
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-function'
+      RetentionInDays: 7
+
+  # -----------------------------------------------------------------------
+  # IAM execution role for the Lambda function.
+  # Grants scoped access to Amazon Aurora DSQL and Amazon CloudWatch Logs.
+  # No wildcard (*) resource designations are used.
+  # -----------------------------------------------------------------------
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        # Amazon Aurora DSQL - generate IAM authentication tokens
+        - PolicyName: !Sub '${AWS::StackName}-dsql-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dsql:DbConnectAdmin
+                Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AccountId}:cluster/${DSQLClusterId}'
+        # Amazon CloudWatch Logs - write Lambda function logs
+        - PolicyName: !Sub '${AWS::StackName}-logs-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AccountId}:log-group:/aws/lambda/${AWS::StackName}-function:*'
+
+  # -----------------------------------------------------------------------
+  # AWS Lambda function running the Go binary (ARM64 / Graviton)
+  # -----------------------------------------------------------------------
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: LambdaLogGroup
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-function'
+      Runtime: provided.al2023
+      Architectures:
+        - arm64
+      Handler: bootstrap
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaS3Key
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !Ref DSQLClusterEndpoint
+          DB_TYPE: dsql
+
+  # -----------------------------------------------------------------------
+  # Amazon API Gateway REST API
+  # When an allowed IP/CIDR is provided, a resource policy restricts access.
+  # -----------------------------------------------------------------------
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub '${AWS::StackName}-api'
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Policy: !If
+        - HasAllowedIP
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal: '*'
+              Action: execute-api:Invoke
+              Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AccountId}:*/*'
+              Condition:
+                IpAddress:
+                  aws:SourceIp: !Ref AllowedIP
+            - Effect: Deny
+              Principal: '*'
+              Action: execute-api:Invoke
+              Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AccountId}:*/*'
+              Condition:
+                NotIpAddress:
+                  aws:SourceIp: !Ref AllowedIP
+        - !Ref 'AWS::NoValue'
+
+  # Catch-all proxy resource to forward all paths to Lambda
+  ProxyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref RestApi
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: '{proxy+}'
+
+  # ANY method on the proxy resource
+  ProxyMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref ProxyResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunction.Arn}/invocations'
+
+  # ANY method on the root resource (handles requests to /)
+  RootMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !GetAtt RestApi.RootResourceId
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunction.Arn}/invocations'
+
+  # Deploy the API
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - ProxyMethod
+      - RootMethod
+    Properties:
+      RestApiId: !Ref RestApi
+
+  # IAM role allowing API Gateway to write CloudWatch Logs
+  ApiGatewayLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+
+  # Account-level setting required for REST API access logging
+  ApiGatewayAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt ApiGatewayLogsRole.Arn
+
+  # API stage with access logging
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    DependsOn: ApiGatewayAccount
+    Properties:
+      RestApiId: !Ref RestApi
+      DeploymentId: !Ref ApiDeployment
+      StageName: prod
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        Format: >-
+          {"requestId":"$context.requestId","ip":"$context.identity.sourceIp",
+          "method":"$context.httpMethod","path":"$context.path",
+          "status":"$context.status","latency":"$context.responseLatency"}
+
+  # CloudWatch log group for API Gateway access logs
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apigateway/${AWS::StackName}-access-logs'
+      RetentionInDays: 7
+
+  # Permission for API Gateway to invoke the Lambda function
+  LambdaApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AccountId}:${RestApi}/*'
+
+Outputs:
+  ApiEndpoint:
+    Description: Amazon API Gateway endpoint URL
+    Value: !Sub 'https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+
+  LambdaFunctionName:
+    Description: AWS Lambda function name
+    Value: !Ref LambdaFunction
+
+  LambdaFunctionArn:
+    Description: AWS Lambda function ARN
+    Value: !GetAtt LambdaFunction.Arn
+
+  LogGroupName:
+    Description: Amazon CloudWatch log group for the Lambda function
+    Value: !Ref LambdaLogGroup
+
+  ApiAccessLogGroupName:
+    Description: Amazon CloudWatch log group for API Gateway access logs
+    Value: !Ref ApiAccessLogGroup
