@@ -1,0 +1,32 @@
+datasource db {
+  provider     = "postgresql"
+  relationMode = "prisma"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Order {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product   String
+  quantity  Int
+  status    String   @default("pending")
+  region    String   // which region created this order
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  items     OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId  String @map("order_id") @db.Uuid
+  name     String
+  price    Float
+  order    Order  @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
