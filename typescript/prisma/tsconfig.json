@@ -2,7 +2,9 @@
     "compilerOptions": {
         "target": "es2022",
         "module": "commonjs",
+        "moduleResolution": "bundler",
         "lib": ["es2022"],
+        "types": ["node", "jest"],
         "outDir": "./dist",
         "rootDir": ".",
         "strict": true,
@@ -22,11 +24,10 @@
         "declarationMap": true,
         "sourceMap": true,
         "removeComments": true,
-        "baseUrl": ".",
         "paths": {
             "@generated/*": ["./generated/*"]
         }
     },
-    "include": ["src/**/*", "generated/**/*"],
-    "exclude": ["node_modules", "dist", "test"]
+    "include": ["src/**/*", "generated/**/*", "test/**/*"],
+    "exclude": ["node_modules", "dist"]
 }
