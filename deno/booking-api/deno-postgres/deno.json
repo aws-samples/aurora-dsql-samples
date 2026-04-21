@@ -1,0 +1,17 @@
+{
+  "name": "deno-postgres-dsql-booking-api",
+  "version": "1.0.0",
+  "tasks": {
+    "start": "deno run --allow-net --allow-env --allow-read main.ts",
+    "serve": "deno serve --allow-net --allow-env --allow-read main.ts",
+    "test": "deno test --allow-net --allow-env --allow-read",
+    "test:property": "deno test --allow-net --allow-env --allow-read --filter property",
+    "test:unit": "deno test --allow-net --allow-env --allow-read --filter unit"
+  },
+  "imports": {
+    "@db/postgres": "jsr:@db/postgres@^0.19",
+    "@aws-sdk/dsql-signer": "npm:@aws-sdk/dsql-signer@^3",
+    "fast-check": "npm:fast-check",
+    "@std/assert": "jsr:@std/assert"
+  }
+}
