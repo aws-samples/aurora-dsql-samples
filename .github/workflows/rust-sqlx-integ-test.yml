@@ -47,7 +47,7 @@ jobs:
         CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         REGION: ${{ needs.create-cluster.outputs.region }}
       run: |
-        cargo run
+        cargo test
 
   delete-cluster:
     if: always() && needs.create-cluster.result == 'success'

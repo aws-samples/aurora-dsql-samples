@@ -5,16 +5,24 @@ edition = "2021"
 include = ["/src"]
 
 [dependencies]
-tokio = { version = "1.52", features = ["full"] }
-sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-rustls" , "postgres", "uuid"] }
-anyhow = { version = "1", features = ["backtrace"] }
-aws-config = "1.8"
-aws-sdk-dsql = "1.55"
-rand = "0.10"
-uuid = { version = "1.23", features = ["v4"] }
-log = "0.4.29"
+aurora-dsql-sqlx-connector = { version = "0.1", features = ["pool", "occ"] }
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres"] }
 
 
 [[bin]]
-name = "sqlx"
-path = "src/main.rs"
+name = "example_preferred"
+path = "src/example_preferred.rs"
+
+[[bin]]
+name = "example_no_connection_pool"
+path = "src/alternatives/no_connection_pool/example_no_connection_pool.rs"
+
+[[test]]
+name = "example_preferred_test"
+path = "tests/example_preferred_test.rs"
+
+[[test]]
+name = "example_no_connection_pool_test"
+path = "tests/alternatives/no_connection_pool/example_no_connection_pool_test.rs"
