@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-sts": "^3.1021.0",
-    "@aws-sdk/types": "^3.973.7",
+    "@aws-sdk/types": "^3.973.8",
     "@aws/aurora-dsql-postgresjs-connector": "^0.2.1",
     "buffer": "^6.0.3",
     "net-browserify": "^0.2.4",
