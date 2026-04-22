@@ -1,26 +1,26 @@
-# Aurora DSQL with Rust
+# Aurora DSQL with Rust SQLx
 
 ## Overview
 
-This code example demonstrates how to use Rust SQLx with Amazon Aurora DSQL. The example shows you how to connect to an
-Aurora DSQL cluster and perform basic database operations.
+This code example demonstrates how to use SQLx with Amazon Aurora DSQL.
+The example shows you how to connect to an Aurora DSQL cluster and perform basic database operations.
 
-Aurora DSQL is a distributed SQL database service that provides high availability and scalability for your
-PostgreSQL-compatible applications. SQLx is a popular SQL toolkit for Rust that allows you to interact with PostgreSQL
-databases using Rust code.
+Aurora DSQL is a distributed SQL database service that provides high availability and scalability for
+your PostgreSQL-compatible applications. SQLx is a popular async SQL toolkit for Rust that allows
+you to interact with PostgreSQL databases using Rust code.
 
 ## About the code example
 
-The example demonstrates a flexible connection approach that works for both admin and non-admin users:
+This example uses the [Aurora DSQL SQLx Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/rust/sqlx) which automatically handles IAM token generation for authentication.
 
-* When connecting as an **admin user**, the example uses the `public` schema and generates an admin authentication
-  token.
-* When connecting as a **non-admin user**, the example uses a custom `myschema` schema and generates a standard
-  authentication token.
+The preferred example (`example_preferred`) uses connection pooling with automatic token management and OCC retry support. It demonstrates a flexible approach that works for both admin and non-admin users:
 
-The code automatically detects the user type and adjusts its behavior accordingly.
+* When connecting as an **admin user**, the example uses the `public` schema.
+* When connecting as a **non-admin user**, the example uses a custom `myschema` schema.
 
-## ⚠️ Important
+The **no connection pool example** (`example_no_connection_pool`) demonstrates simpler single-connection usage without pooling or automatic schema detection.
+
+## Important
 
 * Running this code might result in charges to your AWS account.
 * We recommend that you grant your code least privilege. At most, grant only the
@@ -48,36 +48,42 @@ The code automatically detects the user type and adjusts its behavior accordingl
 
 ### Run the code
 
-The example demonstrates the following operations:
+The **preferred example** demonstrates the following operations:
 
-- Opening a pooled connection to an Aurora DSQL cluster with periodic credential refresh
+- Opening a connection pool to an Aurora DSQL cluster
 - Creating a table
-- Inserting and querying data
+- Performing a transactional insert with OCC retry using the `OCCRetryExt` trait (transactions must be idempotent)
+- Opting out of OCC retry for operations that don't need it
+- Running concurrent queries across multiple tokio tasks
 
-The example is designed to work with both admin and non-admin users:
-
-- When run as an admin user, it uses the `public` schema
-- When run as a non-admin user, it uses the `myschema` schema
-
-**Note:** running the example will use actual resources in your AWS account and may incur charges.
+**Note:** Running the example will use actual resources in your AWS account and may incur charges.
 
 Set environment variables for your cluster details:
 
 ```bash
-# e.g. "admin"
+# defaults to "admin" if not set
 export CLUSTER_USER="<your user>"
 
 # e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
 export CLUSTER_ENDPOINT="<your endpoint>"
-
-# e.g. "us-east-1"
-export REGION="<your region>"
 ```
 
-Run the example:
+Run the preferred example (connection pool with OCC retry):
 
 ```bash
-cargo run
+cargo run --bin example_preferred
+```
+
+Run the no connection pool example:
+
+```bash
+cargo run --bin example_no_connection_pool
+```
+
+Run the tests:
+
+```bash
+cargo test
 ```
 
 The example contains comments explaining the code and the operations being performed.
@@ -85,7 +91,9 @@ The example contains comments explaining the code and the operations being perfo
 ## Additional resources
 
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
+* [Aurora DSQL SQLx Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/rust/sqlx)
 * [SQLx Documentation](https://docs.rs/sqlx/latest/sqlx/)
+* [AWS SDK for Rust Documentation](https://docs.aws.amazon.com/sdk-for-rust/latest/dg/welcome.html)
 
 ---
 
