@@ -131,7 +131,9 @@ def create_lambda_role(iam, account_id: str, region: str) -> str:
         PolicyArn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
     )
 
-    # Inline policy: DSQL connect
+    # Inline policy: DSQL connect (non-admin, least privilege)
+    # NOTE: For production, scope Resource to your specific cluster ARN:
+    #   arn:aws:dsql:<region>:<account>:cluster/<cluster-id>
     iam.put_role_policy(
         RoleName=LAMBDA_ROLE_NAME,
         PolicyName="DSQLAccess",
@@ -139,7 +141,7 @@ def create_lambda_role(iam, account_id: str, region: str) -> str:
             "Version": "2012-10-17",
             "Statement": [{
                 "Effect": "Allow",
-                "Action": ["dsql:DbConnectAdmin", "dsql:DbConnect"],
+                "Action": ["dsql:DbConnect"],
                 "Resource": "arn:aws:dsql:*:*:cluster/*",
             }],
         }),

@@ -5,7 +5,6 @@
       "Sid": "DSQLConnect",
       "Effect": "Allow",
       "Action": [
-        "dsql:DbConnectAdmin",
         "dsql:DbConnect"
       ],
       "Resource": "arn:aws:dsql:*:*:cluster/*"

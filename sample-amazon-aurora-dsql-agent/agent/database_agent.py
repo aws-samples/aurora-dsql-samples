@@ -40,8 +40,13 @@ logging.basicConfig(
 MODEL_ID = "global.anthropic.claude-sonnet-4-6"
 
 # A2A server defaults
+# Binds to 0.0.0.0 by default so AgentCore Runtime can route traffic to the
+# container. For local development, use --host 127.0.0.1 to restrict access.
 A2A_HOST = "0.0.0.0"
 A2A_PORT = 9000
+
+# Maximum length for user questions to limit prompt injection surface
+MAX_QUESTION_LENGTH = 2000
 
 
 SYSTEM_PROMPT_TEMPLATE = """You are a grid operations investigation assistant with access to an Aurora DSQL
@@ -211,7 +216,7 @@ def create_a2a_app(config: dict, region: str) -> FastAPI:
     2. Fetches live schema via get_schema MCP tool
     3. Creates the Strands Agent with dynamic schema
     4. Wraps it in an A2AServer for A2A protocol support
-    5. Mounts on a FastAPI app with health check
+    5. Mounts on a FastAPI app with health check and input length guard
 
     Returns:
         FastAPI app ready to serve A2A requests.
@@ -260,14 +265,46 @@ def create_a2a_app(config: dict, region: str) -> FastAPI:
             serve_at_root=True,
         )
 
-        # Step 5: Mount on FastAPI
+        # Step 5: Mount on FastAPI with ASGI-level input length guard
         app = FastAPI()
 
         @app.get("/ping")
         def ping():
             return {"status": "healthy"}
 
-        app.mount("/", a2a_server.to_fastapi_app())
+        # Wrap the A2A app in an ASGI middleware class that rejects oversized
+        # requests via Content-Length without reading the body. This avoids the
+        # known Starlette BaseHTTPMiddleware issue where reading the body drains
+        # the ASGI receive stream and breaks downstream mounted apps.
+        inner_a2a_app = a2a_server.to_fastapi_app()
+
+        class ContentLengthGuard:
+            """ASGI middleware that rejects requests exceeding a size limit."""
+
+            def __init__(self, app):
+                self.app = app
+
+            async def __call__(self, scope, receive, send):
+                if scope["type"] == "http" and scope.get("method") == "POST":
+                    headers = dict(scope.get("headers", []))
+                    content_length = headers.get(b"content-length", b"0")
+                    try:
+                        if int(content_length) > MAX_QUESTION_LENGTH * 2:
+                            from starlette.responses import JSONResponse
+                            response = JSONResponse(
+                                status_code=413,
+                                content={
+                                    "error": f"Request body too large. "
+                                    f"Maximum question length is {MAX_QUESTION_LENGTH} characters."
+                                },
+                            )
+                            await response(scope, receive, send)
+                            return
+                    except (ValueError, TypeError):
+                        pass  # Missing or malformed Content-Length — let it through
+                await self.app(scope, receive, send)
+
+        app.mount("/", ContentLengthGuard(inner_a2a_app))
     except Exception:
         mcp_client.__exit__(None, None, None)
         raise
@@ -300,6 +337,11 @@ def parse_args() -> argparse.Namespace:
         default=A2A_PORT,
         help=f"Port to serve on (default: {A2A_PORT})",
     )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind to (default: 127.0.0.1). AgentCore Runtime passes --host 0.0.0.0.",
+    )
     return parser.parse_args()
 
 
@@ -324,8 +366,8 @@ def main():
         logger.error("Failed to initialize Database Agent: %s", exc)
         sys.exit(1)
 
-    logger.info("Starting A2A server on %s:%d", A2A_HOST, args.port)
-    uvicorn.run(app, host=A2A_HOST, port=args.port)
+    logger.info("Starting A2A server on %s:%d", args.host, args.port)
+    uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

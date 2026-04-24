@@ -43,11 +43,26 @@ ALLOWED_TABLES = {
     "maintenance_log",
 }
 
+# Maximum allowed SQL length to limit abuse surface
+MAX_SQL_LENGTH = 2000
+
 # SQL statements that are never allowed
 FORBIDDEN_PATTERNS = [
     re.compile(r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE)\b", re.IGNORECASE),
     re.compile(r";\s*\S", re.IGNORECASE),  # multiple statements
 ]
+
+# Dangerous PostgreSQL functions that must never appear in queries
+FORBIDDEN_FUNCTIONS = [
+    "pg_sleep", "pg_read_file", "pg_write_file", "pg_terminate_backend",
+    "pg_cancel_backend", "pg_reload_conf", "pg_rotate_logfile",
+    "set_config", "current_setting", "lo_import", "lo_export",
+    "dblink", "dblink_exec", "dblink_connect",
+]
+FORBIDDEN_FUNCTION_PATTERN = re.compile(
+    r"(?<![\w\"])\"?(" + "|".join(re.escape(f) for f in FORBIDDEN_FUNCTIONS) + r")\"?\s*\(",
+    re.IGNORECASE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -55,11 +70,15 @@ FORBIDDEN_PATTERNS = [
 # ---------------------------------------------------------------------------
 
 def _get_conn():
-    """Open a short-lived DSQL connection using IAM auth."""
+    """Open a short-lived DSQL connection using IAM auth.
+
+    Connects as a non-admin user with SELECT-only grants (dsql:DbConnect).
+    The 'grid_reader' role is created in infra/schema.sql with least-privilege access.
+    """
     return dsql.connect(
         host=CLUSTER_ENDPOINT,
         region=REGION,
-        user="admin",
+        user="grid_reader",
         dbname="postgres",
     )
 
@@ -79,12 +98,65 @@ def _serialize(obj: Any) -> Any:
 # SQL validation
 # ---------------------------------------------------------------------------
 
+def _strip_sql_comments(sql: str) -> str:
+    """Remove SQL comments to prevent them from hiding forbidden keywords.
+
+    Strips both line comments (-- ...) and block comments (/* ... */).
+    Comments are replaced with empty string (not space) to avoid splitting
+    identifiers like pg_sleep into separate tokens that bypass validation.
+    Note: nested block comments are not supported.
+
+    Known limitation: this regex-based approach does not distinguish between
+    comment delimiters inside SQL string literals and real comments. A crafted
+    query with '/*' inside a string value could cause incorrect stripping.
+    The primary security boundary is the DB-level enforcement via the
+    non-admin 'grid_reader' role which only has SELECT grants on allowed tables.
+    """
+    # Remove block comments (non-greedy)
+    sql = re.sub(r"/\*.*?\*/", "", sql, flags=re.DOTALL)
+    # Remove line comments
+    sql = re.sub(r"--[^\n]*", "", sql)
+    return sql
+
+
 def validate_sql(sql: str) -> None:
     """
     Reject anything that isn't a read-only SELECT.
     Raises ValueError on violations.
+
+    Defense-in-depth layers:
+    1. Input length limit
+    2. Comment stripping (prevents hiding keywords in comments)
+    3. SELECT/WITH-only enforcement
+    4. Forbidden keyword detection (DML/DDL)
+    5. Dangerous PostgreSQL function blocklist (checked on both raw and stripped input)
+    6. Table allowlist
+    7. DB-level enforcement via non-admin 'grid_reader' role (SELECT-only grants)
+
+    Note: parameterized queries via psycopg2 in query_grid_database() prevent
+    value-level injection. This function validates the SQL template itself.
+
+    Known limitation: the comment stripper does not parse SQL string literals,
+    so crafted strings containing comment delimiters can bypass validation.
+    The grid_reader DB role (SELECT-only grants) is the primary security boundary.
     """
-    stripped = sql.strip().rstrip(";").strip()
+    if len(sql) > MAX_SQL_LENGTH:
+        raise ValueError(
+            f"SQL query exceeds maximum length of {MAX_SQL_LENGTH} characters."
+        )
+
+    # Check forbidden functions on the RAW input first, before comment stripping.
+    # This catches bypass attempts like pg/**/_sleep(5) where a block comment
+    # splits a function name — after stripping, the tokens rejoin.
+    match = FORBIDDEN_FUNCTION_PATTERN.search(sql)
+    if match:
+        raise ValueError(
+            f"Forbidden function detected: '{match.group(1)}'. "
+            "Dangerous PostgreSQL functions are not allowed."
+        )
+
+    # Strip comments before validation so forbidden keywords can't hide inside them
+    stripped = _strip_sql_comments(sql).strip().rstrip(";").strip()
 
     # Must start with SELECT or WITH (for CTEs)
     if not re.match(r"^\s*(SELECT|WITH)\b", stripped, re.IGNORECASE):
@@ -93,18 +165,23 @@ def validate_sql(sql: str) -> None:
     for pattern in FORBIDDEN_PATTERNS:
         if pattern.search(stripped):
             raise ValueError(
-                f"Forbidden SQL operation detected. Only read-only SELECT queries are allowed."
+                "Forbidden SQL operation detected. Only read-only SELECT queries are allowed."
             )
 
-    # Check that referenced tables are in the allowed set
-    # Extract table names from FROM and JOIN clauses
+    # Block dangerous PostgreSQL functions (also check stripped version)
+    match = FORBIDDEN_FUNCTION_PATTERN.search(stripped)
+    if match:
+        raise ValueError(
+            f"Forbidden function detected: '{match.group(1)}'. "
+            "Dangerous PostgreSQL functions are not allowed."
+        )
+
+    # Check that referenced tables are in the allowed set.
     # NOTE: This regex-based approach covers common query patterns but is not a full SQL
     # parser. Complex constructs (e.g. nested subqueries in SELECT lists, lateral joins)
-    # may not be fully validated. Additionally, dangerous PostgreSQL functions (e.g.
-    # pg_sleep, current_setting) are not blocked — for production use, consider adding a
-    # function allowlist/blocklist or using a proper SQL parser. Using a non-admin DSQL
-    # user (dsql:DbConnect instead of dsql:DbConnectAdmin) also reduces blast radius.
-    # Value-level injection is already prevented by psycopg2's parameterized queries.
+    # may not be fully validated. For production use, consider using a proper SQL parser
+    # (e.g. sqlparse). The primary security boundary is the DB-level enforcement via the
+    # non-admin 'grid_reader' role which only has SELECT grants on allowed tables.
     table_refs = re.findall(
         r"\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)\b", stripped, re.IGNORECASE
     )
@@ -144,6 +221,7 @@ def query_grid_database(event: Dict[str, Any]) -> Dict[str, Any]:
     try:
         validate_sql(sql)
     except ValueError as e:
+        logger.warning("SQL validation failed: %s | sql=%s", e, sql)
         return {"error": f"SQL validation failed: {e}"}
 
     # Append LIMIT if not already present to prevent huge result sets
