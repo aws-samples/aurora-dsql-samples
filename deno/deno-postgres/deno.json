@@ -1,0 +1,12 @@
+{
+  "name": "dsql-deno-postgres",
+  "version": "1.0.0",
+  "tasks": {
+    "start": "deno run --allow-net --allow-env --allow-read src/example_preferred.ts",
+    "test": "deno test --allow-net --allow-env --allow-read test/"
+  },
+  "imports": {
+    "@db/postgres": "jsr:@db/postgres@^0.19",
+    "@aws-sdk/dsql-signer": "npm:@aws-sdk/dsql-signer@^3"
+  }
+}
