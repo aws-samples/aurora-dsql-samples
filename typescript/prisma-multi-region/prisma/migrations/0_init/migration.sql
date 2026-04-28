@@ -1,4 +1,5 @@
 -- CreateTable
+BEGIN;
 CREATE TABLE IF NOT EXISTS "orders" (
     "id" UUID DEFAULT gen_random_uuid() NOT NULL,
     "product" TEXT NOT NULL,
@@ -10,8 +11,10 @@ CREATE TABLE IF NOT EXISTS "orders" (
 
     CONSTRAINT "orders_pkey" PRIMARY KEY ("id")
 );
+COMMIT;
 
 -- CreateTable
+BEGIN;
 CREATE TABLE IF NOT EXISTS "order_items" (
     "id" UUID DEFAULT gen_random_uuid() NOT NULL,
     "order_id" UUID NOT NULL,
@@ -20,6 +23,9 @@ CREATE TABLE IF NOT EXISTS "order_items" (
 
     CONSTRAINT "order_items_pkey" PRIMARY KEY ("id")
 );
+COMMIT;
 
 -- CreateIndex
+BEGIN;
 CREATE INDEX ASYNC IF NOT EXISTS "order_items_order_id_idx" ON "order_items"("order_id");
+COMMIT;
