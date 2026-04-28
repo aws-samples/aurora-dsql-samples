@@ -143,7 +143,9 @@ jobs:
           # DSQL doesn't support DROP CONSTRAINT, so we filter those out before transforming.
           npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script \
             | grep -v 'DROP CONSTRAINT' \
-            | npm run dsql-transform -- -o prisma/migrations/1_add_notes/migration.sql
+            > /tmp/raw_migration.sql
+
+          npx aurora-dsql-prisma transform /tmp/raw_migration.sql -o prisma/migrations/1_add_notes/migration.sql
 
           # Show what was generated
           cat prisma/migrations/1_add_notes/migration.sql
