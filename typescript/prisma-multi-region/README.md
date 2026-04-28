@@ -87,11 +87,13 @@ npm run validate
 
 ### 4. Generate DSQL-compatible migration
 
-If you need to regenerate the migration from the schema:
+If you need to regenerate the migrations from the schema:
 
 ```bash
-npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/0_init/migration.sql
+npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/0_create_orders/migration.sql
 ```
+
+Note: DSQL requires one DDL statement per transaction. Each migration file should contain exactly one DDL statement. See `prisma/migrations/` for the split structure.
 
 ### 5. Run migrations
 
@@ -207,6 +209,8 @@ Remove the database tables:
 ```bash
 npm run prisma:migrate-down
 ```
+
+This runs `prisma/down.sql` which drops the tables in reverse dependency order.
 
 ## Security
 
