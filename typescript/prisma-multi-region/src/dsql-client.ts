@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 
-import { PrismaClient } from "../generated/prisma";
+import { PrismaClient } from "@generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { AuroraDSQLPool } from "@aws/aurora-dsql-node-postgres-connector";
 

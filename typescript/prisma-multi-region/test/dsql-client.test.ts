@@ -82,7 +82,7 @@ describe("DSQL Prisma multi-region client", () => {
     });
 
     expect(order.items).toHaveLength(2);
-    expect(order.items.map((i) => i.name).sort()).toEqual(["Part A", "Part B"]);
+    expect(order.items.map((i: { name: string }) => i.name).sort()).toEqual(["Part A", "Part B"]);
 
     // Query with relation
     const fetched = await client.order.findUnique({
