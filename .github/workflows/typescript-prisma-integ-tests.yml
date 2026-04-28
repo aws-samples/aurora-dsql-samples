@@ -83,6 +83,11 @@ jobs:
         run: |
           npm run build
 
+      - name: Validate schema for DSQL compatibility
+        working-directory: ./typescript/prisma-multi-region
+        run: |
+          npm run validate
+
       - name: Create psql auth helper
         run: |
           cat > /tmp/configure-psql.sh << 'EOF'
@@ -134,20 +139,20 @@ jobs:
           npm run validate
 
           # Generate incremental migration using --from-config-datasource (reads from prisma.config.ts)
-          npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/incremental/migration.sql --from-config-datasource
+          npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/1_add_notes/migration.sql --from-config-datasource
 
           # Show what was generated
-          cat prisma/migrations/incremental/migration.sql
+          cat prisma/migrations/1_add_notes/migration.sql
 
-          # Apply the incremental migration
-          PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 psql -f prisma/migrations/incremental/migration.sql
+          # Apply the incremental migration via prisma migrate deploy
+          npm run prisma:migrate-up
 
           # Verify the column was added
           psql -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'notes'" | grep -q notes
 
           # Clean up: revert schema and remove incremental migration folder
           git checkout prisma/schema.prisma
-          rm -rf prisma/migrations/incremental
+          rm -rf prisma/migrations/1_add_notes
 
       - name: Run integration tests as admin
         working-directory: ./typescript/prisma-multi-region
