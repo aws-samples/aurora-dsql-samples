@@ -25,6 +25,6 @@
       "@generated/*": ["./generated/*"]
     }
   },
-  "include": ["src/**/*", "test/**/*", "generated/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "generated/**/*"],
+  "exclude": ["node_modules", "dist", "test"]
 }

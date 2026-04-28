@@ -16,7 +16,7 @@
     "prisma:migrate-up": "PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy",
     "prisma:migrate-down": "npx prisma db execute --file prisma/migrations/0_init/down.sql",
     "test:failover": "ts-node src/test-failover.ts",
-    "pretest": "npm run build",
+    "pretest": "npm run prisma:generate",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "validate": "aurora-dsql-prisma validate prisma/schema.prisma",
     "dsql-migrate": "aurora-dsql-prisma migrate"
