@@ -108,13 +108,9 @@ jobs:
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/configure-psql.sh
-          configure_psql $CLUSTER_USER
-
           # Ensure clean state first.
-          npm run prisma:migrate-down
+          npm run prisma:migrate-down || true
 
           npm run prisma:migrate-up
 
@@ -158,10 +154,7 @@ jobs:
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/configure-psql.sh
-          configure_psql $CLUSTER_USER
           npm test
 
       - name: Clean admin schema
@@ -169,10 +162,7 @@ jobs:
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/configure-psql.sh
-          configure_psql $CLUSTER_USER
           npm run prisma:migrate-down
 
       - name: Create non-admin role
@@ -204,13 +194,9 @@ jobs:
         env:
           CLUSTER_USER: "myuser"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/configure-psql.sh
-          configure_psql $CLUSTER_USER
-
           # Ensure clean state first.
-          npm run prisma:migrate-down
+          npm run prisma:migrate-down || true
 
           npm run prisma:migrate-up
 
@@ -219,10 +205,7 @@ jobs:
         env:
           CLUSTER_USER: "myuser"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/configure-psql.sh
-          configure_psql $CLUSTER_USER
           npm test
 
       - name: Clean non-admin schema
@@ -230,10 +213,7 @@ jobs:
         env:
           CLUSTER_USER: "myuser"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
         run: |
-          source /tmp/configure-psql.sh
-          configure_psql $CLUSTER_USER
           npm run prisma:migrate-down
 
       - name: Clean non-admin role
