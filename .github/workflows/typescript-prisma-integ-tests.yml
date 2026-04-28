@@ -150,6 +150,7 @@ jobs:
 
           cat /tmp/incremental_raw.sql
 
+          mkdir -p prisma/migrations/1_add_notes
           npx aurora-dsql-prisma transform /tmp/incremental_raw.sql \
             -o prisma/migrations/1_add_notes/migration.sql
 
