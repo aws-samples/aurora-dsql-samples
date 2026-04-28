@@ -72,7 +72,7 @@ jobs:
               'ruby-rails-carrental': ['ruby/rails/carrental/'],
               'rust-cm': ['rust/cluster_management/'],
               'rust-sqlx': ['rust/sqlx/'],
-              'typescript-prisma': ['typescript/prisma/'],
+              'typescript-prisma': ['typescript/prisma-multi-region/'],
               'typescript-sequelize': ['typescript/sequelize/'],
               'typescript-type-orm': ['typescript/type-orm/'],
             };

@@ -25,7 +25,7 @@ jobs:
           node-version: "22.x"
 
       - name: Check formatting
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         run: |
           npm ci
           npm run format:check
@@ -68,12 +68,12 @@ jobs:
           wget https://www.amazontrust.com/repository/AmazonRootCA1.pem -O ~/.postgresql/root.crt
 
       - name: Install dependencies
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         run: |
           npm ci
 
       - name: Build project
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         run: |
@@ -100,7 +100,7 @@ jobs:
           EOF
 
       - name: Run migrations as admin
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
@@ -111,7 +111,7 @@ jobs:
           npm run prisma:migrate-up
 
       - name: Test incremental migration workflow
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
@@ -120,18 +120,17 @@ jobs:
           source /tmp/configure-psql.sh
           configure_psql $CLUSTER_USER
 
-          # Add a new column to the vet model (after the name field)
-          sed -i '/model vet/,/^}/s/name        String      @db.VarChar(30)/name        String      @db.VarChar(30)\n  phone       String?     @db.VarChar(20)/' prisma/veterinary-schema.prisma
+          # Add a new column to the Order model (after the status field)
+          sed -i '/status.*String.*@default("pending")/a\  notes     String?' prisma/schema.prisma
 
           # Show the change
-          grep -A3 "model vet" prisma/veterinary-schema.prisma
+          grep -A2 "status" prisma/schema.prisma
 
           # Validate the modified schema first
-          npm run validate prisma/veterinary-schema.prisma
+          npm run validate
 
           # Generate incremental migration using --from-config-datasource (reads from prisma.config.ts)
-          # Use --force because Prisma may generate DROP CONSTRAINT for PKs
-          npm run dsql-migrate -- prisma/veterinary-schema.prisma -o prisma/migrations/incremental/migration.sql --from-config-datasource --force
+          npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/incremental/migration.sql --from-config-datasource
 
           # Show what was generated
           cat prisma/migrations/incremental/migration.sql
@@ -140,30 +139,22 @@ jobs:
           PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 psql -f prisma/migrations/incremental/migration.sql
 
           # Verify the column was added
-          psql -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'vet' AND column_name = 'phone'" | grep -q phone
+          psql -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'notes'" | grep -q notes
 
           # Clean up: revert schema and remove incremental migration folder
-          git checkout prisma/veterinary-schema.prisma
+          git checkout prisma/schema.prisma
           rm -rf prisma/migrations/incremental
 
       - name: Run integration tests as admin
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         run: |
-          npm run test -- --testPathPatterns=dsql-client
-
-      - name: Run sample as admin
-        working-directory: ./typescript/prisma
-        env:
-          CLUSTER_USER: "admin"
-          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-        run: |
-          npm run sample
+          npm test
 
       - name: Clean admin schema
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_USER: "admin"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
@@ -171,7 +162,7 @@ jobs:
           npm run prisma:migrate-down
 
       - name: Create non-admin role
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         env:
           ADMIN_USER: "admin"
           NON_ADMIN_USER: "myuser"
@@ -195,7 +186,7 @@ jobs:
           psql -c "GRANT ALL PRIVILEGES ON SCHEMA \"$NON_ADMIN_SCHEMA\" TO \"$NON_ADMIN_USER\""
 
       - name: Run migrations as non-admin
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_USER: "myuser"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
@@ -205,16 +196,16 @@ jobs:
 
           npm run prisma:migrate-up
 
-      - name: Run sample as non-admin
-        working-directory: ./typescript/prisma
+      - name: Run integration tests as non-admin
+        working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_USER: "myuser"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         run: |
-          npm run sample
+          npm test
 
       - name: Clean non-admin schema
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_USER: "myuser"
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
@@ -222,7 +213,7 @@ jobs:
           npm run prisma:migrate-down
 
       - name: Clean non-admin role
-        working-directory: ./typescript/prisma
+        working-directory: ./typescript/prisma-multi-region
         env:
           ADMIN_USER: "admin"
           NON_ADMIN_USER: "myuser"
