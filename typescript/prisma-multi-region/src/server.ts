@@ -15,11 +15,17 @@ const dsql = new MultiRegionDsqlClient();
  * Note: Error detection is simplified for this sample. Production apps should
  * implement more robust circuit-breaker patterns.
  */
-async function withFailover<T>(operation: (client: Awaited<ReturnType<typeof dsql.getClient>>) => Promise<T>): Promise<T> {
+async function withFailover<T>(
+  operation: (client: Awaited<ReturnType<typeof dsql.getClient>>) => Promise<T>,
+): Promise<T> {
   try {
     return await operation(await dsql.getClient());
   } catch (err: any) {
-    if (err.code === "ECONNREFUSED" || err.code === "ETIMEDOUT" || err.message?.includes("unavailable")) {
+    if (
+      err.code === "ECONNREFUSED" ||
+      err.code === "ETIMEDOUT" ||
+      err.message?.includes("unavailable")
+    ) {
       console.warn("Primary failed, attempting failover...");
       const fallback = await dsql.failover();
       return await operation(fallback);
@@ -75,7 +81,12 @@ app.post("/orders", async (req: Request, res: Response) => {
           quantity: quantity || 1,
           region: process.env.AWS_REGION || "unknown",
           items: items?.length
-            ? { create: items.map((i: { name: string; price: number }) => ({ name: String(i.name), price: Number(i.price) })) }
+            ? {
+                create: items.map((i: { name: string; price: number }) => ({
+                  name: String(i.name),
+                  price: Number(i.price),
+                })),
+              }
             : undefined,
         },
         include: { items: true },

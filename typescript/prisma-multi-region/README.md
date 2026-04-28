@@ -55,6 +55,7 @@ aws dsql create-multi-region-clusters \
 ```
 
 This returns cluster identifiers for each region. Your endpoints will be:
+
 ```
 <cluster-id>.dsql.us-east-1.on.aws
 <cluster-id>.dsql.us-west-2.on.aws
@@ -107,12 +108,12 @@ npm start
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check with region and DSQL status |
-| GET | `/orders` | List all orders |
-| POST | `/orders` | Create an order |
-| GET | `/orders/:id` | Get order by ID |
+| Method | Path          | Description                              |
+| ------ | ------------- | ---------------------------------------- |
+| GET    | `/health`     | Health check with region and DSQL status |
+| GET    | `/orders`     | List all orders                          |
+| POST   | `/orders`     | Create an order                          |
+| GET    | `/orders/:id` | Get order by ID                          |
 
 ### Example requests
 
@@ -136,12 +137,12 @@ curl http://localhost:3000/orders
 
 ## DSQL Constraints (Prisma Compatibility)
 
-| Feature | DSQL Support | Workaround |
-|---------|-------------|------------|
-| Foreign keys | Not supported | `relationMode = "prisma"` |
-| Sequences / autoincrement | Not supported | `gen_random_uuid()` for IDs |
-| `CREATE INDEX` (sync) | Not supported | Use `aurora-dsql-prisma migrate` to generate `CREATE INDEX ASYNC` |
-| Advisory locks | Not supported | `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1` |
+| Feature                   | DSQL Support  | Workaround                                                        |
+| ------------------------- | ------------- | ----------------------------------------------------------------- |
+| Foreign keys              | Not supported | `relationMode = "prisma"`                                         |
+| Sequences / autoincrement | Not supported | `gen_random_uuid()` for IDs                                       |
+| `CREATE INDEX` (sync)     | Not supported | Use `aurora-dsql-prisma migrate` to generate `CREATE INDEX ASYNC` |
+| Advisory locks            | Not supported | `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1`                           |
 
 ## Authentication
 

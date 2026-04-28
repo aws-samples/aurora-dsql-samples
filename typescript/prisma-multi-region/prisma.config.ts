@@ -8,9 +8,7 @@ import { DsqlSigner } from "@aws-sdk/dsql-signer";
 const ADMIN = "admin";
 
 async function extractRegionFromEndpoint(endpoint: string): Promise<string> {
-  const match = endpoint.match(
-    /^[a-z0-9]+\.dsql(?:-[^.]+)?\.([a-z0-9-]+)\.on\.aws$/,
-  );
+  const match = endpoint.match(/^[a-z0-9]+\.dsql(?:-[^.]+)?\.([a-z0-9-]+)\.on\.aws$/);
   if (!match) {
     throw new Error(`Unknown DSQL endpoint format: ${endpoint}`);
   }
@@ -24,8 +22,7 @@ async function getDatabaseUrl(): Promise<string> {
   }
 
   const user = process.env.CLUSTER_USER ?? ADMIN;
-  const region =
-    process.env.AWS_REGION ?? (await extractRegionFromEndpoint(endpoint));
+  const region = process.env.AWS_REGION ?? (await extractRegionFromEndpoint(endpoint));
   const schema = user === ADMIN ? "public" : "myschema";
 
   const signer = new DsqlSigner({ hostname: endpoint, region });
