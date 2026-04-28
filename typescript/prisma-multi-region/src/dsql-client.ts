@@ -55,9 +55,7 @@ export class MultiRegionDsqlClient {
       options: `-c search_path=${this.schema}`,
     });
 
-    // Cast required: @prisma/adapter-pg bundles its own @types/pg which conflicts
-    // with the top-level @types/pg. The types are compatible at runtime.
-    const adapter = new PrismaPg(pool as any, { schema: this.schema });
+    const adapter = new PrismaPg(pool, { schema: this.schema });
     const prisma = new PrismaClient({
       adapter,
       log: ["warn", "error"],

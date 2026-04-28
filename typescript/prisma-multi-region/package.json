@@ -17,29 +17,43 @@
     "prisma:migrate-up": "PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy",
     "prisma:migrate-down": "npx prisma db execute --file prisma/migrations/0_init/down.sql",
     "test:failover": "ts-node src/test-failover.ts",
+    "pretest": "npm run build",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "validate": "aurora-dsql-prisma validate prisma/schema.prisma",
     "dsql-transform": "aurora-dsql-prisma transform",
     "dsql-migrate": "aurora-dsql-prisma migrate"
   },
   "dependencies": {
-    "@aws/aurora-dsql-node-postgres-connector": "^0.1.0",
+    "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
     "@aws-sdk/dsql-signer": "^3.1006.0",
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
-    "@types/pg": "^8.11.0",
+    "@types/pg": "^8.18.0",
     "express": "^4.21.0",
-    "pg": "^8.13.0"
+    "pg": "^8.20.0"
   },
   "devDependencies": {
     "@aws/aurora-dsql-prisma-tools": "^0.1.0",
     "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^25.4.0",
+    "jest": "^30.0.0",
     "prettier": "^3.8.1",
     "prisma": "^7.4.2",
-    "typescript": "^5.8.3",
-    "ts-node": "^10.9.0"
+    "ts-jest": "^29.4.1",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.8.3"
   },
   "overrides": {
-    "lodash": "^4.17.22"
+    "lodash": "^4.17.23",
+    "hono": "^4.11.10",
+    "fast-xml-parser": "^5.4.1"
+  },
+  "comments": {
+    "overrides": {
+      "lodash": "CVE-2025-13465 - Remove when prisma updates to lodash >=4.17.23",
+      "hono": "CVE-2026-24472 - Remove when prisma updates to hono >=4.11.10",
+      "fast-xml-parser": "Stack overflow in XMLBuilder - Remove when @aws-sdk/xml-builder updates to fast-xml-parser >=5.3.8"
+    }
   }
 }
