@@ -12,7 +12,6 @@
     "prebuild": "npm run prisma:generate",
     "build": "tsc",
     "start": "node dist/src/server.js",
-    "dev": "ts-node src/server.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate-up": "PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1 npx prisma migrate deploy",
     "prisma:migrate-down": "npx prisma db execute --file prisma/migrations/0_init/down.sql",
