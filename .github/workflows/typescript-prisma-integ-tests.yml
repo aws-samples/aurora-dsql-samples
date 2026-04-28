@@ -139,9 +139,11 @@ jobs:
           npm run validate
 
           # Generate incremental migration using --from-config-datasource (reads from prisma.config.ts)
-          # --force skips unsupported DROP CONSTRAINT statements that Prisma generates
-          # when it regenerates primary key constraints even though they haven't changed
-          npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/1_add_notes/migration.sql --from-config-datasource --force
+          # Prisma may generate DROP CONSTRAINT for unchanged PKs when diffing against a live DB.
+          # DSQL doesn't support DROP CONSTRAINT, so we filter those out before transforming.
+          npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script \
+            | grep -v 'DROP CONSTRAINT' \
+            | npm run dsql-transform -- -o prisma/migrations/1_add_notes/migration.sql
 
           # Show what was generated
           cat prisma/migrations/1_add_notes/migration.sql
