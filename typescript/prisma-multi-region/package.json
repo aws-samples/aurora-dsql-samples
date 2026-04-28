@@ -20,7 +20,6 @@
     "pretest": "npm run build",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "validate": "aurora-dsql-prisma validate prisma/schema.prisma",
-    "dsql-transform": "aurora-dsql-prisma transform",
     "dsql-migrate": "aurora-dsql-prisma migrate"
   },
   "dependencies": {

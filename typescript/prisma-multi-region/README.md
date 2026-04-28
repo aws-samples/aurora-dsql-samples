@@ -93,13 +93,20 @@ If you need to regenerate the migration from the schema:
 npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/0_init/migration.sql
 ```
 
-For incremental migrations against an existing database:
+For incremental migrations after schema changes, diff the old schema against the new one and transform:
 
 ```bash
-npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/1_next/migration.sql --from-config-datasource
+# Generate the diff
+npx prisma migrate diff \
+    --from-schema prisma/schema_before.prisma \
+    --to-schema prisma/schema.prisma \
+    --script > raw.sql
+
+# Transform for DSQL compatibility
+npx aurora-dsql-prisma transform raw.sql -o prisma/migrations/1_next/migration.sql
 ```
 
-The `aurora-dsql-prisma migrate` command validates the schema, generates SQL via Prisma, and runs `dsql-lint --fix` to wrap each DDL in `BEGIN`/`COMMIT` blocks and convert indexes to `CREATE INDEX ASYNC`.
+The `aurora-dsql-prisma` tools validate the schema, wrap each DDL in `BEGIN`/`COMMIT` blocks, and convert indexes to `CREATE INDEX ASYNC`.
 
 ### 5. Run migrations
 

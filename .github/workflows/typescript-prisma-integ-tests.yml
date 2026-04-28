@@ -129,25 +129,30 @@ jobs:
           source /tmp/configure-psql.sh
           configure_psql $CLUSTER_USER
 
+          # Save the current schema as the baseline
+          cp prisma/schema.prisma prisma/schema_before.prisma
+
           # Add a new column to the Order model (after the status field)
           sed -i '/status.*String.*@default("pending")/a\  notes     String?' prisma/schema.prisma
 
           # Show the change
           grep -A2 "status" prisma/schema.prisma
 
-          # Validate the modified schema first
+          # Validate the modified schema
           npm run validate
 
-          # Generate incremental migration using --from-config-datasource (reads from prisma.config.ts)
-          # Prisma may generate DROP CONSTRAINT for unchanged PKs when diffing against a live DB.
-          # DSQL doesn't support DROP CONSTRAINT, so we filter those out before transforming.
-          npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script \
-            | grep -v 'DROP CONSTRAINT' \
-            > /tmp/raw_migration.sql
+          # Generate incremental migration by diffing old schema → new schema,
+          # then transform for DSQL compatibility (BEGIN/COMMIT, ASYNC indexes)
+          npx prisma migrate diff \
+            --from-schema prisma/schema_before.prisma \
+            --to-schema prisma/schema.prisma \
+            --script > /tmp/incremental_raw.sql
 
-          npx aurora-dsql-prisma transform /tmp/raw_migration.sql -o prisma/migrations/1_add_notes/migration.sql
+          cat /tmp/incremental_raw.sql
 
-          # Show what was generated
+          npx aurora-dsql-prisma transform /tmp/incremental_raw.sql \
+            -o prisma/migrations/1_add_notes/migration.sql
+
           cat prisma/migrations/1_add_notes/migration.sql
 
           # Apply the incremental migration via prisma migrate deploy
@@ -156,8 +161,9 @@ jobs:
           # Verify the column was added
           psql -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'notes'" | grep -q notes
 
-          # Clean up: revert schema and remove incremental migration folder
+          # Clean up
           git checkout prisma/schema.prisma
+          rm -f prisma/schema_before.prisma
           rm -rf prisma/migrations/1_add_notes
 
       - name: Run integration tests as admin
