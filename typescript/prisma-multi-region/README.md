@@ -11,8 +11,6 @@ A production-ready example demonstrating how to use [Prisma ORM](https://www.pri
 
 ## Architecture
 
-![alt text](image.png)
-
 Both peered regions accept reads AND writes with strong consistency. The witness region (us-east-2) participates in quorum for durability — it has no endpoint.
 
 ## Prerequisites
@@ -32,7 +30,11 @@ prisma-dsql-multi-region/
 ├── src/
 │   ├── dsql-client.ts         # Multi-region DSQL Prisma client
 │   ├── server.ts              # Express API server
-│   └── health.ts              # Health check endpoint
+│   ├── health.ts              # Health check endpoint
+│   └── test-failover.ts       # Multi-region failover integration test
+├── test/
+│   └── dsql-client.test.ts    # Jest integration tests (CRUD, relations, UUID)
+├── jest.config.js
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -152,7 +154,19 @@ For Prisma CLI tools (migrations, generate), `prisma.config.ts` generates a fres
 
 Your AWS credentials must have the `dsql:DbConnectAdmin` (or `dsql:DbConnect` for non-admin) IAM permission on the cluster.
 
-## Testing Failover
+## Testing
+
+### Unit / Integration Tests
+
+Run the jest-based integration tests against a live DSQL cluster:
+
+```bash
+npm test
+```
+
+These tests cover basic connectivity, CRUD operations, relations, and UUID generation.
+
+### Testing Failover
 
 An integration test validates the multi-region failover path against your live DSQL clusters.
 
