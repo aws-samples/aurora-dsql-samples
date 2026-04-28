@@ -87,13 +87,19 @@ npm run validate
 
 ### 4. Generate DSQL-compatible migration
 
-If you need to regenerate the migrations from the schema:
+If you need to regenerate the migration from the schema:
 
 ```bash
-npm run dsql-migrate prisma/schema.prisma -o prisma/migrations/0_create_orders/migration.sql
+npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/0_init/migration.sql
 ```
 
-Note: DSQL requires one DDL statement per transaction. Each migration file should contain exactly one DDL statement. See `prisma/migrations/` for the split structure.
+For incremental migrations against an existing database:
+
+```bash
+npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/1_next/migration.sql --from-config-datasource
+```
+
+The `aurora-dsql-prisma migrate` command validates the schema, generates SQL via Prisma, and runs `dsql-lint --fix` to wrap each DDL in `BEGIN`/`COMMIT` blocks and convert indexes to `CREATE INDEX ASYNC`.
 
 ### 5. Run migrations
 

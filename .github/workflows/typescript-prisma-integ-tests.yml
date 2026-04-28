@@ -139,7 +139,9 @@ jobs:
           npm run validate
 
           # Generate incremental migration using --from-config-datasource (reads from prisma.config.ts)
-          npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/1_add_notes/migration.sql --from-config-datasource
+          # --force skips unsupported DROP CONSTRAINT statements that Prisma generates
+          # when it regenerates primary key constraints even though they haven't changed
+          npm run dsql-migrate -- prisma/schema.prisma -o prisma/migrations/1_add_notes/migration.sql --from-config-datasource --force
 
           # Show what was generated
           cat prisma/migrations/1_add_notes/migration.sql
