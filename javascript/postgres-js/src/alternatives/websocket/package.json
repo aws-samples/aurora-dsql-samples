@@ -8,7 +8,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@aws-sdk/client-sts": "^3.1021.0",
+    "@aws-sdk/client-sts": "^3.1038.0",
     "@aws-sdk/types": "^3.973.8",
     "@aws/aurora-dsql-postgresjs-connector": "^0.2.1",
     "buffer": "^6.0.3",
