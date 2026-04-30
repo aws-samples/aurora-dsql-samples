@@ -10,15 +10,21 @@
  * identical-window uniqueness, and creates a non-admin database role
  * with CRUD privileges.
  *
- * Aurora DSQL constraints reflected in the schema:
- *   - No sequences or SERIAL types → UUIDs via `gen_random_uuid()`
- *   - No exclusion constraints or triggers → overlap detection in
- *     application SQL, plus a UNIQUE index on the exact window triple
- *     so identical-window double-bookings are caught by the DB layer.
- *   - No foreign keys → single-table design
- *   - Only one DDL statement per transaction → each `sql.unsafe(...)`
- *     call below is its own implicit transaction. Do NOT combine
- *     multiple DDL statements in a single call.
+ * Aurora DSQL design notes reflected in the schema:
+ *   - UUID primary keys via `gen_random_uuid()` — UUIDs spread writes
+ *     across storage nodes. Sequences and IDENTITY are also supported
+ *     if you need compact integer keys.
+ *   - Application-layer overlap detection — no built-in PostgreSQL
+ *     feature expresses "no overlapping ranges per resource". The app
+ *     does a SELECT-based check inside the transaction, plus a UNIQUE
+ *     index on the exact window triple so identical-window double-
+ *     bookings are caught at the database layer.
+ *   - Application-layer referential integrity — the Aurora DSQL
+ *     migration guide recommends enforcing relationships in the app
+ *     layer. This sample stores `booked_by` as a plain string.
+ *   - Each DDL statement is its own implicit transaction in Aurora DSQL
+ *     — each `sql.unsafe(...)` call below is issued separately. Do NOT
+ *     combine multiple DDL statements in a single call.
  *
  * @module schema
  */
@@ -45,11 +51,12 @@ export interface SchemaOptions {
  * DSQL-specific notes:
  *   - Each DDL is issued in its own `sql.unsafe(...)` call (separate
  *     transaction).
- *   - Indexes are created with `CREATE INDEX ASYNC` — DSQL does not support
- *     synchronous index creation. Indexes are still usable for reads while
- *     they finish building.
- *   - CREATE ROLE is not idempotent in DSQL (no `IF NOT EXISTS` for roles),
- *     so SQLSTATE 42710 is caught and ignored.
+ *   - Indexes are created with `CREATE INDEX ASYNC` — Aurora DSQL uses
+ *     asynchronous index builds for zero-downtime DDL. Indexes are
+ *     usable for reads while they finish building.
+ *   - CREATE ROLE does not have an `IF NOT EXISTS` variant, so
+ *     SQLSTATE 42710 (duplicate role) is caught and ignored for
+ *     idempotent startup.
  *
  * @param options - Schema setup options (endpoint, admin user, region)
  * @throws {Error} If the database connection or DDL execution fails
@@ -95,8 +102,9 @@ export async function setupSchema(options: SchemaOptions): Promise<void> {
     // maps that to HTTP 503 after retries.
     //
     // Limitation: this only catches EXACT-match windows. Partially
-    // overlapping windows with different endpoints are not caught — DSQL
-    // has no exclusion constraints. See README for production guidance.
+    // overlapping windows with different endpoints are not caught — the
+    // unique-index mechanism matches all three columns identically. See
+    // README for production guidance on serializing overlapping writes.
     await ignoreSqlState("42P07", () =>
       sql.unsafe(
         `CREATE UNIQUE INDEX ASYNC idx_bookings_uniq_window

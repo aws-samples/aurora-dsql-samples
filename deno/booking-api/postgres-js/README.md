@@ -192,10 +192,10 @@ this documented limitation.
 |----------|-----------|
 | **Aurora DSQL Connector for postgres.js** | Handles IAM token generation, refresh, SSL/TLS, and region auto-discovery so the sample code stays focused on domain logic |
 | **Pooled `sql` client (lifetime-scoped)** | The connector pool reuses connections across requests, refreshing IAM tokens transparently. Works cleanly on serverless warm starts (e.g., Deno Deploy) |
-| **UUID primary keys** | Aurora DSQL does not support sequences or `SERIAL` |
-| **No foreign key constraints** | Not supported by Aurora DSQL |
-| **Layered overlap defense** | Application SELECT + unique index + OCC retry, as described above |
-| **`CREATE INDEX ASYNC`** | Aurora DSQL requires async index creation; the sample waits for `job_id` completion in `setupSchema` |
+| **UUID primary keys via `gen_random_uuid()`** | UUIDs spread writes across storage nodes, which benefits distributed workloads. Aurora DSQL also supports `CREATE SEQUENCE` and `GENERATED AS IDENTITY` if you prefer compact integer keys — see the [Sequences and identity columns](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html) guide for caching guidance |
+| **Application-layer referential integrity** | For referential integrity patterns, Aurora DSQL's [migration guide](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-migration-guide.html) recommends enforcing relationships in the application layer. This sample stores `booked_by` as a plain string rather than a foreign key; a production app would validate against a `users` table in the same transaction |
+| **Application-layer overlap detection** | There is no built-in PostgreSQL feature that expresses "no two rows may have overlapping `[start, end)` ranges for the same resource" on Aurora DSQL. The sample combines an application-layer SELECT, a unique-window index, and OCC retry to approximate this guarantee — see the concurrency model section above |
+| **`CREATE [UNIQUE] INDEX ASYNC`** | Aurora DSQL uses `CREATE INDEX ASYNC` for non-blocking index creation. `setupSchema` waits for the returned `job_id` to complete before handling traffic — see the [Asynchronous indexes](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-create-index-async.html) guide |
 | **`Deno.serve()` (no framework)** | Zero external Deno dependencies beyond the connector; matches the minimal sample philosophy |
 
 ---
