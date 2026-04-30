@@ -76,6 +76,33 @@ export interface UpdateBookingRequest {
 // Router
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum JSON request body size in bytes (16 KB).
+ *
+ * Aurora DSQL bookings are small structured records; 16 KB is ample.
+ * Enforcing a cap protects against memory exhaustion from oversized payloads
+ * on the HTTP entry path. Clients exceeding this receive HTTP 413.
+ */
+const MAX_JSON_BODY_BYTES = 16 * 1024;
+
+/**
+ * Strict UUID v4 (RFC 4122) path regex for booking IDs.
+ *
+ * The DB column is `UUID`, so any non-UUID string will error at query time
+ * with SQLSTATE 22P02. Matching upstream with a strict regex returns 404
+ * earlier and avoids logging DB errors for obviously malformed IDs.
+ */
+const BOOKING_ID_REGEX =
+  /^\/bookings\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ---------------------------------------------------------------------------
+// Router
+// ---------------------------------------------------------------------------
+
 /**
  * Routes an incoming HTTP request to the appropriate booking handler.
  *
@@ -106,20 +133,93 @@ export async function handleRequest(
     if (method === "GET" && path === "/bookings") {
       return await listBookings(ctx);
     }
-    if (method === "GET" && path.match(/^\/bookings\/[\w-]+$/)) {
+    if (method === "GET" && BOOKING_ID_REGEX.test(path)) {
       return await getBooking(path, ctx);
     }
-    if (method === "PUT" && path.match(/^\/bookings\/[\w-]+$/)) {
+    if (method === "PUT" && BOOKING_ID_REGEX.test(path)) {
       return await updateBooking(req, path, ctx);
     }
-    if (method === "DELETE" && path.match(/^\/bookings\/[\w-]+$/)) {
+    if (method === "DELETE" && BOOKING_ID_REGEX.test(path)) {
       return await deleteBooking(path, ctx);
     }
 
     return jsonResponse({ error: "Not Found" }, 404);
   } catch (error) {
-    console.error("Request error:", error);
+    logError("Request error", error);
     return jsonResponse({ error: "Internal Server Error" }, 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Body parsing (with size cap)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reads and JSON-parses the request body, enforcing `MAX_JSON_BODY_BYTES`.
+ *
+ * Returns `{ body }` on success, or `{ error }` Response if the body is
+ * missing Content-Length, exceeds the size cap, or contains invalid JSON.
+ * The caller returns the error Response unchanged to the client.
+ *
+ * Why not `await req.json()` directly: `Request.json()` buffers the full body
+ * with no upper bound, enabling memory-exhaustion DoS from a single client.
+ * Streaming + counting bytes puts a hard cap on per-request memory.
+ */
+async function readJsonBody<T>(
+  req: Request,
+): Promise<{ body: T } | { error: Response }> {
+  // Fast path: if Content-Length is set and exceeds the cap, reject early.
+  const contentLength = req.headers.get("content-length");
+  if (contentLength !== null) {
+    const advertised = Number.parseInt(contentLength, 10);
+    if (Number.isFinite(advertised) && advertised > MAX_JSON_BODY_BYTES) {
+      return {
+        error: jsonResponse(
+          { error: "Request body too large" },
+          413,
+        ),
+      };
+    }
+  }
+
+  // Stream-read with byte-count cap to defend against missing/lying
+  // Content-Length headers.
+  const reader = req.body?.getReader();
+  if (!reader) {
+    return {
+      error: jsonResponse({ error: "Missing request body" }, 400),
+    };
+  }
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_JSON_BODY_BYTES) {
+      await reader.cancel();
+      return {
+        error: jsonResponse({ error: "Request body too large" }, 413),
+      };
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const text = new TextDecoder().decode(bytes);
+
+  try {
+    return { body: JSON.parse(text) as T };
+  } catch {
+    return {
+      error: jsonResponse({ error: "Invalid JSON in request body" }, 400),
+    };
   }
 }
 
@@ -138,12 +238,9 @@ async function createBooking(
   req: Request,
   ctx: AppContext,
 ): Promise<Response> {
-  let body: CreateBookingRequest;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonResponse({ error: "Invalid JSON in request body" }, 400);
-  }
+  const parsed = await readJsonBody<CreateBookingRequest>(req);
+  if ("error" in parsed) return parsed.error;
+  const body = parsed.body;
 
   // Validate required fields
   for (const field of ["resource_name", "start_time", "end_time", "booked_by"] as const) {
@@ -290,12 +387,9 @@ async function updateBooking(
 ): Promise<Response> {
   const id = path.split("/").pop()!;
 
-  let body: UpdateBookingRequest;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonResponse({ error: "Invalid JSON in request body" }, 400);
-  }
+  const parsed = await readJsonBody<UpdateBookingRequest>(req);
+  if ("error" in parsed) return parsed.error;
+  const body = parsed.body;
 
   try {
     const result = await withOccRetry(async () => {
@@ -470,7 +564,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
  * everything else returns 500.
  */
 function handleDbError(error: unknown): Response {
-  console.error("Database error:", error);
+  logError("Database error", error);
 
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
@@ -505,4 +599,32 @@ function handleDbError(error: unknown): Response {
   }
 
   return jsonResponse({ error: "Internal Server Error" }, 500);
+}
+
+/**
+ * Logs an error with only safe fields — never the full error object.
+ *
+ * deno-postgres errors include the executed query text with bound parameter
+ * values. Logging the full object can leak user input (PII, secrets) into
+ * production log streams. This helper extracts only the message, error type,
+ * and SQLSTATE code — never query text, never bound params, never stack trace
+ * of upstream calls.
+ *
+ * Production deployments should replace this with a structured logger
+ * that explicitly allowlists fields.
+ */
+export function logError(context: string, error: unknown): void {
+  if (error instanceof Error) {
+    const errObj = error as Error & {
+      code?: string;
+      fields?: { code?: string; severity?: string };
+    };
+    const code = errObj.code ?? errObj.fields?.code ?? "unknown";
+    const severity = errObj.fields?.severity ?? "";
+    console.error(
+      `${context}: [${error.name}] ${severity}${severity ? " " : ""}(${code}) ${error.message}`,
+    );
+    return;
+  }
+  console.error(`${context}: [${typeof error}] (non-Error value)`);
 }
