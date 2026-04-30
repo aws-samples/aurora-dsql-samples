@@ -2,29 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Concurrency integration tests for the Booking API (deno-postgres).
+ * Concurrency integration tests for the Booking API (postgres.js).
  *
- * These tests verify what Aurora DSQL's optimistic concurrency control (OCC)
- * actually catches for the overlap-detection query in createBooking. DSQL's
- * OCC is row-based — two transactions that touch disjoint rows are not
- * serialized, even if their SELECT predicates are logically overlapping.
+ * These tests verify what Aurora DSQL's optimistic concurrency control
+ * (OCC) catches for the overlap-detection query in `createBooking`. OCC
+ * is row-based — two transactions that touch disjoint rows aren't
+ * forced to serialize, even if their SELECT predicates describe
+ * logically overlapping ranges.
  *
  * Tests here codify the real guarantees:
  *
- *   1. **Identical-window race (strong guarantee).** N parallel CREATEs for
- *      the same resource and the exact same time window must result in
- *      exactly one 201 and N-1 409s. OCC + the application's SELECT-then-
- *      INSERT pattern combined handles this reliably because every
+ *   1. **Identical-window race (strong guarantee).** N parallel CREATEs
+ *      for the same resource and the exact same time window result in
+ *      exactly one 201 and N-1 409s. OCC plus the application's SELECT-
+ *      then-INSERT pattern handle this reliably because every
  *      transaction reads the same physical row set.
  *
- *   2. **Disjoint-but-overlapping-ranges race (documented limitation).**
- *      Two CREATEs for the same resource with different-but-overlapping
- *      time windows MAY both succeed. This test documents the behavior so
- *      future changes to the overlap query are measured against it.
+ *   2. **Disjoint-but-overlapping-ranges race (consideration for
+ *      concurrent writes).** Two CREATEs for the same resource with
+ *      different-but-overlapping time windows MAY both succeed. This
+ *      test codifies the behavior so future changes to the overlap
+ *      query are measured against it.
  *
  * Like `test/integration.test.ts`, these tests require `CLUSTER_ENDPOINT`
- * and `CLUSTER_USER` environment variables. They are shared-cluster safe —
- * rows are scoped by a unique `booked_by` prefix and cleaned up at the end.
+ * and `CLUSTER_USER` environment variables. They are shared-cluster
+ * safe — rows are scoped by a unique `booked_by` prefix and cleaned up
+ * at the end.
  *
  * @module occ-overlap-race.integration.test
  */
@@ -169,23 +172,24 @@ Deno.test({
 });
 
 // ---------------------------------------------------------------------------
-// Test 2 — Disjoint-but-overlapping race (documented limitation)
+// Test 2 — Disjoint-but-overlapping race (consideration for concurrent writes)
 // ---------------------------------------------------------------------------
 //
 // Two parallel CREATEs with different-but-overlapping windows on the same
 // resource. Each transaction's SELECT reads a DIFFERENT set of rows (both
-// sets are empty at SELECT time), so DSQL's row-based OCC does NOT force
-// serialization. Both can succeed, producing a true double-booking.
+// sets are empty at SELECT time), so row-based OCC does not force them to
+// serialize. Both can succeed, producing a double-booking.
 //
-// This test documents the limitation rather than fixing it. The application
-// needs either (a) a coarser grouping key enforced via unique index, or
-// (b) an application-level lock / queue. See README "Concurrency and
-// overlap detection" for the recommended production patterns.
+// This test codifies the behavior. For strict serialization of overlapping
+// writes, use either (a) a coarser grouping key enforced via unique index,
+// or (b) an application-level row lock via `SELECT ... FOR UPDATE` on a
+// parent row. See README "Concurrency model — what's serialized and what
+// isn't" for the recommended production patterns.
 // ---------------------------------------------------------------------------
 
 Deno.test({
   name:
-    "occ-race: overlapping-but-distinct windows are NOT serialized by OCC (documented limitation)",
+    "occ-race: overlapping-but-distinct windows are not serialized by OCC",
   ignore: skip,
   sanitizeResources: false,
   sanitizeOps: false,
@@ -226,7 +230,7 @@ Deno.test({
     );
 
     // Valid outcomes:
-    //   [201, 201] — race lost, both persisted (the documented limitation)
+    //   [201, 201] — race lost, both persisted (documented in README)
     //   [201, 409] — OCC happened to serialize them
     //   [409, 201] — same, different order
     // 400/404 etc. are bugs.

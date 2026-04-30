@@ -4,11 +4,11 @@
 /**
  * Optimistic Concurrency Control (OCC) Retry Handler for Aurora DSQL
  *
- * Aurora DSQL uses optimistic concurrency control instead of pessimistic
- * locking. When two transactions conflict — e.g. two users booking the same
- * room in the same window — DSQL aborts one with SQLSTATE `OC000` (row
- * conflict) or `OC001` (schema namespace conflict). The application is
- * expected to retry.
+ * Aurora DSQL uses optimistic concurrency control (OCC) for transaction
+ * isolation. When two transactions conflict — e.g. two users booking the
+ * same room in the same window — Aurora DSQL aborts one with SQLSTATE
+ * `OC000` (row conflict) or `OC001` (schema namespace conflict). The
+ * application retries the aborted transaction.
  *
  * This module wraps an async transaction function with automatic retry
  * logic: it catches OC000/OC001 errors, applies exponential backoff with

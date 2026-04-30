@@ -14,11 +14,10 @@
  *   - UUID primary keys via `gen_random_uuid()` — UUIDs spread writes
  *     across storage nodes. Sequences and IDENTITY are also supported
  *     if you need compact integer keys.
- *   - Application-layer overlap detection — no built-in PostgreSQL
- *     feature expresses "no overlapping ranges per resource". The app
- *     does a SELECT-based check inside the transaction, plus a UNIQUE
- *     index on the exact window triple so identical-window double-
- *     bookings are caught at the database layer.
+ *   - Application-layer overlap detection — to express "no overlapping
+ *     ranges per resource," the app does a SELECT-based check inside the
+ *     transaction, plus a UNIQUE index on the exact window triple so
+ *     identical-window double-bookings are caught at the database layer.
  *   - Application-layer referential integrity — the Aurora DSQL
  *     migration guide recommends enforcing relationships in the app
  *     layer. This sample stores `booked_by` as a plain string.
@@ -101,7 +100,7 @@ export async function setupSchema(options: SchemaOptions): Promise<void> {
     // DSQL rejects the second INSERT with SQLSTATE 40001 (OC000). The app
     // maps that to HTTP 503 after retries.
     //
-    // Limitation: this only catches EXACT-match windows. Partially
+    // Consideration: this index enforces EXACT-match windows. Partially
     // overlapping windows with different endpoints are not caught — the
     // unique-index mechanism matches all three columns identically. See
     // README for production guidance on serializing overlapping writes.

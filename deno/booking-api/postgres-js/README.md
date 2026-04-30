@@ -158,7 +158,7 @@ Client                    Deno.serve()                    Aurora DSQL
 
 ## Concurrency model — what's serialized and what isn't
 
-This sample demonstrates a layered defense against double-booking:
+This sample uses a layered defense against double-booking:
 
 1. **Application-layer overlap check** (inside the transaction) catches the
    common case: a new booking whose window partially overlaps an existing
@@ -168,21 +168,21 @@ This sample demonstrates a layered defense against double-booking:
    check at the same instant and then both try to INSERT the *same* window.
    The loser gets SQLSTATE 23505 and returns HTTP 409.
 3. **OCC retry wrapper** (`withOccRetry`) handles SQLSTATE OC000/OC001/40001
-   — DSQL's way of saying "your transaction lost an optimistic concurrency
-   race; retry it". The wrapper retries with exponential backoff.
+   — Aurora DSQL's signal that a transaction lost an optimistic concurrency
+   race and should be retried. The wrapper retries with exponential backoff.
 
-**Documented limitation:** the unique index only enforces *identical*
-windows. Two concurrent transactions inserting *overlapping but distinct*
-windows (e.g., `[9:00–10:00]` and `[9:30–10:30]`) can both commit if they
-interleave their SELECT and INSERT. The application-layer check catches
-this for sequential writes but not for the narrow concurrent window. For
-strict double-booking prevention under high contention, consider
-application-level row locks or a queue-based serialization layer outside
-of DSQL.
+**Consideration for concurrent writes.** The unique index enforces
+identical windows. Two concurrent transactions inserting *overlapping but
+distinct* windows (e.g., `[9:00–10:00]` and `[9:30–10:30]`) may both
+commit if they interleave their SELECT and INSERT. The application-layer
+check covers sequential writes. For strict serialization of overlapping
+writes under high contention, use application-level row locks (via
+`SELECT ... FOR UPDATE` on a parent `resources` row) or route writes for
+the same resource through a queue.
 
-The integration test `occ-overlap-race.integration.test.ts` documents both
-the success case (identical windows → exactly one 201, rest 409/503) and
-this documented limitation.
+The integration test `occ-overlap-race.integration.test.ts` documents
+both cases: the success case (identical windows → exactly one 201,
+rest 409/503) and the overlapping-but-distinct case.
 
 ---
 
@@ -194,7 +194,7 @@ this documented limitation.
 | **Pooled `sql` client (lifetime-scoped)** | The connector pool reuses connections across requests, refreshing IAM tokens transparently. Works cleanly on serverless warm starts (e.g., Deno Deploy) |
 | **UUID primary keys via `gen_random_uuid()`** | UUIDs spread writes across storage nodes, which benefits distributed workloads. Aurora DSQL also supports `CREATE SEQUENCE` and `GENERATED AS IDENTITY` if you prefer compact integer keys — see the [Sequences and identity columns](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html) guide for caching guidance |
 | **Application-layer referential integrity** | For referential integrity patterns, Aurora DSQL's [migration guide](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-migration-guide.html) recommends enforcing relationships in the application layer. This sample stores `booked_by` as a plain string rather than a foreign key; a production app would validate against a `users` table in the same transaction |
-| **Application-layer overlap detection** | There is no built-in PostgreSQL feature that expresses "no two rows may have overlapping `[start, end)` ranges for the same resource" on Aurora DSQL. The sample combines an application-layer SELECT, a unique-window index, and OCC retry to approximate this guarantee — see the concurrency model section above |
+| **Application-layer overlap detection** | To express "no two rows may have overlapping `[start, end)` ranges for the same resource," the sample combines an application-layer SELECT, a unique-window index, and OCC retry. See the concurrency model section for the full pattern |
 | **`CREATE [UNIQUE] INDEX ASYNC`** | Aurora DSQL uses `CREATE INDEX ASYNC` for non-blocking index creation. `setupSchema` waits for the returned `job_id` to complete before handling traffic — see the [Asynchronous indexes](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-create-index-async.html) guide |
 | **`Deno.serve()` (no framework)** | Zero external Deno dependencies beyond the connector; matches the minimal sample philosophy |
 
@@ -382,11 +382,11 @@ validation path.
 
 ## OCC Retry Behavior
 
-Aurora DSQL uses optimistic concurrency control (OCC) instead of
-traditional pessimistic locking. When two transactions conflict — for
-example, two users updating the same booking at the same time — DSQL
-aborts one with SQLSTATE `OC000`, `OC001`, or `40001` (serialization
-failure).
+Aurora DSQL uses optimistic concurrency control (OCC) for transaction
+isolation. When two transactions conflict — for example, two users
+updating the same booking at the same time — Aurora DSQL aborts one
+with SQLSTATE `OC000`, `OC001`, or `40001` (serialization failure).
+Applications retry the aborted transaction.
 
 This sample handles those errors automatically via the `withOccRetry`
 utility:
