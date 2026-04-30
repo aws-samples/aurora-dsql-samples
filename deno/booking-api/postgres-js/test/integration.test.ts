@@ -30,6 +30,7 @@
 
 import { assertEquals } from "@std/assert";
 import { handleRequest, type AppContext } from "../handlers.ts";
+import { createClient } from "../db.ts";
 import { cleanupTestRows, setupSchema } from "../schema.ts";
 
 // ---------------------------------------------------------------------------
@@ -61,10 +62,15 @@ const RESOURCE_NAME = `integration-room-${crypto.randomUUID().slice(0, 8)}`;
 // Helpers
 // ---------------------------------------------------------------------------
 
-const ctx: AppContext = {
-  endpoint: ENDPOINT ?? "",
-  user: USER ?? "",
-};
+const sql = skip
+  ? (null as unknown as ReturnType<typeof createClient>)
+  : createClient({
+    endpoint: ENDPOINT!,
+    user: USER!,
+    max: 2,
+  });
+
+const ctx: AppContext = { sql };
 
 /** Build a Request targeting the handler directly (no real server). */
 function makeRequest(
@@ -90,11 +96,12 @@ let bookingId: string;
 Deno.test({
   name: "integration: schema setup",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     await setupSchema({
       endpoint: ENDPOINT!,
       user: USER!,
-      isAdmin: true,
     });
   },
 });
@@ -106,6 +113,8 @@ Deno.test({
 Deno.test({
   name: "integration: POST /bookings — create a booking",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const res = await handleRequest(
       makeRequest("POST", "/bookings", {
@@ -133,6 +142,8 @@ Deno.test({
 Deno.test({
   name: "integration: GET /bookings — list includes created booking",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const res = await handleRequest(makeRequest("GET", "/bookings"), ctx);
 
@@ -152,6 +163,8 @@ Deno.test({
 Deno.test({
   name: "integration: GET /bookings/:id — fetch by ID",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const res = await handleRequest(
       makeRequest("GET", `/bookings/${bookingId}`),
@@ -172,6 +185,8 @@ Deno.test({
 Deno.test({
   name: "integration: PUT /bookings/:id — update booking",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const res = await handleRequest(
       makeRequest("PUT", `/bookings/${bookingId}`, {
@@ -195,6 +210,8 @@ Deno.test({
 Deno.test({
   name: "integration: POST /bookings — overlap conflict returns 409",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const res = await handleRequest(
       makeRequest("POST", "/bookings", {
@@ -220,6 +237,8 @@ Deno.test({
 Deno.test({
   name: "integration: DELETE /bookings/:id — delete booking",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const res = await handleRequest(
       makeRequest("DELETE", `/bookings/${bookingId}`),
@@ -239,6 +258,8 @@ Deno.test({
 Deno.test({
   name: "integration: GET /bookings/:id — verify deleted returns 404",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const res = await handleRequest(
       makeRequest("GET", `/bookings/${bookingId}`),
@@ -258,10 +279,13 @@ Deno.test({
 Deno.test({
   name: "integration: scoped cleanup",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     await cleanupTestRows(
-      { endpoint: ENDPOINT!, user: USER!, isAdmin: true },
+      { endpoint: ENDPOINT!, user: USER! },
       RUN_ID,
     );
+    await sql.end({ timeout: 5 });
   },
 });

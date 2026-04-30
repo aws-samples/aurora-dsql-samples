@@ -22,17 +22,15 @@ import { isOccError, withOccRetry } from "./occ-retry.ts";
 // ---------------------------------------------------------------------------
 
 /**
- * Creates an error object that mimics an Aurora DSQL OC000 error.
- * Supports both node-postgres style (`error.code`) and deno-postgres
- * style (`error.fields.code`).
+ * Creates an error object that mimics an Aurora DSQL OC000/OC001 error.
+ * postgres.js attaches the SQLSTATE at `error.code` directly.
  */
-function makeOccError(style: "code" | "fields" = "code"): Error & Record<string, unknown> {
-  const err = new Error("OC000: transaction conflict") as Error & Record<string, unknown>;
-  if (style === "code") {
-    err.code = "OC000";
-  } else {
-    err.fields = { code: "OC000" };
-  }
+function makeOccError(
+  code: "OC000" | "OC001" = "OC000",
+): Error & Record<string, unknown> {
+  const err = new Error(`${code}: transaction conflict`) as Error &
+    Record<string, unknown>;
+  err.code = code;
   return err;
 }
 
@@ -44,19 +42,21 @@ function makeOccError(style: "code" | "fields" = "code"): Error & Record<string,
  * Feature: deno-aurora-dsql-samples, Property 5: OCC error detection
  *
  * For any error object, `isOccError` returns true if and only if the error
- * has a `code` property (or nested `fields.code` property) equal to "OC000".
+ * has a `code` property equal to "OC000" or "OC001" (postgres.js style).
  *
  * **Validates: Requirements 8.1**
  */
-Deno.test("property: isOccError returns true only for OC000 errors", () => {
+Deno.test("property: isOccError returns true only for OC000/OC001 errors", () => {
   fc.assert(
     fc.property(
       // Generate arbitrary error-like objects with random code values
       fc.record({
         code: fc.oneof(
           fc.constant("OC000"),
+          fc.constant("OC001"),
           fc.constant("23505"),
           fc.constant("42P01"),
+          fc.constant("40001"),
           fc.string({ minLength: 0, maxLength: 10 }),
           fc.constant(undefined),
           fc.constant(null),
@@ -64,28 +64,9 @@ Deno.test("property: isOccError returns true only for OC000 errors", () => {
       }),
       (errorObj) => {
         const result = isOccError(errorObj);
-        assertEquals(result, errorObj.code === "OC000");
-      },
-    ),
-    { numRuns: 200 },
-  );
-});
-
-Deno.test("property: isOccError detects OC000 in fields.code (deno-postgres style)", () => {
-  fc.assert(
-    fc.property(
-      fc.record({
-        fields: fc.record({
-          code: fc.oneof(
-            fc.constant("OC000"),
-            fc.constant("23505"),
-            fc.string({ minLength: 0, maxLength: 10 }),
-          ),
-        }),
-      }),
-      (errorObj) => {
-        const result = isOccError(errorObj);
-        assertEquals(result, errorObj.fields.code === "OC000");
+        const expected = errorObj.code === "OC000" ||
+          errorObj.code === "OC001";
+        assertEquals(result, expected);
       },
     ),
     { numRuns: 200 },

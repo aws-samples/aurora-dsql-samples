@@ -21,14 +21,20 @@
 
 import fc from "fast-check";
 import { assertEquals, assertNotEquals } from "@std/assert";
-import { handleRequest, jsonResponse } from "./handlers.ts";
+import { handleRequest, jsonResponse, type AppContext } from "./handlers.ts";
+import { makeMockAppContext } from "./test-mocks.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** A dummy AppContext — DB calls will fail, but routing logic runs first. */
-const CTX = { endpoint: "test.dsql.us-east-1.on.aws", user: "admin" };
+/**
+ * Mocked AppContext — DB calls throw synthetic errors (→ 500), but routing
+ * logic runs first. Using a real fake-endpoint client triggers exponential
+ * backoff (~19s per attempt after a few iterations), which makes the
+ * property tests hang for minutes. See `test-mocks.ts`.
+ */
+const CTX: AppContext = makeMockAppContext();
 
 /** Valid booking endpoint definitions. */
 const VALID_ENDPOINTS = [

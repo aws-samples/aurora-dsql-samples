@@ -19,6 +19,20 @@ set -euo pipefail
 API="${1:-http://localhost:8000}"
 API="${API%/}" # strip trailing slash
 
+# Validate that API is a proper http(s) URL. Prevents accidental mistakes
+# like passing a bare hostname or a file path, which would otherwise cause
+# curl to fail later with a confusing error.
+case "$API" in
+  http://*|https://*)
+    ;;
+  *)
+    printf "error: API endpoint must start with http:// or https:// (got: %s)\n" "$API" >&2
+    printf "usage: %s [api-endpoint]\n" "$0" >&2
+    printf "example: %s http://localhost:8000\n" "$0" >&2
+    exit 2
+    ;;
+esac
+
 PASS=0
 FAIL=0
 BOOKING_ID=""

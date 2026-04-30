@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * HTTP Server Entry Point for the Booking API (deno-postgres)
+ * HTTP Server Entry Point for the Booking API (postgres.js)
  *
  * Starts a `Deno.serve()` HTTP server that routes requests to the booking
- * handlers. On startup the admin user creates the bookings table and a
- * non-admin role. On shutdown (SIGINT / SIGTERM) the table is dropped only
- * if `CLEANUP_ON_EXIT=true` — by default the schema is preserved so the
- * server can safely run against a shared sample cluster.
+ * handlers. On startup the admin user runs `setupSchema` (idempotent). On
+ * shutdown (SIGINT / SIGTERM) the schema is preserved by default; set
+ * `CLEANUP_ON_EXIT=true` to drop the bookings table and role.
  *
  * The module also exports a default `{ fetch }` handler so that the server
  * can be started with `deno serve` for multi-instance and serverless
@@ -16,21 +15,21 @@
  *
  * Required environment variables:
  *   - `CLUSTER_ENDPOINT` — Aurora DSQL cluster hostname
- *   - `CLUSTER_USER` — PostgreSQL user (e.g., "admin")
+ *   - `CLUSTER_USER` — PostgreSQL user (e.g., "admin" for DDL, or a
+ *     non-admin role for CRUD). The connector picks admin vs regular IAM
+ *     token based on the username.
  *
  * Optional environment variables:
  *   - `PORT` — HTTP listening port (default: 8000)
- *   - `HOST` — HTTP bind address (default: "127.0.0.1" for safe-by-default
- *             localhost binding; set to "0.0.0.0" only when deploying
- *             behind a trusted reverse proxy or load balancer)
- *   - `CLEANUP_ON_EXIT` — If "true", drop the bookings table on graceful
- *             shutdown. Default is "false" so sample runs don't destroy
- *             bookings on a shared cluster.
- *   - `AWS_REGION` — AWS region for IAM token generation
+ *   - `HOST` — HTTP bind address (default: "127.0.0.1"; set "0.0.0.0"
+ *     only when deploying behind a trusted reverse proxy)
+ *   - `CLEANUP_ON_EXIT` — if "true", drop schema on graceful shutdown
+ *   - `AWS_REGION` — optional; auto-discovered from CLUSTER_ENDPOINT
  *
  * @module main
  */
 
+import { createClient } from "./db.ts";
 import { handleRequest, logError } from "./handlers.ts";
 import { setupSchema, teardownSchema } from "./schema.ts";
 
@@ -53,10 +52,12 @@ if (!ENDPOINT || !USER) {
 }
 
 // ---------------------------------------------------------------------------
-// Schema setup (admin)
+// Schema setup (admin) and pooled runtime client
 // ---------------------------------------------------------------------------
 
-await setupSchema({ endpoint: ENDPOINT, user: USER, isAdmin: true });
+await setupSchema({ endpoint: ENDPOINT, user: USER });
+
+const sql = createClient({ endpoint: ENDPOINT, user: USER });
 
 // ---------------------------------------------------------------------------
 // Graceful shutdown
@@ -68,11 +69,13 @@ const cleanup = async () => {
       "Shutting down — preserving schema " +
         "(set CLEANUP_ON_EXIT=true to drop the bookings table).",
     );
+    await sql.end({ timeout: 5 });
     Deno.exit(0);
   }
   console.log("Shutting down — dropping bookings table (CLEANUP_ON_EXIT=true)...");
   try {
-    await teardownSchema({ endpoint: ENDPOINT!, user: USER!, isAdmin: true });
+    await sql.end({ timeout: 5 });
+    await teardownSchema({ endpoint: ENDPOINT!, user: USER! });
   } catch (error) {
     logError("Teardown error", error);
   }
@@ -87,12 +90,11 @@ Deno.addSignalListener("SIGTERM", cleanup);
 // ---------------------------------------------------------------------------
 
 /**
- * Default export for `deno serve` — enables multi-instance and serverless
- * deployment without changing the module.
+ * Default export for `deno serve` — multi-instance / serverless deployment.
  */
 export default {
   fetch(req: Request): Promise<Response> {
-    return handleRequest(req, { endpoint: ENDPOINT!, user: USER! });
+    return handleRequest(req, { sql });
   },
 };
 
@@ -101,5 +103,5 @@ export default {
 // ---------------------------------------------------------------------------
 
 Deno.serve({ port: PORT, hostname: HOST }, (req) =>
-  handleRequest(req, { endpoint: ENDPOINT!, user: USER! }),
+  handleRequest(req, { sql })
 );

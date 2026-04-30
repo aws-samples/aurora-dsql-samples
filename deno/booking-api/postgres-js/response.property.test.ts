@@ -16,13 +16,14 @@
 
 import fc from "fast-check";
 import { assertEquals } from "@std/assert";
-import { handleRequest } from "./handlers.ts";
+import { handleRequest, type AppContext } from "./handlers.ts";
+import { makeMockAppContext } from "./test-mocks.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const CTX = { endpoint: "test.dsql.us-east-1.on.aws", user: "admin" };
+const CTX: AppContext = makeMockAppContext();
 
 const ALL_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 

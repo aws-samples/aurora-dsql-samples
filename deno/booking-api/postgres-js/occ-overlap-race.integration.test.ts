@@ -31,6 +31,7 @@
 
 import { assertEquals } from "@std/assert";
 import { handleRequest, type AppContext } from "./handlers.ts";
+import { createClient } from "./db.ts";
 import { cleanupTestRows, setupSchema } from "./schema.ts";
 
 // ---------------------------------------------------------------------------
@@ -54,10 +55,15 @@ if (skip) {
 
 const RUN_ID = `test-occ-race-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 
-const ctx: AppContext = {
-  endpoint: ENDPOINT ?? "",
-  user: USER ?? "",
-};
+const sql = skip
+  ? (null as unknown as ReturnType<typeof createClient>)
+  : createClient({
+    endpoint: ENDPOINT!,
+    user: USER!,
+    max: 12,
+  });
+
+const ctx: AppContext = { sql };
 
 function makeCreateRequest(
   resourceName: string,
@@ -84,11 +90,12 @@ function makeCreateRequest(
 Deno.test({
   name: "occ-race: schema setup",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     await setupSchema({
       endpoint: ENDPOINT!,
       user: USER!,
-      isAdmin: true,
     });
   },
 });
@@ -111,6 +118,8 @@ Deno.test({
   name:
     "occ-race: 10 parallel CREATEs with identical window → exactly one persists",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const resource = `occ-race-identical-${crypto.randomUUID().slice(0, 8)}`;
     const start = "2025-10-01T09:00:00Z";
@@ -178,6 +187,8 @@ Deno.test({
   name:
     "occ-race: overlapping-but-distinct windows are NOT serialized by OCC (documented limitation)",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     const resource = `occ-race-disjoint-${crypto.randomUUID().slice(0, 8)}`;
 
@@ -235,10 +246,13 @@ Deno.test({
 Deno.test({
   name: "occ-race: scoped cleanup",
   ignore: skip,
+  sanitizeResources: false,
+  sanitizeOps: false,
   async fn() {
     await cleanupTestRows(
-      { endpoint: ENDPOINT!, user: USER!, isAdmin: true },
+      { endpoint: ENDPOINT!, user: USER! },
       RUN_ID,
     );
+    await sql.end({ timeout: 5 });
   },
 });
