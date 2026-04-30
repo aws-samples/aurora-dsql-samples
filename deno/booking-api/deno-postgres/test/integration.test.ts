@@ -9,6 +9,13 @@
  * require `CLUSTER_ENDPOINT` and `CLUSTER_USER` environment variables to be
  * set; if either is missing the entire suite is skipped.
  *
+ * Shared-cluster safety:
+ *   - Setup uses `CREATE TABLE IF NOT EXISTS` and is idempotent.
+ *   - Teardown uses `cleanupTestRows` with a run-scoped `booked_by` prefix
+ *     instead of `DROP TABLE`. The table survives the test run, so a parallel
+ *     booking-API server or another test suite on the same cluster is
+ *     unaffected.
+ *
  * The suite runs the following sequence:
  *   1. Create a booking
  *   2. List bookings (verify it's present)
@@ -23,7 +30,7 @@
 
 import { assertEquals } from "@std/assert";
 import { handleRequest, type AppContext } from "../handlers.ts";
-import { setupSchema, teardownSchema } from "../schema.ts";
+import { cleanupTestRows, setupSchema } from "../schema.ts";
 
 // ---------------------------------------------------------------------------
 // Environment gate — skip if cluster credentials are not configured
@@ -39,6 +46,16 @@ if (skip) {
     "Skipping integration tests: CLUSTER_ENDPOINT and CLUSTER_USER are required",
   );
 }
+
+// ---------------------------------------------------------------------------
+// Test-scoped identifiers — used to clean up only our rows on shared clusters
+// ---------------------------------------------------------------------------
+
+/** Unique-per-run prefix so parallel test runs don't collide. */
+const RUN_ID = `test-integration-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+
+/** Also unique-per-run so overlap detection does not trip on other tests. */
+const RESOURCE_NAME = `integration-room-${crypto.randomUUID().slice(0, 8)}`;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,7 +84,7 @@ function makeRequest(
 let bookingId: string;
 
 // ---------------------------------------------------------------------------
-// Schema setup / teardown
+// Schema setup (idempotent on shared clusters)
 // ---------------------------------------------------------------------------
 
 Deno.test({
@@ -92,10 +109,10 @@ Deno.test({
   async fn() {
     const res = await handleRequest(
       makeRequest("POST", "/bookings", {
-        resource_name: "Integration Test Room",
+        resource_name: RESOURCE_NAME,
         start_time: "2025-09-01T09:00:00Z",
         end_time: "2025-09-01T10:00:00Z",
-        booked_by: "integration-test",
+        booked_by: `${RUN_ID}-creator`,
       }),
       ctx,
     );
@@ -103,8 +120,8 @@ Deno.test({
     assertEquals(res.status, 201);
     const body = await res.json();
     assertEquals(typeof body.id, "string");
-    assertEquals(body.resource_name, "Integration Test Room");
-    assertEquals(body.booked_by, "integration-test");
+    assertEquals(body.resource_name, RESOURCE_NAME);
+    assertEquals(body.booked_by, `${RUN_ID}-creator`);
     bookingId = body.id;
   },
 });
@@ -144,7 +161,7 @@ Deno.test({
     assertEquals(res.status, 200);
     const body = await res.json();
     assertEquals(body.id, bookingId);
-    assertEquals(body.resource_name, "Integration Test Room");
+    assertEquals(body.resource_name, RESOURCE_NAME);
   },
 });
 
@@ -159,7 +176,7 @@ Deno.test({
     const res = await handleRequest(
       makeRequest("PUT", `/bookings/${bookingId}`, {
         end_time: "2025-09-01T11:00:00Z",
-        booked_by: "integration-updated",
+        booked_by: `${RUN_ID}-updater`,
       }),
       ctx,
     );
@@ -167,7 +184,7 @@ Deno.test({
     assertEquals(res.status, 200);
     const body = await res.json();
     assertEquals(body.id, bookingId);
-    assertEquals(body.booked_by, "integration-updated");
+    assertEquals(body.booked_by, `${RUN_ID}-updater`);
   },
 });
 
@@ -181,10 +198,10 @@ Deno.test({
   async fn() {
     const res = await handleRequest(
       makeRequest("POST", "/bookings", {
-        resource_name: "Integration Test Room",
+        resource_name: RESOURCE_NAME,
         start_time: "2025-09-01T10:00:00Z",
         end_time: "2025-09-01T11:30:00Z",
-        booked_by: "conflict-test",
+        booked_by: `${RUN_ID}-conflict`,
       }),
       ctx,
     );
@@ -233,17 +250,18 @@ Deno.test({
 });
 
 // ---------------------------------------------------------------------------
-// Schema teardown
+// Scoped cleanup — deletes only rows tagged with our run id.
+// The table, index, and role survive so a concurrent booking-API server or
+// another test run on the same cluster is unaffected.
 // ---------------------------------------------------------------------------
 
 Deno.test({
-  name: "integration: schema teardown",
+  name: "integration: scoped cleanup",
   ignore: skip,
   async fn() {
-    await teardownSchema({
-      endpoint: ENDPOINT!,
-      user: USER!,
-      isAdmin: true,
-    });
+    await cleanupTestRows(
+      { endpoint: ENDPOINT!, user: USER!, isAdmin: true },
+      RUN_ID,
+    );
   },
 });
