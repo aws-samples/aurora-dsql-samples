@@ -1,0 +1,237 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * Concurrency integration tests for the Booking API (deno-postgres).
+ *
+ * These tests verify what Aurora DSQL's optimistic concurrency control (OCC)
+ * actually catches for the overlap-detection query in createBooking. DSQL's
+ * OCC is row-based — two transactions that touch disjoint rows are not
+ * serialized, even if their SELECT predicates are logically overlapping.
+ *
+ * Tests here codify the real guarantees:
+ *
+ *   1. **Identical-window race (strong guarantee).** N parallel CREATEs for
+ *      the same resource and the exact same time window must result in
+ *      exactly one 201 and N-1 409s. OCC + the application's SELECT-then-
+ *      INSERT pattern combined handles this reliably because every
+ *      transaction reads the same physical row set.
+ *
+ *   2. **Disjoint-but-overlapping-ranges race (documented limitation).**
+ *      Two CREATEs for the same resource with different-but-overlapping
+ *      time windows MAY both succeed. This test documents the behavior so
+ *      future changes to the overlap query are measured against it.
+ *
+ * Like `test/integration.test.ts`, these tests require `CLUSTER_ENDPOINT`
+ * and `CLUSTER_USER` environment variables. They are shared-cluster safe —
+ * rows are scoped by a unique `booked_by` prefix and cleaned up at the end.
+ *
+ * @module occ-overlap-race.integration.test
+ */
+
+import { assertEquals } from "@std/assert";
+import { handleRequest, type AppContext } from "./handlers.ts";
+import { cleanupTestRows, setupSchema } from "./schema.ts";
+
+// ---------------------------------------------------------------------------
+// Environment gate
+// ---------------------------------------------------------------------------
+
+const ENDPOINT = Deno.env.get("CLUSTER_ENDPOINT");
+const USER = Deno.env.get("CLUSTER_USER");
+
+const skip = !ENDPOINT || !USER;
+
+if (skip) {
+  console.log(
+    "Skipping concurrency tests: CLUSTER_ENDPOINT and CLUSTER_USER are required",
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Test-scoped identifiers
+// ---------------------------------------------------------------------------
+
+const RUN_ID = `test-occ-race-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+
+const ctx: AppContext = {
+  endpoint: ENDPOINT ?? "",
+  user: USER ?? "",
+};
+
+function makeCreateRequest(
+  resourceName: string,
+  startTime: string,
+  endTime: string,
+  bookedBy: string,
+): Request {
+  return new Request("http://localhost/bookings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      resource_name: resourceName,
+      start_time: startTime,
+      end_time: endTime,
+      booked_by: bookedBy,
+    }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Setup
+// ---------------------------------------------------------------------------
+
+Deno.test({
+  name: "occ-race: schema setup",
+  ignore: skip,
+  async fn() {
+    await setupSchema({
+      endpoint: ENDPOINT!,
+      user: USER!,
+      isAdmin: true,
+    });
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Test 1 — Identical-window race
+// ---------------------------------------------------------------------------
+//
+// 10 parallel CREATEs for the same resource + identical time window.
+// Expected: exactly one 201, nine 409. Proves OCC + SELECT-then-INSERT
+// catches the most common double-booking pattern.
+// ---------------------------------------------------------------------------
+
+Deno.test({
+  name:
+    "occ-race: 10 parallel CREATEs with identical window → exactly one persists",
+  ignore: skip,
+  async fn() {
+    const resource = `occ-race-identical-${crypto.randomUUID().slice(0, 8)}`;
+    const start = "2025-10-01T09:00:00Z";
+    const end = "2025-10-01T10:00:00Z";
+    const N = 10;
+
+    const requests = Array.from({ length: N }, (_, i) =>
+      makeCreateRequest(resource, start, end, `${RUN_ID}-identical-user${i}`),
+    );
+
+    const responses = await Promise.all(
+      requests.map((req) => handleRequest(req, ctx)),
+    );
+
+    const statuses = responses.map((r) => r.status);
+    const created = statuses.filter((s) => s === 201).length;
+    const conflicted = statuses.filter((s) => s === 409).length;
+    const other = statuses.filter((s) => s !== 201 && s !== 409);
+
+    // Drain response bodies so Deno doesn't warn about unused bodies.
+    await Promise.all(responses.map((r) => r.text()));
+
+    assertEquals(
+      other.length,
+      0,
+      `Unexpected status codes (expected only 201 or 409): ${JSON.stringify(
+        statuses,
+      )}`,
+    );
+    assertEquals(
+      created,
+      1,
+      `Expected exactly 1 successful create, got ${created}: ${JSON.stringify(
+        statuses,
+      )}`,
+    );
+    assertEquals(
+      conflicted,
+      N - 1,
+      `Expected ${
+        N - 1
+      } conflict responses, got ${conflicted}: ${JSON.stringify(statuses)}`,
+    );
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Test 2 — Disjoint-but-overlapping race (documented limitation)
+// ---------------------------------------------------------------------------
+//
+// Two parallel CREATEs with different-but-overlapping windows on the same
+// resource. Each transaction's SELECT reads a DIFFERENT set of rows (both
+// sets are empty at SELECT time), so DSQL's row-based OCC does NOT force
+// serialization. Both can succeed, producing a true double-booking.
+//
+// This test documents the limitation rather than fixing it. The application
+// needs either (a) a coarser grouping key enforced via unique index, or
+// (b) an application-level lock / queue. See README "Concurrency and
+// overlap detection" for the recommended production patterns.
+// ---------------------------------------------------------------------------
+
+Deno.test({
+  name:
+    "occ-race: overlapping-but-distinct windows are NOT serialized by OCC (documented limitation)",
+  ignore: skip,
+  async fn() {
+    const resource = `occ-race-disjoint-${crypto.randomUUID().slice(0, 8)}`;
+
+    const reqA = makeCreateRequest(
+      resource,
+      "2025-10-02T09:00:00Z",
+      "2025-10-02T09:45:00Z",
+      `${RUN_ID}-disjoint-A`,
+    );
+    const reqB = makeCreateRequest(
+      resource,
+      "2025-10-02T09:30:00Z",
+      "2025-10-02T10:15:00Z",
+      `${RUN_ID}-disjoint-B`,
+    );
+
+    const [resA, resB] = await Promise.all([
+      handleRequest(reqA, ctx),
+      handleRequest(reqB, ctx),
+    ]);
+
+    const statuses = [resA.status, resB.status].sort();
+    await resA.text();
+    await resB.text();
+
+    // We don't assert a double-booking here — this is a race, and sometimes
+    // one wins first (giving 201 + 409). What we DO assert is that the
+    // server does not produce a 5xx. If this test starts flaking on 5xx,
+    // it's a real bug in retry handling.
+    const hasServerError = statuses.some((s) => s >= 500);
+    assertEquals(
+      hasServerError,
+      false,
+      `Server returned 5xx under concurrent overlap race: ${statuses.join(", ")}`,
+    );
+
+    // Valid outcomes:
+    //   [201, 201] — race lost, both persisted (the documented limitation)
+    //   [201, 409] — OCC happened to serialize them
+    //   [409, 201] — same, different order
+    // 400/404 etc. are bugs.
+    const unexpected = statuses.filter((s) => s !== 201 && s !== 409);
+    assertEquals(
+      unexpected.length,
+      0,
+      `Only 201 / 409 are expected outcomes, got: ${statuses.join(", ")}`,
+    );
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Scoped cleanup
+// ---------------------------------------------------------------------------
+
+Deno.test({
+  name: "occ-race: scoped cleanup",
+  ignore: skip,
+  async fn() {
+    await cleanupTestRows(
+      { endpoint: ENDPOINT!, user: USER!, isAdmin: true },
+      RUN_ID,
+    );
+  },
+});
