@@ -89,7 +89,30 @@ export async function setupSchema(options: SchemaOptions): Promise<void> {
       if (code !== "42P07") throw error;
     }
 
-    // DDL 3: non-admin role for least-privilege CRUD.
+    // DDL 3: UNIQUE async index on (resource_name, start_time, end_time) —
+    // prevents two bookings from sharing an identical (resource, window)
+    // triple at the database layer. This is the backstop for the
+    // SELECT-then-INSERT race in createBooking: under concurrent load the
+    // application's overlap check may not prevent identical-window
+    // double-bookings, but the unique index guarantees the database
+    // rejects the second INSERT with SQLSTATE 23505. The application maps
+    // that to HTTP 409.
+    //
+    // Limitation: this only catches EXACT-match windows. Partially
+    // overlapping windows with different endpoints are not caught by any
+    // DSQL-native construct (no exclusion constraints). See README for
+    // production guidance on coarser grouping keys or application locks.
+    try {
+      await client.queryArray(
+        `CREATE UNIQUE INDEX ASYNC idx_bookings_uniq_window
+           ON bookings (resource_name, start_time, end_time)`,
+      );
+    } catch (error: unknown) {
+      const code = extractSqlState(error);
+      if (code !== "42P07") throw error;
+    }
+
+    // DDL 4: non-admin role for least-privilege CRUD.
     // DSQL does not support `CREATE ROLE IF NOT EXISTS`, so we catch
     // SQLSTATE 42710 ("role already exists") and proceed.
     try {
@@ -99,14 +122,14 @@ export async function setupSchema(options: SchemaOptions): Promise<void> {
       if (code !== "42710") throw error;
     }
 
-    // DDL 4: grant CRUD on bookings to the non-admin role.
+    // DDL 5: grant CRUD on bookings to the non-admin role.
     // GRANT is idempotent in PostgreSQL — safe to re-run.
     await client.queryArray(
       `GRANT SELECT, INSERT, UPDATE, DELETE ON bookings TO non_admin_user`,
     );
 
     console.log(
-      "Schema setup complete — bookings table, async index, and non_admin_user role ready",
+      "Schema setup complete — bookings table, indexes, and non_admin_user role ready",
     );
   } finally {
     await client.end();

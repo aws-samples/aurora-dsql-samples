@@ -114,26 +114,36 @@ export async function withOccRetry<T>(
 }
 
 /**
- * Checks whether an error is an Aurora DSQL OCC conflict (SQLSTATE `OC000`).
+ * Checks whether an error is a retryable Aurora DSQL concurrency conflict.
+ *
+ * Retries on:
+ *   - `OC000` — change conflicts with another transaction (row-level OCC)
+ *   - `OC001` — schema has been updated by another transaction (namespace
+ *     concurrency during index promotion, role creation, etc.)
+ *
+ * Both share SQLSTATE class 40001 (serialization_failure) and both are
+ * safe to retry because the conflicting transaction has already aborted.
  *
  * `deno-postgres` (`jsr:@db/postgres`) attaches the SQLSTATE code at
  * `error.fields.code`. The function also checks `error.code` defensively
  * for forward-compatibility with other PostgreSQL drivers.
  *
  * @param error - The caught error object to inspect
- * @returns `true` if the error represents an OC000 optimistic concurrency
- *   conflict, `false` otherwise
+ * @returns `true` if the error represents a retryable concurrency conflict
  */
 export function isOccError(error: unknown): boolean {
-  if (error && typeof error === "object") {
-    const record = error as Record<string, unknown>;
-    // node-postgres puts SQLSTATE in error.code
-    if (record.code === "OC000") return true;
-    // deno-postgres puts SQLSTATE in error.fields.code
-    const fields = record.fields;
-    if (fields && typeof fields === "object") {
-      return (fields as Record<string, unknown>).code === "OC000";
-    }
+  const code = extractCode(error);
+  return code === "OC000" || code === "OC001";
+}
+
+function extractCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const record = error as Record<string, unknown>;
+  if (typeof record.code === "string") return record.code;
+  const fields = record.fields;
+  if (fields && typeof fields === "object") {
+    const code = (fields as Record<string, unknown>).code;
+    if (typeof code === "string") return code;
   }
-  return false;
+  return undefined;
 }

@@ -98,8 +98,13 @@ Deno.test({
 // ---------------------------------------------------------------------------
 //
 // 10 parallel CREATEs for the same resource + identical time window.
-// Expected: exactly one 201, nine 409. Proves OCC + SELECT-then-INSERT
-// catches the most common double-booking pattern.
+// Expected: exactly one 201. The nine losers must be either:
+//   - 409: the retry's re-SELECT found the winning booking (app-layer
+//          overlap check fires), or
+//   - 503: the OCC retry budget was exhausted before the winning INSERT
+//          became visible (transient service-busy).
+//
+// A non-409/503/201 response (especially 500) indicates a real bug.
 // ---------------------------------------------------------------------------
 
 Deno.test({
@@ -122,16 +127,18 @@ Deno.test({
 
     const statuses = responses.map((r) => r.status);
     const created = statuses.filter((s) => s === 201).length;
-    const conflicted = statuses.filter((s) => s === 409).length;
-    const other = statuses.filter((s) => s !== 201 && s !== 409);
+    const expected = statuses.filter((s) => s === 409 || s === 503).length;
+    const unexpected = statuses.filter(
+      (s) => s !== 201 && s !== 409 && s !== 503,
+    );
 
     // Drain response bodies so Deno doesn't warn about unused bodies.
     await Promise.all(responses.map((r) => r.text()));
 
     assertEquals(
-      other.length,
+      unexpected.length,
       0,
-      `Unexpected status codes (expected only 201 or 409): ${JSON.stringify(
+      `Unexpected status codes (expected only 201/409/503): ${JSON.stringify(
         statuses,
       )}`,
     );
@@ -143,11 +150,11 @@ Deno.test({
       )}`,
     );
     assertEquals(
-      conflicted,
+      expected,
       N - 1,
       `Expected ${
         N - 1
-      } conflict responses, got ${conflicted}: ${JSON.stringify(statuses)}`,
+      } 409 or 503 responses, got ${expected}: ${JSON.stringify(statuses)}`,
     );
   },
 });

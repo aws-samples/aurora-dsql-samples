@@ -26,6 +26,27 @@ import { createConnection } from "./db.ts";
 import { withOccRetry } from "./occ-retry.ts";
 
 // ---------------------------------------------------------------------------
+// SQLSTATE helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts the PostgreSQL SQLSTATE code from an unknown error object.
+ * deno-postgres puts it at `error.fields.code`; node-postgres at
+ * `error.code`. Checks both for portability.
+ */
+function extractSqlState(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const record = error as Record<string, unknown>;
+  if (typeof record.code === "string") return record.code;
+  const fields = record.fields;
+  if (fields && typeof fields === "object") {
+    const code = (fields as Record<string, unknown>).code;
+    if (typeof code === "string") return code;
+  }
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -265,7 +286,11 @@ async function createBooking(
       try {
         await client.queryArray("BEGIN");
 
-        // Check for overlapping bookings on the same resource
+        // Check for overlapping bookings on the same resource. Handles
+        // arbitrary overlap cases (partial overlaps with different
+        // endpoints). The unique index on (resource_name, start_time,
+        // end_time) is the backstop for concurrent identical-window
+        // inserts that this SELECT can race past — see schema.ts.
         const overlap = await client.queryObject<{ id: string }>(
           `SELECT id FROM bookings
            WHERE resource_name = $1
@@ -282,15 +307,31 @@ async function createBooking(
           } as const;
         }
 
-        const result = await client.queryObject<Booking>(
-          `INSERT INTO bookings (resource_name, start_time, end_time, booked_by)
-           VALUES ($1, $2, $3, $4)
-           RETURNING *`,
-          [body.resource_name, body.start_time, body.end_time, body.booked_by],
-        );
+        try {
+          const result = await client.queryObject<Booking>(
+            `INSERT INTO bookings (resource_name, start_time, end_time, booked_by)
+             VALUES ($1, $2, $3, $4)
+             RETURNING *`,
+            [body.resource_name, body.start_time, body.end_time, body.booked_by],
+          );
 
-        await client.queryArray("COMMIT");
-        return { conflict: false, booking: result.rows[0] } as const;
+          await client.queryArray("COMMIT");
+          return { conflict: false, booking: result.rows[0] } as const;
+        } catch (error: unknown) {
+          // SQLSTATE 23505 = unique_violation. Thrown by the unique index
+          // on (resource_name, start_time, end_time) when a concurrent
+          // transaction inserted the same window between our SELECT and
+          // INSERT. Map to the same 409 response as the app-layer overlap
+          // check.
+          if (extractSqlState(error) === "23505") {
+            await client.queryArray("ROLLBACK").catch(() => {});
+            return {
+              conflict: true,
+              conflicting_id: null,
+            } as const;
+          }
+          throw error;
+        }
       } catch (error) {
         await client.queryArray("ROLLBACK").catch(() => {});
         throw error;
@@ -566,7 +607,20 @@ export function jsonResponse(body: unknown, status = 200): Response {
 function handleDbError(error: unknown): Response {
   logError("Database error", error);
 
+  // OCC retry exhausted — treat as transient service unavailability.
+  // The raw error from withOccRetry is wrapped in a plain Error whose
+  // message begins "OCC retry exhausted". The underlying PostgresError's
+  // SQLSTATE code is attached if accessible.
   if (error instanceof Error) {
+    if (error.message.startsWith("OCC retry exhausted")) {
+      return jsonResponse(
+        {
+          error:
+            "Service busy — too many concurrent updates. Retry after a short backoff.",
+        },
+        503,
+      );
+    }
     const msg = error.message.toLowerCase();
 
     // Invalid UUID format → treat as "not found" (the ID doesn't exist)
@@ -585,6 +639,19 @@ function handleDbError(error: unknown): Response {
         503,
       );
     }
+  }
+
+  // Bare PostgresError (e.g., OC000/OC001 not wrapped by withOccRetry).
+  // Map to 503 so callers can retry with backoff.
+  const sqlstate = extractSqlState(error);
+  if (sqlstate === "OC000" || sqlstate === "OC001" || sqlstate === "40001") {
+    return jsonResponse(
+      {
+        error:
+          "Service busy — transaction conflict. Retry after a short backoff.",
+      },
+      503,
+    );
   }
 
   // Check deno-postgres error fields for UUID syntax errors
