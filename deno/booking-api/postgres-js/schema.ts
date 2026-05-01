@@ -117,6 +117,13 @@ export async function setupSchema(options: SchemaOptions): Promise<void> {
     );
 
     // DDL 4: non-admin role (no IF NOT EXISTS support → catch 42710).
+    //
+    // NOTE: This sample creates `non_admin_user` with CRUD privileges but
+    // the runtime pool still connects as `CLUSTER_USER` (typically admin).
+    // In production, map `non_admin_user` to an IAM role and run CRUD
+    // through that client; reserve the admin client for DDL/setup only.
+    // See the Aurora DSQL docs on database roles and IAM authentication:
+    // https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html
     await ignoreSqlState("42710", () =>
       sql.unsafe(`CREATE ROLE non_admin_user`)
     );

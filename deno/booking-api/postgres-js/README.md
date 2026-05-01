@@ -259,6 +259,13 @@ deno task start
 On startup, the server creates the `bookings` table, two async indexes,
 and a `non_admin_user` database role (if they don't already exist).
 
+> **Production role separation.** For simplicity, this sample connects as
+> `CLUSTER_USER` (typically `admin`) for both schema setup and CRUD. In
+> production, map `non_admin_user` to an IAM role and use that identity
+> for the runtime CRUD pool; keep the admin identity for schema
+> management only. See the Aurora DSQL guide on
+> [database roles and IAM authentication](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html).
+
 On shutdown (Ctrl+C) the schema is preserved by default. Set
 `CLEANUP_ON_EXIT=true` to drop the table for clean sample teardown.
 
