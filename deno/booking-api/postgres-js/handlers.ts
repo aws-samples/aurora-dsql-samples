@@ -344,12 +344,25 @@ async function createBooking(
 }
 
 /**
- * GET /bookings — List all bookings.
+ * Maximum rows returned by `listBookings`. A sample-simplification: returns
+ * the first N bookings in `start_time` order with no cursor or `offset`
+ * support. Production deployments should replace this with keyset pagination
+ * (e.g., `?limit=50&after=<id>`) and index `(start_time, id)` for stable
+ * ordering — see README for the pattern.
+ */
+const MAX_LIST_BOOKINGS = 1000;
+
+/**
+ * GET /bookings — List bookings, capped at `MAX_LIST_BOOKINGS`.
+ *
+ * The cap prevents an unbounded result from exhausting server memory or
+ * producing an excessively large response on a cluster with many rows.
+ * See `MAX_LIST_BOOKINGS` for pagination guidance.
  */
 async function listBookings(ctx: AppContext): Promise<Response> {
   try {
     const rows = await ctx.sql<Booking[]>`
-      SELECT * FROM bookings ORDER BY start_time
+      SELECT * FROM bookings ORDER BY start_time LIMIT ${MAX_LIST_BOOKINGS}
     `;
     return jsonResponse(rows);
   } catch (error) {
