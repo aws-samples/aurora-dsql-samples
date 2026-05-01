@@ -308,9 +308,10 @@ curl -X POST http://localhost:8000/bookings \
 curl http://localhost:8000/bookings
 ```
 
-The list endpoint returns all rows. For production deployments with many
-bookings, add pagination (e.g., `?limit=50&after=<id>`) and an index on
-`created_at` to support keyset pagination.
+The list endpoint caps results at 1000 rows (see `MAX_LIST_BOOKINGS` in
+`handlers.ts`). For production deployments with more bookings than that,
+add keyset pagination (e.g., `?limit=50&after=<id>`) and an index on
+`created_at` to support ordered page navigation.
 
 ### Get a specific booking
 
@@ -343,14 +344,19 @@ All errors return JSON with a descriptive `error` field:
 | Status | Example Response |
 |--------|-----------------|
 | 400 | `{"error": "Missing required field: resource_name"}` |
+| 400 | `{"error": "Invalid ISO-8601 timestamp for start_time"}` |
+| 400 | `{"error": "Invalid ISO-8601 timestamp for end_time"}` |
 | 400 | `{"error": "end_time must be after start_time"}` |
 | 400 | `{"error": "Invalid JSON in request body"}` |
+| 400 | `{"error": "Missing request body"}` |
 | 404 | `{"error": "Booking not found"}` |
 | 404 | `{"error": "Not Found"}` (unknown route) |
 | 409 | `{"error": "Booking conflicts with existing reservation", "conflicting_id": "..."}` |
 | 413 | `{"error": "Request body too large"}` |
+| 500 | `{"error": "Internal Server Error"}` |
 | 503 | `{"error": "Service unavailable — database connection failed"}` |
 | 503 | `{"error": "Service busy — transaction conflict. Retry after a short backoff."}` |
+| 503 | `{"error": "Service busy — too many concurrent updates. Retry after a short backoff."}` |
 
 Input validation runs in two layers: first at the HTTP boundary (required
 fields, JSON shape, body size cap), then again at the DB layer (NOT NULL,
@@ -386,8 +392,9 @@ validation path.
 Aurora DSQL uses optimistic concurrency control (OCC) for transaction
 isolation. When two transactions conflict — for example, two users
 updating the same booking at the same time — Aurora DSQL aborts one
-with SQLSTATE `OC000`, `OC001`, or `40001` (serialization failure).
-Applications retry the aborted transaction.
+with SQLSTATE `OC000` (row-level conflict) or `OC001` (schema namespace
+conflict). Both share class `40001` (serialization failure) and are safe
+to retry. Applications retry the aborted transaction.
 
 This sample handles those errors automatically via the `withOccRetry`
 utility:
