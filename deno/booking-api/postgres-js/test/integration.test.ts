@@ -48,6 +48,12 @@ if (skip) {
   );
 }
 
+// When !skip we've proven both env vars are defined. Narrow once so downstream
+// sites reference a typed `config` object instead of sprinkling non-null
+// assertions. When skip, tests are all gated by `ignore: skip` so `config`
+// is never read at runtime; the assertions below are safe.
+const config = { endpoint: ENDPOINT!, user: USER! };
+
 // ---------------------------------------------------------------------------
 // Test-scoped identifiers — used to clean up only our rows on shared clusters
 // ---------------------------------------------------------------------------
@@ -62,15 +68,11 @@ const RESOURCE_NAME = `integration-room-${crypto.randomUUID().slice(0, 8)}`;
 // Helpers
 // ---------------------------------------------------------------------------
 
-const sql = skip
-  ? (null as unknown as ReturnType<typeof createClient>)
-  : createClient({
-    endpoint: ENDPOINT!,
-    user: USER!,
-    max: 2,
-  });
+const sql: ReturnType<typeof createClient> | null = skip
+  ? null
+  : createClient({ ...config, max: 2 });
 
-const ctx: AppContext = { sql };
+const ctx: AppContext = { sql: sql as ReturnType<typeof createClient> };
 
 /** Build a Request targeting the handler directly (no real server). */
 function makeRequest(
@@ -99,10 +101,7 @@ Deno.test({
   sanitizeResources: false,
   sanitizeOps: false,
   async fn() {
-    await setupSchema({
-      endpoint: ENDPOINT!,
-      user: USER!,
-    });
+    await setupSchema(config);
   },
 });
 
@@ -283,9 +282,10 @@ Deno.test({
   sanitizeOps: false,
   async fn() {
     await cleanupTestRows(
-      { endpoint: ENDPOINT!, user: USER! },
+      config,
       RUN_ID,
     );
-    await sql.end({ timeout: 5 });
+    // `sql` is non-null when this test runs (gated by `ignore: skip`).
+    await sql!.end({ timeout: 5 });
   },
 });

@@ -33,27 +33,42 @@ import { setupSchema, teardownSchema } from "./schema.ts";
 // Configuration
 // ---------------------------------------------------------------------------
 
+interface ClusterConfig {
+  endpoint: string;
+  user: string;
+}
+
+/**
+ * Loads and validates cluster configuration from environment variables.
+ * Narrows `CLUSTER_ENDPOINT` / `CLUSTER_USER` from `string | undefined` to
+ * `string` once at module load so downstream code doesn't need non-null
+ * assertions.
+ */
+function loadClusterConfig(): ClusterConfig {
+  const endpoint = Deno.env.get("CLUSTER_ENDPOINT");
+  const user = Deno.env.get("CLUSTER_USER");
+  if (!endpoint || !user) {
+    console.error(
+      "CLUSTER_ENDPOINT and CLUSTER_USER environment variables are required",
+    );
+    Deno.exit(1);
+  }
+  return { endpoint, user };
+}
+
 const PORT = parseInt(Deno.env.get("PORT") ?? "8000", 10);
 const HOST = Deno.env.get("HOST") ?? "127.0.0.1";
-const ENDPOINT = Deno.env.get("CLUSTER_ENDPOINT");
-const USER = Deno.env.get("CLUSTER_USER");
 const CLEANUP_ON_EXIT =
   (Deno.env.get("CLEANUP_ON_EXIT") ?? "false").toLowerCase() === "true";
-
-if (!ENDPOINT || !USER) {
-  console.error(
-    "CLUSTER_ENDPOINT and CLUSTER_USER environment variables are required",
-  );
-  Deno.exit(1);
-}
+const config = loadClusterConfig();
 
 // ---------------------------------------------------------------------------
 // Schema setup (admin) and pooled runtime client
 // ---------------------------------------------------------------------------
 
-await setupSchema({ endpoint: ENDPOINT, user: USER });
+await setupSchema(config);
 
-const sql = createClient({ endpoint: ENDPOINT, user: USER });
+const sql = createClient(config);
 
 // ---------------------------------------------------------------------------
 // Graceful shutdown
@@ -83,7 +98,7 @@ const cleanup = async () => {
   try {
     if (server) await server.shutdown();
     await sql.end({ timeout: 5 });
-    await teardownSchema({ endpoint: ENDPOINT!, user: USER! });
+    await teardownSchema(config);
   } catch (error) {
     logError("Teardown error", error);
   }
