@@ -15,6 +15,8 @@ jobs:
     outputs:
       cpp-cm: ${{ steps.detect.outputs.cpp-cm }}
       cpp-libpq: ${{ steps.detect.outputs.cpp-libpq }}
+      deno-booking-api: ${{ steps.detect.outputs.deno-booking-api }}
+      deno-postgresjs: ${{ steps.detect.outputs.deno-postgresjs }}
       dotnet-cm: ${{ steps.detect.outputs.dotnet-cm }}
       dotnet-npgsql: ${{ steps.detect.outputs.dotnet-npgsql }}
       go-cm: ${{ steps.detect.outputs.go-cm }}
@@ -49,6 +51,8 @@ jobs:
             const config = {
               'cpp-cm': ['cpp/cluster_management/'],
               'cpp-libpq': ['cpp/libpq/'],
+              'deno-booking-api': ['deno/booking-api/postgres-js/'],
+              'deno-postgresjs': ['deno/postgres-js/'],
               'dotnet-cm': ['dotnet/cluster_management/'],
               'dotnet-npgsql': ['dotnet/npgsql/'],
               'go-cm': ['go/cluster_management/'],
@@ -133,6 +137,22 @@ jobs:
     needs: changes
     if: needs.changes.outputs.cpp-libpq == 'true'
     uses: ./.github/workflows/cpp-libpq-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  deno-booking-api:
+    needs: changes
+    if: needs.changes.outputs.deno-booking-api == 'true'
+    uses: ./.github/workflows/deno-booking-api-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  deno-postgresjs:
+    needs: changes
+    if: needs.changes.outputs.deno-postgresjs == 'true'
+    uses: ./.github/workflows/deno-postgresjs-integ-tests.yml
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
@@ -353,6 +373,8 @@ jobs:
       - deps-review
       - cpp-cm
       - cpp-libpq
+      - deno-booking-api
+      - deno-postgresjs
       - dotnet-cm
       - dotnet-npgsql
       - go-cm
