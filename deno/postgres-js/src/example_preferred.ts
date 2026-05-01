@@ -1,6 +1,6 @@
 /*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT-0
  *
  * Aurora DSQL with postgres.js (via @aws/aurora-dsql-postgresjs-connector) — Preferred Example
  *
