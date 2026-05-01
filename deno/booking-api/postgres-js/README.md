@@ -105,8 +105,9 @@ Client                    Deno.serve()                    Aurora DSQL
   │◀──────────────────────────│                                │
   │                           │                                │
   │                     ┌─────────────────────────────┐        │
-  │                     │  If DSQL returns OC000/     │        │
-  │                     │  OC001: concurrent txn      │        │
+  │                     │  If DSQL returns SQLSTATE   │        │
+  │                     │  40001 (covers OC000 +      │        │
+  │                     │  OC001): concurrent txn     │        │
   │                     │  conflict. withOccRetry:    │        │
   │                     │  • Backoff (exp + jitter)   │        │
   │                     │  • Retry up to 3 times      │        │
@@ -373,7 +374,7 @@ validation path.
 ├── handlers.ts                      # Booking CRUD handlers with routing
 ├── db.ts                            # Connector wiring (createClient factory)
 ├── schema.ts                        # Table, index, role setup/teardown
-├── occ-retry.ts                     # OCC retry wrapper (OC000/OC001)
+├── occ-retry.ts                     # OCC retry wrapper (SQLSTATE 40001)
 ├── deno.json                        # Deno config (imports, tasks, permissions)
 ├── deno.lock                        # Dependency lock file
 ├── test-api.sh                      # API smoke test script
@@ -389,24 +390,18 @@ validation path.
 
 ## OCC Retry Behavior
 
-Aurora DSQL uses optimistic concurrency control (OCC) for transaction
-isolation. When two transactions conflict — for example, two users
-updating the same booking at the same time — Aurora DSQL aborts one
-with SQLSTATE `OC000` (row-level conflict) or `OC001` (schema namespace
-conflict). Both share class `40001` (serialization failure) and are safe
-to retry. Applications retry the aborted transaction.
+Aurora DSQL aborts the losing transaction when concurrent transactions
+conflict; the driver surfaces this as SQLSTATE `40001`. The sample wraps
+every write in `withOccRetry`, which retries with exponential backoff +
+jitter and re-throws the original error once retries are exhausted
+(mapped to HTTP 503 by `handleDbError`).
 
-This sample handles those errors automatically via the `withOccRetry`
-utility:
+See [Concurrency control in Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html)
+for the authoritative behavior.
 
-* Detects OCC SQLSTATEs at `error.code` (postgres.js attaches the
-  SQLSTATE directly, not in a nested field)
-* Retries the failed transaction up to 3 times (configurable)
-* Applies exponential backoff with jitter to reduce contention
-* Logs each retry attempt with attempt number and elapsed time
-* Throws `OCC retry exhausted` if all retries fail — mapped to HTTP 503
-
-All write operations (`POST`, `PUT`, `DELETE`) are wrapped in `withOccRetry`.
+> **Note.** `occ-retry.ts` is intentionally minimal and will be replaced
+> by the OCC helper in the Aurora DSQL postgres.js connector once it
+> ships.
 
 ---
 

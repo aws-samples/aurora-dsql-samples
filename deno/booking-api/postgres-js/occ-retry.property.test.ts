@@ -14,7 +14,7 @@
  */
 
 import fc from "fast-check";
-import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import { isOccError, withOccRetry } from "./occ-retry.ts";
 
 // ---------------------------------------------------------------------------
@@ -22,11 +22,13 @@ import { isOccError, withOccRetry } from "./occ-retry.ts";
 // ---------------------------------------------------------------------------
 
 /**
- * Creates an error object that mimics an Aurora DSQL OC000/OC001 error.
- * postgres.js attaches the SQLSTATE at `error.code` directly.
+ * Creates an error object that mimics an Aurora DSQL OCC conflict.
+ * postgres.js attaches the SQLSTATE at `error.code` — in practice, DSQL's
+ * OC000 and OC001 both arrive with SQLSTATE 40001. We accept the DSQL
+ * sub-codes as defensive fallbacks.
  */
 function makeOccError(
-  code: "OC000" | "OC001" = "OC000",
+  code: "40001" | "OC000" | "OC001" = "40001",
 ): Error & Record<string, unknown> {
   const err = new Error(`${code}: transaction conflict`) as Error &
     Record<string, unknown>;
@@ -42,21 +44,23 @@ function makeOccError(
  * Feature: deno-aurora-dsql-samples, Property 5: OCC error detection
  *
  * For any error object, `isOccError` returns true if and only if the error
- * has a `code` property equal to "OC000" or "OC001" (postgres.js style).
+ * has a `code` property equal to "40001" (SQLSTATE serialization_failure),
+ * "OC000", or "OC001".
  *
  * **Validates: Requirements 8.1**
  */
-Deno.test("property: isOccError returns true only for OC000/OC001 errors", () => {
+Deno.test("property: isOccError returns true only for 40001/OC000/OC001 errors", () => {
   fc.assert(
     fc.property(
       // Generate arbitrary error-like objects with random code values
       fc.record({
         code: fc.oneof(
+          fc.constant("40001"),
           fc.constant("OC000"),
           fc.constant("OC001"),
           fc.constant("23505"),
           fc.constant("42P01"),
-          fc.constant("40001"),
+          fc.constant("22P02"),
           fc.string({ minLength: 0, maxLength: 10 }),
           fc.constant(undefined),
           fc.constant(null),
@@ -64,7 +68,8 @@ Deno.test("property: isOccError returns true only for OC000/OC001 errors", () =>
       }),
       (errorObj) => {
         const result = isOccError(errorObj);
-        const expected = errorObj.code === "OC000" ||
+        const expected = errorObj.code === "40001" ||
+          errorObj.code === "OC000" ||
           errorObj.code === "OC001";
         assertEquals(result, expected);
       },
@@ -143,13 +148,13 @@ Deno.test("property: withOccRetry succeeds after K OCC failures (K <= maxRetries
 /**
  * Feature: deno-aurora-dsql-samples, Property 7: OCC retry exhaustion
  *
- * For any `maxRetries` (1–10) and function that always throws OC000,
+ * For any `maxRetries` (1–10) and function that always throws an OCC error,
  * `withOccRetry` throws after exactly maxRetries+1 invocations, and the
- * thrown error message contains the original error message and attempt count.
+ * thrown error is the original OCC error propagated unchanged.
  *
  * **Validates: Requirements 8.5**
  */
-Deno.test("property: withOccRetry exhausts retries and throws descriptive error", async () => {
+Deno.test("property: withOccRetry exhausts retries and re-throws last OCC error", async () => {
   await fc.assert(
     fc.asyncProperty(
       fc.integer({ min: 1, max: 10 }),  // maxRetries
@@ -160,7 +165,7 @@ Deno.test("property: withOccRetry exhausts retries and throws descriptive error"
         const fn = async (): Promise<never> => {
           callCount++;
           const err = new Error(originalMessage) as Error & { code: string };
-          err.code = "OC000";
+          err.code = "40001";
           throw err;
         };
 
@@ -172,11 +177,12 @@ Deno.test("property: withOccRetry exhausts retries and throws descriptive error"
         // Should have been called exactly maxRetries + 1 times
         assertEquals(callCount, maxRetries + 1);
 
-        // Error message should contain the attempt count
-        assertStringIncludes(error.message, `${maxRetries + 1} attempts`);
-
-        // Error message should contain the original error message
-        assertStringIncludes(error.message, originalMessage);
+        // The original error is propagated unchanged — same message, same code
+        assertEquals(error.message, originalMessage);
+        assertEquals(
+          (error as Error & { code?: string }).code,
+          "40001",
+        );
       },
     ),
     { numRuns: 100 },

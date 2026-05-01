@@ -539,8 +539,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
 /**
  * Maps database-level errors to appropriate HTTP error responses.
  *
- * - OCC retry exhausted (OC000/OC001 after retries) → 503
- * - Bare OCC errors → 503
+ * - OCC conflict (SQLSTATE 40001/OC000/OC001) → 503
  * - Invalid UUID format → 404
  * - Connection failures → 503
  * - Everything else → 500
@@ -549,16 +548,6 @@ function handleDbError(error: unknown): Response {
   logError("Database error", error);
 
   if (error instanceof Error) {
-    if (error.message.startsWith("OCC retry exhausted")) {
-      return jsonResponse(
-        {
-          error:
-            "Service busy — too many concurrent updates. Retry after a short backoff.",
-        },
-        503,
-      );
-    }
-
     const msg = error.message.toLowerCase();
 
     if (msg.includes("invalid input syntax for type uuid")) {

@@ -2,60 +2,45 @@
 // SPDX-License-Identifier: MIT-0
 
 /**
- * Optimistic Concurrency Control (OCC) Retry Handler for Aurora DSQL
+ * Optimistic Concurrency Control (OCC) retry handler for Aurora DSQL.
  *
- * Aurora DSQL uses optimistic concurrency control (OCC) for transaction
- * isolation. When two transactions conflict — e.g. two users booking the
- * same room in the same window — Aurora DSQL aborts one with SQLSTATE
- * `OC000` (row conflict) or `OC001` (schema namespace conflict). The
- * application retries the aborted transaction.
+ * Aurora DSQL aborts the losing transaction when concurrent transactions
+ * conflict. The driver surfaces this as SQLSTATE 40001; the retry wrapper
+ * retries with exponential backoff + jitter.
  *
- * This module wraps an async transaction function with automatic retry
- * logic: it catches OC000/OC001 errors, applies exponential backoff with
- * jitter to reduce contention, and retries up to a configurable maximum.
- * Non-OCC errors are re-thrown immediately without retry.
+ * See: https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html
+ *
+ * TODO: Replace this module with the OCC helper when the Aurora DSQL
+ * postgres.js connector ships one.
  *
  * @module occ-retry
  */
 
-/**
- * Configuration options for the OCC retry handler.
- *
- * @property maxRetries - Maximum retry attempts after the initial try.
- *   `maxRetries: 3` means up to 4 total attempts. Default: 3.
- * @property baseDelayMs - Base delay for exponential backoff. Default: 100.
- *   Actual delay is `baseDelayMs * 2^attempt + random jitter`.
- * @property maxDelayMs - Upper bound on the backoff delay. Default: 2000.
- */
 export interface OccRetryOptions {
+  /** Maximum retry attempts after the initial try. Default: 3. */
   maxRetries?: number;
+  /** Base delay for exponential backoff in ms. Default: 1. */
   baseDelayMs?: number;
+  /** Upper bound on the backoff delay in ms. Default: 2000. */
   maxDelayMs?: number;
 }
 
 /**
  * Wraps an async function with OCC retry logic.
  *
- * The provided function `fn` is called. If it throws an error with
- * SQLSTATE `OC000` or `OC001`, the handler waits with exponential backoff
- * + jitter and retries. Non-OCC errors are re-thrown immediately.
+ * Retries when `fn` throws a retryable concurrency error (see `isOccError`).
+ * Non-OCC errors propagate immediately. When retries are exhausted, the
+ * last OCC error is re-thrown unchanged.
  *
- * When retries are exhausted, a plain `Error` is thrown whose message
- * begins with "OCC retry exhausted" so callers can map it to HTTP 503.
- *
- * @typeParam T - The return type of the wrapped function
- * @param fn - An async function representing the database operation to retry
+ * @param fn - The database operation to retry
  * @param options - Optional retry configuration
- * @returns The result of the first successful invocation of `fn`
- * @throws {Error} If all retry attempts are exhausted, or if `fn` throws a
- *   non-OCC error
  */
 export async function withOccRetry<T>(
   fn: () => Promise<T>,
   options?: OccRetryOptions,
 ): Promise<T> {
   const maxRetries = options?.maxRetries ?? 3;
-  const baseDelayMs = options?.baseDelayMs ?? 100;
+  const baseDelayMs = options?.baseDelayMs ?? 1;
   const maxDelayMs = options?.maxDelayMs ?? 2000;
   const startTime = Date.now();
 
@@ -63,17 +48,7 @@ export async function withOccRetry<T>(
     try {
       return await fn();
     } catch (error: unknown) {
-      const isOcc = isOccError(error);
-
-      if (!isOcc || attempt === maxRetries) {
-        if (isOcc) {
-          throw new Error(
-            `OCC retry exhausted after ${attempt + 1} attempts ` +
-              `(${Date.now() - startTime}ms): ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-          );
-        }
+      if (!isOccError(error) || attempt === maxRetries) {
         throw error;
       }
 
@@ -99,18 +74,15 @@ export async function withOccRetry<T>(
 /**
  * Checks whether an error is a retryable Aurora DSQL concurrency conflict.
  *
- * Retries on:
- *   - `OC000` — change conflicts with another transaction (row-level OCC)
- *   - `OC001` — schema has been updated by another transaction (namespace
- *     concurrency during index promotion, role creation, etc.)
- *
- * Both share SQLSTATE class 40001 (serialization_failure); both are safe
- * to retry because the conflicting transaction has already aborted.
- *
- * postgres.js puts the SQLSTATE code at `error.code` directly.
+ * Aurora DSQL's `OC000` (row conflict) and `OC001` (schema conflict) both
+ * arrive with SQLSTATE `40001` (serialization_failure). postgres.js puts
+ * the SQLSTATE at `error.code` and the OCxxx label inside `error.message`,
+ * so matching `40001` is the primary check. `OC000`/`OC001` are kept as
+ * defensive fallbacks for drivers or error-wrapping paths that might
+ * surface the DSQL-specific code directly.
  */
 export function isOccError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const code = (error as Record<string, unknown>).code;
-  return code === "OC000" || code === "OC001";
+  return code === "40001" || code === "OC000" || code === "OC001";
 }
