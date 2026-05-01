@@ -1,6 +1,4 @@
 {
-  "name": "postgresjs-dsql-booking-api",
-  "version": "1.0.0",
   "tasks": {
     "start": "deno run --allow-net --allow-env --allow-read --allow-sys main.ts",
     "serve": "deno serve --allow-net --allow-env --allow-read --allow-sys main.ts",
