@@ -38,6 +38,9 @@ export type Sql = ReturnType<typeof auroraDSQLPostgres>;
  * @property max - Maximum pool size (default 10)
  * @property idleTimeoutSec - Idle connection timeout in seconds (default 30)
  * @property connectTimeoutSec - Connection timeout in seconds (default 10)
+ * @property onNotice - Optional handler for server NOTICE messages. When
+ *   omitted, postgres.js uses its default handler (prints the notice
+ *   object to stdout). Pass `() => {}` to silence notices.
  */
 export interface ClientOptions {
   endpoint: string;
@@ -46,6 +49,7 @@ export interface ClientOptions {
   max?: number;
   idleTimeoutSec?: number;
   connectTimeoutSec?: number;
+  onNotice?: (notice: unknown) => void;
 }
 
 /**
@@ -67,5 +71,6 @@ export function createClient(options: ClientOptions): Sql {
     max: options.max ?? 10,
     idle_timeout: options.idleTimeoutSec ?? 30,
     connect_timeout: options.connectTimeoutSec ?? 10,
+    ...(options.onNotice ? { onnotice: options.onNotice } : {}),
   });
 }

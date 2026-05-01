@@ -66,6 +66,11 @@ export async function setupSchema(options: SchemaOptions): Promise<void> {
     user: options.user,
     region: options.region,
     max: 1,
+    // Suppress the NOTICE that `CREATE TABLE IF NOT EXISTS` emits when the
+    // table already exists. The idempotent DDLs in this function are
+    // expected to be no-ops on restart; logging the server-side NOTICE
+    // every time is noise.
+    onNotice: () => {},
   });
 
   try {
