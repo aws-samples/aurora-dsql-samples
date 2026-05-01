@@ -59,17 +59,29 @@ const sql = createClient({ endpoint: ENDPOINT, user: USER });
 // Graceful shutdown
 // ---------------------------------------------------------------------------
 
+/**
+ * Graceful-shutdown handler. Runs on SIGINT / SIGTERM.
+ *
+ * Drains the HTTP server first (stops accepting new connections, waits for
+ * in-flight requests), then drains the connection pool, then (optionally)
+ * tears down the schema. The `server` variable is assigned right after
+ * `Deno.serve(...)` below; at signal time it is always initialized.
+ */
+let server: Deno.HttpServer | undefined;
+
 const cleanup = async () => {
   if (!CLEANUP_ON_EXIT) {
     console.log(
       "Shutting down — preserving schema " +
         "(set CLEANUP_ON_EXIT=true to drop the bookings table).",
     );
+    if (server) await server.shutdown();
     await sql.end({ timeout: 5 });
     Deno.exit(0);
   }
   console.log("Shutting down — dropping bookings table (CLEANUP_ON_EXIT=true)...");
   try {
+    if (server) await server.shutdown();
     await sql.end({ timeout: 5 });
     await teardownSchema({ endpoint: ENDPOINT!, user: USER! });
   } catch (error) {
@@ -85,6 +97,6 @@ Deno.addSignalListener("SIGTERM", cleanup);
 // Start HTTP server
 // ---------------------------------------------------------------------------
 
-Deno.serve({ port: PORT, hostname: HOST }, (req) =>
+server = Deno.serve({ port: PORT, hostname: HOST }, (req) =>
   handleRequest(req, { sql })
 );
