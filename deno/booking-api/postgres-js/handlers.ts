@@ -199,6 +199,53 @@ async function readJsonBody<T>(
 }
 
 // ---------------------------------------------------------------------------
+// Time-range validation helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Parses and validates an ISO-8601 time-range pair.
+ *
+ * Returns `{ startDate, endDate }` on success, or an `{ error }` Response
+ * if either string doesn't parse to a valid `Date` or if `endDate` is not
+ * strictly after `startDate`. The DB's `CHECK (end_time > start_time)`
+ * constraint is the second line of defense; this helper gives callers a
+ * clear 400 instead of a 500 from the database type error when the client
+ * sends a non-parseable timestamp.
+ */
+function parseTimeRange(
+  startTime: string,
+  endTime: string,
+): { startDate: Date; endDate: Date } | { error: Response } {
+  const startDate = new Date(startTime);
+  const endDate = new Date(endTime);
+  if (Number.isNaN(startDate.getTime())) {
+    return {
+      error: jsonResponse(
+        { error: "Invalid ISO-8601 timestamp for start_time" },
+        400,
+      ),
+    };
+  }
+  if (Number.isNaN(endDate.getTime())) {
+    return {
+      error: jsonResponse(
+        { error: "Invalid ISO-8601 timestamp for end_time" },
+        400,
+      ),
+    };
+  }
+  if (endDate <= startDate) {
+    return {
+      error: jsonResponse(
+        { error: "end_time must be after start_time" },
+        400,
+      ),
+    };
+  }
+  return { startDate, endDate };
+}
+
+// ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
 
@@ -230,9 +277,8 @@ async function createBooking(
     }
   }
 
-  if (new Date(body.end_time) <= new Date(body.start_time)) {
-    return jsonResponse({ error: "end_time must be after start_time" }, 400);
-  }
+  const timeRange = parseTimeRange(body.start_time, body.end_time);
+  if ("error" in timeRange) return timeRange.error;
 
   try {
     const result = await withOccRetry(() =>
@@ -368,8 +414,12 @@ async function updateBooking(
           booked_by: body.booked_by ?? current.booked_by,
         };
 
-        if (new Date(updated.end_time) <= new Date(updated.start_time)) {
-          return { invalidTime: true as const };
+        const updatedRange = parseTimeRange(
+          updated.start_time,
+          updated.end_time,
+        );
+        if ("error" in updatedRange) {
+          return { invalidTime: updatedRange.error };
         }
 
         const overlap = await tx<{ id: string }[]>`
@@ -415,10 +465,7 @@ async function updateBooking(
       return jsonResponse({ error: "Booking not found" }, 404);
     }
     if ("invalidTime" in result) {
-      return jsonResponse(
-        { error: "end_time must be after start_time" },
-        400,
-      );
+      return result.invalidTime!;
     }
     if ("conflict" in result) {
       return jsonResponse(
