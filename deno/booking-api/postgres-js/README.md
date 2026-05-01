@@ -262,12 +262,6 @@ and a `non_admin_user` database role (if they don't already exist).
 On shutdown (Ctrl+C) the schema is preserved by default. Set
 `CLEANUP_ON_EXIT=true` to drop the table for clean sample teardown.
 
-### Run with `deno serve` (multi-instance)
-
-```bash
-deno task serve
-```
-
 ### Run tests
 
 ```bash
@@ -426,13 +420,15 @@ security posture.
 
 ## Deploying to Deno Deploy
 
-This sample is structured for deployment to [Deno Deploy](https://deno.com/deploy):
+This sample can be adapted for deployment to
+[Deno Deploy](https://deno.com/deploy):
 
-1. The module exports a default `{ fetch }` handler compatible with `deno serve`.
-2. The connector pool refreshes IAM tokens automatically on warm starts.
-3. No file-system state or global mutable singletons.
+1. The connector pool refreshes IAM tokens automatically on warm starts.
+2. No file-system state or global mutable singletons.
 
-To deploy:
+To deploy, export the request handler as a default `{ fetch }` object
+(Deno Deploy invokes that per request) and remove the top-level
+`Deno.serve(...)` call. Then:
 
 1. Push the code to a GitHub repository.
 2. Link the repository to a Deno Deploy project.

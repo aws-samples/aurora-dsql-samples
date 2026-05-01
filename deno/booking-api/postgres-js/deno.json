@@ -1,7 +1,6 @@
 {
   "tasks": {
     "start": "deno run --allow-net --allow-env --allow-read --allow-sys main.ts",
-    "serve": "deno serve --allow-net --allow-env --allow-read --allow-sys main.ts",
     "test": "deno test --allow-net --allow-env --allow-read --allow-sys",
     "test:property": "deno test --allow-net --allow-env --allow-read --allow-sys --filter property",
     "test:integration": "deno test --allow-net --allow-env --allow-read --allow-sys --filter integration",

@@ -9,10 +9,6 @@
  * shutdown (SIGINT / SIGTERM) the schema is preserved by default; set
  * `CLEANUP_ON_EXIT=true` to drop the bookings table and role.
  *
- * The module also exports a default `{ fetch }` handler so that the server
- * can be started with `deno serve` for multi-instance and serverless
- * deployment patterns (e.g., Deno Deploy).
- *
  * Required environment variables:
  *   - `CLUSTER_ENDPOINT` — Aurora DSQL cluster hostname
  *   - `CLUSTER_USER` — PostgreSQL user (e.g., "admin" for DDL, or a
@@ -84,19 +80,6 @@ const cleanup = async () => {
 
 Deno.addSignalListener("SIGINT", cleanup);
 Deno.addSignalListener("SIGTERM", cleanup);
-
-// ---------------------------------------------------------------------------
-// Default export for `deno serve` compatibility
-// ---------------------------------------------------------------------------
-
-/**
- * Default export for `deno serve` — multi-instance / serverless deployment.
- */
-export default {
-  fetch(req: Request): Promise<Response> {
-    return handleRequest(req, { sql });
-  },
-};
 
 // ---------------------------------------------------------------------------
 // Start HTTP server
