@@ -10,9 +10,6 @@
  *
  * See: https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html
  *
- * TODO: Replace this module with the OCC helper when the Aurora DSQL
- * postgres.js connector ships one.
- *
  * @module occ-retry
  */
 
@@ -72,17 +69,18 @@ export async function withOccRetry<T>(
 }
 
 /**
- * Checks whether an error is a retryable Aurora DSQL concurrency conflict.
+ * Checks whether an error is a retryable Aurora DSQL concurrency control
+ * conflict.
  *
- * Aurora DSQL's `OC000` (row conflict) and `OC001` (schema conflict) both
- * arrive with SQLSTATE `40001` (serialization_failure). postgres.js puts
- * the SQLSTATE at `error.code` and the OCxxx label inside `error.message`,
- * so matching `40001` is the primary check. `OC000`/`OC001` are kept as
- * defensive fallbacks for drivers or error-wrapping paths that might
- * surface the DSQL-specific code directly.
+ * Aurora DSQL returns a PostgreSQL serialization failure with SQLSTATE
+ * `40001` on concurrency control conflicts — both **data conflicts**
+ * (`OC000`) and **schema conflicts** (`OC001`, catalog out of sync). The
+ * OCxxx sub-code lives inside the error message; postgres.js surfaces
+ * the SQLSTATE at `error.code`, so matching `40001` is sufficient.
+ *
+ * See: https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html
  */
 export function isOccError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
-  const code = (error as Record<string, unknown>).code;
-  return code === "40001" || code === "OC000" || code === "OC001";
+  return (error as Record<string, unknown>).code === "40001";
 }

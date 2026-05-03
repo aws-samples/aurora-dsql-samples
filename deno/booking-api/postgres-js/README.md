@@ -168,9 +168,15 @@ This sample uses a layered defense against double-booking:
    catches the race where two concurrent transactions both pass the overlap
    check at the same instant and then both try to INSERT the *same* window.
    The loser gets SQLSTATE 23505 and returns HTTP 409.
-3. **OCC retry wrapper** (`withOccRetry`) handles SQLSTATE OC000/OC001/40001
-   — Aurora DSQL's signal that a transaction lost an optimistic concurrency
-   race and should be retried. The wrapper retries with exponential backoff.
+3. **OCC retry wrapper** (`withOccRetry`) handles concurrency control
+   conflicts — SQLSTATE `40001` responses that Aurora DSQL returns for
+   both data conflicts (`OC000`) and schema conflicts (`OC001`, catalog
+   out of sync). The wrapper retries with exponential backoff + jitter.
+   Any operation that touches the schema catalog (`CREATE TABLE`,
+   `ALTER TABLE`, `GRANT`, `REVOKE`, etc.) can trigger `OC001` against
+   concurrent sessions with a cached catalog — see the AWS Database
+   Blog post [Concurrency control in Amazon Aurora DSQL](https://aws.amazon.com/blogs/database/concurrency-control-in-amazon-aurora-dsql/)
+   for details.
 
 **Write-skew caveat.** Aurora DSQL provides strong snapshot isolation and
 OCC only conflicts writes to the same physical rows. Two concurrent
@@ -400,10 +406,6 @@ jitter and re-throws the original error once retries are exhausted
 
 See [Concurrency control in Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html)
 for the authoritative behavior.
-
-> **Note.** `occ-retry.ts` is intentionally minimal and will be replaced
-> by the OCC helper in the Aurora DSQL postgres.js connector once it
-> ships.
 
 ---
 

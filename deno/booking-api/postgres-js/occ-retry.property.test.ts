@@ -23,16 +23,16 @@ import { isOccError, withOccRetry } from "./occ-retry.ts";
 
 /**
  * Creates an error object that mimics an Aurora DSQL OCC conflict.
- * postgres.js attaches the SQLSTATE at `error.code` — in practice, DSQL's
- * OC000 and OC001 both arrive with SQLSTATE 40001. We accept the DSQL
- * sub-codes as defensive fallbacks.
+ *
+ * Aurora DSQL returns a PostgreSQL serialization failure (SQLSTATE
+ * `40001`) on both data conflicts (OC000) and schema conflicts (OC001);
+ * postgres.js surfaces the SQLSTATE at `error.code`. See
+ * https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html
  */
-function makeOccError(
-  code: "40001" | "OC000" | "OC001" = "40001",
-): Error & Record<string, unknown> {
-  const err = new Error(`${code}: transaction conflict`) as Error &
+function makeOccError(): Error & Record<string, unknown> {
+  const err = new Error("40001: transaction conflict") as Error &
     Record<string, unknown>;
-  err.code = code;
+  err.code = "40001";
   return err;
 }
 
@@ -44,12 +44,11 @@ function makeOccError(
  * Feature: deno-aurora-dsql-samples, Property 5: OCC error detection
  *
  * For any error object, `isOccError` returns true if and only if the error
- * has a `code` property equal to "40001" (SQLSTATE serialization_failure),
- * "OC000", or "OC001".
+ * has a `code` property equal to "40001" (SQLSTATE serialization_failure).
  *
  * **Validates: Requirements 8.1**
  */
-Deno.test("property: isOccError returns true only for 40001/OC000/OC001 errors", () => {
+Deno.test("property: isOccError returns true only for 40001 errors", () => {
   fc.assert(
     fc.property(
       // Generate arbitrary error-like objects with random code values
@@ -68,9 +67,7 @@ Deno.test("property: isOccError returns true only for 40001/OC000/OC001 errors",
       }),
       (errorObj) => {
         const result = isOccError(errorObj);
-        const expected = errorObj.code === "40001" ||
-          errorObj.code === "OC000" ||
-          errorObj.code === "OC001";
+        const expected = errorObj.code === "40001";
         assertEquals(result, expected);
       },
     ),
