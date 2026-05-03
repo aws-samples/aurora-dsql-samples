@@ -3,8 +3,8 @@
 ## Deno + postgres.js connector + Amazon Aurora DSQL
 
 A booking/reservation REST API built with **Deno.serve()** and the
-[**Aurora DSQL Connector for postgres.js**](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node/postgres-js),
-backed by **Amazon Aurora DSQL**. This sample demonstrates IAM token
+[**Aurora DSQL Connector for postgres.js**](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node/postgres-js).
+This sample demonstrates IAM token
 authentication, optimistic concurrency control (OCC) retry handling,
 commit-time unique-window enforcement, and Deno's least-privilege permissions
 model.
@@ -191,13 +191,8 @@ rest 409/503) and the overlapping-but-distinct case.
 
 | Decision | Rationale |
 |----------|-----------|
-| **Aurora DSQL Connector for postgres.js** | Handles IAM token generation, refresh, SSL/TLS, and region auto-discovery so the sample code stays focused on domain logic |
-| **Pooled `sql` client (lifetime-scoped)** | The connector pool reuses connections across requests, refreshing IAM tokens transparently. Works cleanly on serverless warm starts (e.g., Deno Deploy) |
 | **UUID primary keys via `gen_random_uuid()`** | UUIDs spread writes across storage nodes, which benefits distributed workloads. Aurora DSQL also supports `CREATE SEQUENCE` and `GENERATED AS IDENTITY` if you prefer compact integer keys — see the [Sequences and identity columns](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html) guide for caching guidance |
 | **Application-layer referential integrity** | For referential integrity patterns, Aurora DSQL's [migration guide](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-migration-guide.html) recommends enforcing relationships in the application layer. This sample stores `booked_by` as a plain string rather than a foreign key; a production app would validate against a `users` table in the same transaction |
-| **Application-layer overlap detection** | To express "no two rows may have overlapping `[start, end)` ranges for the same resource," the sample combines an application-layer SELECT, a unique-window index, and OCC retry. See the concurrency model section for the full pattern |
-| **`CREATE [UNIQUE] INDEX ASYNC`** | Aurora DSQL uses `CREATE INDEX ASYNC` for non-blocking index creation. `setupSchema` waits for the returned `job_id` to complete before handling traffic — see the [Asynchronous indexes](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-create-index-async.html) guide |
-| **`Deno.serve()` (no framework)** | Zero external Deno dependencies beyond the connector; matches the minimal sample philosophy |
 
 ---
 
@@ -232,7 +227,9 @@ export PORT=8000                  # HTTP server port (default: 8000)
 export HOST="127.0.0.1"           # HTTP bind address (default: localhost)
                                   # Set "0.0.0.0" only when deploying behind
                                   # a trusted reverse proxy
-export AWS_REGION="us-east-1"     # Auto-discovered from CLUSTER_ENDPOINT
+export AWS_REGION="us-east-1"     # Optional; auto-discovered from
+                                  # CLUSTER_ENDPOINT. Shown here only to
+                                  # demonstrate overriding the default.
 export CLEANUP_ON_EXIT="false"    # If "true", DROP the bookings table
                                   # on SIGINT/SIGTERM (default: preserve)
 ```
