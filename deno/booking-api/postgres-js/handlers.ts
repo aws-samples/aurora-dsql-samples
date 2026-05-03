@@ -283,10 +283,17 @@ async function createBooking(
   try {
     const result = await withOccRetry(() =>
       ctx.sql.begin(async (tx) => {
-        // Overlap detection inside the transaction. The unique index on
-        // (resource_name, start_time, end_time) is the commit-time backstop
-        // for the race where two concurrent transactions both pass this
-        // SELECT and both try to INSERT.
+        // Overlap detection inside the transaction.
+        //
+        // Write-skew caveat: two concurrent transactions inserting
+        // overlapping-but-distinct windows (e.g., 9:00–10:00 and
+        // 9:30–10:30) may both pass this SELECT and both commit —
+        // DSQL's OCC only conflicts writes to the same physical rows,
+        // and the unique index on (resource_name, start_time, end_time)
+        // catches only identical windows. For strict serialization,
+        // maintain a `resources` table and `SELECT ... FOR UPDATE` on
+        // the resource row before this check. See README § "Concurrency
+        // model" for details.
         const overlap = await tx<{ id: string }[]>`
           SELECT id FROM bookings
           WHERE resource_name = ${body.resource_name}
@@ -435,6 +442,8 @@ async function updateBooking(
           return { invalidTime: updatedRange.error };
         }
 
+        // Same write-skew caveat as createBooking's overlap check —
+        // see that comment and README § "Concurrency model" for details.
         const overlap = await tx<{ id: string }[]>`
           SELECT id FROM bookings
           WHERE resource_name = ${updated.resource_name}

@@ -172,14 +172,19 @@ This sample uses a layered defense against double-booking:
    — Aurora DSQL's signal that a transaction lost an optimistic concurrency
    race and should be retried. The wrapper retries with exponential backoff.
 
-**Consideration for concurrent writes.** The unique index enforces
-identical windows. Two concurrent transactions inserting *overlapping but
-distinct* windows (e.g., `[9:00–10:00]` and `[9:30–10:30]`) may both
-commit if they interleave their SELECT and INSERT. The application-layer
-check covers sequential writes. For strict serialization of overlapping
-writes under high contention, use application-level row locks (via
-`SELECT ... FOR UPDATE` on a parent `resources` row) or route writes for
-the same resource through a queue.
+**Write-skew caveat.** Aurora DSQL provides strong snapshot isolation and
+OCC only conflicts writes to the same physical rows. Two concurrent
+transactions inserting *overlapping but distinct* windows (e.g.,
+`[9:00–10:00]` and `[9:30–10:30]`) may both pass the SELECT above and
+both commit — the unique index catches only identical windows. This is
+the classic *write skew* anomaly. For strict serialization of overlapping
+writes, maintain a parent `resources` table and acquire
+`SELECT ... FOR UPDATE` on the resource row (keyed by its primary key)
+before the overlap check. See the AWS Database Blog post
+[Concurrency control in Amazon Aurora DSQL](https://aws.amazon.com/blogs/database/concurrency-control-in-amazon-aurora-dsql/)
+(Example 2: `SELECT FOR UPDATE` to manage write skew) and the user-guide
+page [Concurrency control in Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html)
+for details.
 
 The integration test `occ-overlap-race.integration.test.ts` documents
 both cases: the success case (identical windows → exactly one 201,
