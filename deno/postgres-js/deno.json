@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-env --allow-read --allow-sys src/example_preferred.ts",
+    "test": "deno test --allow-net --allow-env --allow-read --allow-sys test/"
+  },
+  "imports": {
+    "@aws/aurora-dsql-postgresjs-connector": "npm:@aws/aurora-dsql-postgresjs-connector@^0.2"
+  }
+}

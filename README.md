@@ -31,6 +31,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 | Typescript  |               [Prisma](typescript/prisma)               |
 | Typescript  |            [Sequelize](typescript/sequelize)            |
 | Typescript  |             [TypeORM](typescript/type-orm)              |
+|    Deno     |        [postgres-js](deno/postgres-js/)              |
 
 
 |  Language   |                 Cluster Management                  |
@@ -60,6 +61,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |                          Sample Applications                          |
 |:---------------------------------------------------------------------:|
 | [Amazon Aurora DSQL Agent](sample-amazon-aurora-dsql-agent) — A sample application showing how to build an AI agent that queries Aurora DSQL using natural language, powered by Strands Agents, Bedrock AgentCore Gateway (MCP), and AgentCore Runtime (A2A) |
+| [Booking API (Deno)](deno/booking-api/postgres-js) — A sample REST API for room/resource bookings built with Deno.serve() and postgres.js via the Aurora DSQL connector. Includes OCC retry handling, unique-window enforcement via an async index, and pooled IAM token auth |
 
 Each example includes language and client-specific instructions as well as instructions to invoke example code.
 

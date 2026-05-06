@@ -1,0 +1,64 @@
+name: Deno Postgres.js integration tests
+
+permissions: {}
+
+on:
+  workflow_call: {}
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'deno/postgres-js/**'
+      - '.github/workflows/deno-postgresjs-integ-tests.yml'
+
+jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: deno-postgresjs
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  postgresjs-integ-test:
+    needs: create-cluster
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+          aws-region: ${{ needs.create-cluster.outputs.region }}
+
+      - name: Run Deno integration tests
+        working-directory: ./deno/postgres-js
+        env:
+          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+          CLUSTER_USER: 'admin'
+        run: deno task test
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, postgresjs-integ-test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
