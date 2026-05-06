@@ -33,12 +33,12 @@ func NewDSQLStore(ctx context.Context, endpoint string) (*DSQLStore, error) {
 		return nil, fmt.Errorf("parse pool config: %w", err)
 	}
 	poolCfg.MaxConns = 5
-	poolCfg.MinConns = 1
+	poolCfg.MinConns = 0                       // Connections are created on demand; BeforeConnect generates a fresh IAM token.
 	poolCfg.MaxConnLifetime = 50 * time.Minute // Amazon Aurora DSQL timeout is 60 min.
 
 	// Create a connection pool using the Aurora DSQL connector.
-	// The connector handles IAM token generation, SSL/TLS configuration,
-	// and the prefer_simple_protocol setting automatically.
+	// The connector handles IAM token generation via BeforeConnect,
+	// TLS configuration (verify-full), and connection parameter defaults.
 	pool, err := dsql.NewPool(ctx, dsql.Config{
 		Host: endpoint,
 	}, poolCfg)
