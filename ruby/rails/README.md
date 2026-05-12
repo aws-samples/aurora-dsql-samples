@@ -65,20 +65,20 @@ and [authentication token generation][docs-generate-token] for more details.
 [docs-generate-token]: https://docs.aws.amazon.com/aurora-dsql/latest/userguide/SECTION_authentication-token.html
 
 ### Alter ActiveRecord behavior
-Disable features not supported by Aurora DSQL. The example includes this in [`adapter.rb`][file-adapter].
+Configure ActiveRecord for Aurora DSQL compatibility. The example includes this in [`adapter.rb`][file-adapter].
 
 ```ruby
 require "active_record/connection_adapters/postgresql/schema_statements"
 
 module ActiveRecord::ConnectionAdapters::PostgreSQL::SchemaStatements
-  # DSQL does not support setting min_messages in the connection parameters
+  # Override client_min_messages for DSQL compatibility
   def client_min_messages=(level); end
 end
 
 class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
   def set_standard_conforming_strings; end
 
-  # Avoid error running multiple DDL or DDL + DML statements in the same transaction
+  # Each DDL statement runs in its own transaction with DSQL
   def supports_ddl_transactions?
     false
   end

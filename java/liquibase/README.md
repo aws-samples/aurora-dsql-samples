@@ -101,20 +101,21 @@ mvn liquibase:rollback -Dliquibase.rollbackCount=1
 
 ## Liquibase considerations with Aurora DSQL
 
-When using Liquibase with Aurora DSQL, be aware of the following considerations and limitations:
+When using Liquibase with Aurora DSQL, be aware of the following considerations:
 
 ### Transactions
-- Running multiple DDL statements in a single transaction will result in an error
+- Each DDL statement must run in its own transaction
   - Use `runInTransaction:false` when running multiple DDL statements
   - Or separate DDL statements into different changesets
 
 ### Index Creation
-- Use `CREATE INDEX ASYNC` instead of `CREATE INDEX` for DSQL compatibility
+- Use `CREATE INDEX ASYNC` instead of `CREATE INDEX`
 - Structured Liquibase index creation doesn't support the `ASYNC` keyword, so use raw SQL instead
 
 ### Primary Keys
-- DSQL doesn't support `ALTER TABLE ADD CONSTRAINT` for primary keys
 - Define primary keys inline during table creation rather than as separate changesets
+
+For the full list of Aurora DSQL SQL compatibility details, see the [PostgreSQL compatibility reference](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility.html).
 
 ## Changelog formats
 
