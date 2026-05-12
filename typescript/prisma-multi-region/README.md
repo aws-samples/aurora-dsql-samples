@@ -152,14 +152,11 @@ curl -X POST http://localhost:3000/orders \
 curl http://localhost:3000/orders
 ```
 
-## DSQL Constraints (Prisma Compatibility)
+## DSQL + Prisma Compatibility
 
-| Feature                   | DSQL Support  | Workaround                                                        |
-| ------------------------- | ------------- | ----------------------------------------------------------------- |
-| Foreign keys              | Not supported | `relationMode = "prisma"`                                         |
-| Sequences / autoincrement | Not supported | `gen_random_uuid()` for IDs                                       |
-| `CREATE INDEX` (sync)     | Not supported | Use `aurora-dsql-prisma migrate` to generate `CREATE INDEX ASYNC` |
-| Advisory locks            | Not supported | `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1`                           |
+This sample applies Prisma-specific configuration for Aurora DSQL compatibility (e.g., `relationMode = "prisma"`, UUID-based IDs, `CREATE INDEX ASYNC` via the migration tool).
+
+For Aurora DSQL best practices and SQL compatibility details, see the [Aurora DSQL documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility.html).
 
 ## Authentication
 

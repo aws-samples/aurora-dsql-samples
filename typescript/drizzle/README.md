@@ -62,7 +62,7 @@ await pool.end();
 
 When using Drizzle ORM with Aurora DSQL:
 
-1. **Use UUID for IDs** — Aurora DSQL supports [sequences and identity columns](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html) (with `CACHE` specified), but the `SERIAL` pseudo-type is not available. UUIDs with `gen_random_uuid()` are the [recommended default](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns-working-with.html) for primary keys because they don't require coordination across the distributed system:
+1. **Use UUID for IDs** — Aurora DSQL supports [sequences and identity columns](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html) (with `CACHE` specified), but UUIDs with `gen_random_uuid()` are the [recommended default](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns-working-with.html) for primary keys because they distribute writes evenly across the distributed system:
 
    ```typescript
    import { pgTable, uuid } from "drizzle-orm/pg-core";
@@ -73,7 +73,7 @@ When using Drizzle ORM with Aurora DSQL:
    });
    ```
 
-2. **No foreign key constraints** — Aurora DSQL supports JOIN operations and table relationships, but does not enforce foreign key constraints. Use Drizzle's `relations()` API for application-level relationship handling:
+2. **Application-layer referential integrity** — This sample uses Drizzle's `relations()` API for relationship handling:
 
    ```typescript
    import { relations } from "drizzle-orm";

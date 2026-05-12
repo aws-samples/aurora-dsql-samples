@@ -119,7 +119,7 @@ hooks: {
 
 ### Connection configuration
 
-Sequelize sets `client_min_messages` by default, which causes the error `setting configuration parameter "client_min_messages" not supported`. Disable this by setting `clientMinMessages: 'ignore'` in dialect options.
+Sequelize sets `client_min_messages` by default, which is not compatible with Aurora DSQL. Disable this by setting `clientMinMessages: 'ignore'` in dialect options.
 
 ```ts
 new Sequelize({
@@ -149,7 +149,7 @@ new Sequelize({
 
 ### Table creation
 
-`Sequelize.sync()` and `Model.sync()` are not supported because DSQL returns index metadata in a format that Sequelize v6 cannot parse (the `INCLUDE` clause in index definitions causes parsing failures). Use `QueryInterface.createTable()` to create tables, then initialize models in memory with `Model.init()`.
+`Sequelize.sync()` and `Model.sync()` are not compatible with Aurora DSQL because DSQL returns index metadata in a format that Sequelize v6 cannot parse (the `INCLUDE` clause in index definitions causes parsing failures). Use `QueryInterface.createTable()` to create tables, then initialize models in memory with `Model.init()`.
 
 ```ts
 // Instead of: await Model.sync();
@@ -165,7 +165,7 @@ Owner.init({ /* same attributes */ }, { sequelize, tableName: 'owner' });
 
 ### Primary keys
 
-SERIAL and identity columns are not supported. Using `autoIncrement: true` results in a `type "serial" does not exist` error. Use UUID primary keys instead.
+Use UUID primary keys with Aurora DSQL:
 
 ```ts
 id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 }
@@ -173,16 +173,16 @@ id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 }
 
 ### Relationships
 
-When defining relationships, set `constraints: false`. Sequelize attempts to create foreign key constraints by default, which are not supported. ORM-level relationships are retained but are not enforced by the database.
+When defining relationships, set `constraints: false`. This uses application-layer referential integrity, with ORM-level relationships retained for queries.
 
 ```ts
 Pet.belongsTo(Owner, { foreignKey: 'ownerId', constraints: false });
 Owner.hasMany(Pet, { foreignKey: 'ownerId', constraints: false });
 ```
 
-### Unsupported data types
+### Data types
 
-**JSON/JSONB**: `DataTypes.JSON` and `DataTypes.JSONB` are not supported. Use `DataTypes.TEXT` in your table definition, with getter/setter in `Model.init()` for serialization. JSON query operators are not available with this approach.
+**JSON/JSONB**: Use `DataTypes.TEXT` with getter/setter in `Model.init()` for serialization:
 
 ```ts
 metadata: {
@@ -197,7 +197,7 @@ metadata: {
 }
 ```
 
-**ENUM**: `DataTypes.ENUM` is not supported. Use `DataTypes.STRING` in your table definition, with validation in `Model.init()`. Validation is enforced at the application level, not the database.
+**ENUM**: Use `DataTypes.STRING` with validation in `Model.init()`:
 
 ```ts
 status: {
@@ -206,13 +206,11 @@ status: {
 }
 ```
 
-### Unsupported methods
+### Methods
 
-**findOrCreate**: `Model.findOrCreate()` internally uses PL/pgSQL, which is not supported. Use `upsert` or manual `findOne` + `create`.
+**findOrCreate**: `Model.findOrCreate()` internally uses PL/pgSQL. Use `upsert` or manual `findOne` + `create` instead.
 
 ```ts
-// Instead of: await User.findOrCreate({ where: { email }, defaults: { name } });
-
 // Option 1: upsert (overwrites name if record exists)
 const [user] = await User.upsert({ email, name });
 
@@ -221,12 +219,14 @@ let user = await User.findOne({ where: { email } });
 if (!user) user = await User.create({ email, name });
 ```
 
-**truncate**: `Model.truncate()` is not supported. Use `destroy` with empty where clause.
+**truncate**: Use `destroy` with empty where clause instead of `Model.truncate()`.
 
 ```ts
 // Instead of: await Model.truncate();
 await Model.destroy({ where: {} });
 ```
+
+For the full list of Aurora DSQL SQL compatibility details, see the [PostgreSQL compatibility reference](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility.html).
 
 ### Locking
 
