@@ -49,9 +49,11 @@ const VALID_ENDPOINTS = [
 const ALL_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
 /**
- * Generates a valid UUID-like booking ID for parameterized routes.
+ * Generates a valid UUID v4 booking ID for parameterized routes. Constrained
+ * to v4 because `handlers.ts` BOOKING_ID_REGEX only accepts v4 (matching
+ * what Aurora DSQL's `gen_random_uuid()` emits).
  */
-const bookingIdArb = fc.uuid();
+const bookingIdArb = fc.uuid({ version: 4 });
 
 /**
  * Generates a random path that does NOT match any booking endpoint.
@@ -158,6 +160,41 @@ Deno.test("property: wrong method on valid path returns 404", async () => {
       },
     ),
     { numRuns: 20 },
+  );
+});
+
+Deno.test("property: non-v4 UUID shapes on /bookings/:id return 404", async () => {
+  // The router's BOOKING_ID_REGEX enforces UUID v4 (third group starts with
+  // `4`, fourth with `[89ab]`). Aurora DSQL's gen_random_uuid() always emits
+  // v4, so anything else is malformed input and is rejected upstream without
+  // touching the DB. This property covers v1/v3/v5 and the NIL UUID.
+  const nonV4UuidArb = fc.oneof(
+    fc.uuid({ version: 1 }),
+    fc.uuid({ version: 3 }),
+    fc.uuid({ version: 5 }),
+    fc.constant("00000000-0000-0000-0000-000000000000"),
+  );
+
+  await fc.assert(
+    fc.asyncProperty(
+      fc.constantFrom("GET", "PUT", "DELETE"),
+      nonV4UuidArb,
+      async (method, id) => {
+        const opts: RequestInit = { method };
+        if (method === "PUT") {
+          opts.body = JSON.stringify({ booked_by: "test" });
+          opts.headers = { "Content-Type": "application/json" };
+        }
+
+        const req = new Request(`http://localhost:8000/bookings/${id}`, opts);
+        const res = await handleRequest(req, CTX);
+        assertEquals(res.status, 404);
+
+        const body = await res.json();
+        assertEquals(body.error, "Not Found");
+      },
+    ),
+    { numRuns: 50 },
   );
 });
 

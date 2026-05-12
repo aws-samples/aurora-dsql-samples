@@ -34,11 +34,14 @@ import type { Sql } from "./db.ts";
 const MAX_JSON_BODY_BYTES = 16 * 1024;
 
 /**
- * Strict UUID v4 (RFC 4122) path regex for booking IDs. Matching upstream
- * returns 404 for obviously malformed IDs without reaching the DB layer.
+ * Strict UUID v4 (RFC 4122) path regex for booking IDs. Enforces the v4
+ * version nibble (third group starts with `4`) and variant nibble (fourth
+ * group starts with `8`, `9`, `a`, or `b`). Aurora DSQL's
+ * `gen_random_uuid()` emits v4, so valid booking IDs always match; matching
+ * upstream returns 404 for malformed IDs without reaching the DB layer.
  */
 const BOOKING_ID_REGEX =
-  /^\/bookings\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  /^\/bookings\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // ---------------------------------------------------------------------------
 // Types

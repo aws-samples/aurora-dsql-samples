@@ -83,9 +83,11 @@ Deno.test("property: POST /bookings rejects malformed JSON with 400", async () =
 });
 
 Deno.test("property: PUT /bookings/:id rejects malformed JSON with 400", async () => {
-  // Use a well-formed UUID so the router dispatches to updateBooking;
-  // the body parser then rejects malformed JSON with HTTP 400.
-  const validUuid = "00000000-0000-0000-0000-000000000000";
+  // Use a well-formed UUID v4 so the router dispatches to updateBooking;
+  // the body parser then rejects malformed JSON with HTTP 400. The third
+  // group starts with `4` (version) and the fourth with `8` (variant) to
+  // satisfy BOOKING_ID_REGEX in handlers.ts.
+  const validUuid = "00000000-0000-4000-8000-000000000000";
   await fc.assert(
     fc.asyncProperty(nonJsonStringArb, async (badBody) => {
       const req = new Request(
