@@ -2,7 +2,7 @@ package com.example.dsql.service;
 
 import com.example.dsql.model.Product;
 import com.example.dsql.repository.ProductRepository;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -53,7 +53,7 @@ public class ProductService {
     }
 
     @Retryable(
-        retryFor = OptimisticLockingFailureException.class,
+        retryFor = ConcurrencyFailureException.class,
         maxAttempts = 4,
         backoff = @Backoff(delay = 100, multiplier = 2, random = true)
     )
