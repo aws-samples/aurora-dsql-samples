@@ -1,5 +1,4 @@
 **/.gradle/
-**/gradle/
 **/bin/
 **/build/
 **/.idea/
@@ -9,8 +8,6 @@
 **/.project/
 **/.settings/
 **/libs/software/
-**/gradlew
-**/gradlew.bat
 
 # Compiled class file
 *.class
