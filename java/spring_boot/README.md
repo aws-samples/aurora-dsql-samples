@@ -107,7 +107,7 @@ Aurora DSQL uses optimistic concurrency control instead of traditional locking. 
 
 ```java
 @Retryable(
-    retryFor = OptimisticLockingFailureException.class,
+    retryFor = ConcurrencyFailureException.class,
     maxAttempts = 4,
     backoff = @Backoff(
         delay = 100,
@@ -125,7 +125,7 @@ public void updateStock(UUID productId, int quantity) {
 
 The `@Retryable` annotation automatically retries the operation when a concurrency conflict occurs:
 
-- **Conflict detection** – Spring translates the `40001` SQL state to `OptimisticLockingFailureException`
+- **Conflict detection** – When using Hibernate/JPA, Spring translates the `40001` SQL state to `CannotAcquireLockException` (a subclass of `ConcurrencyFailureException`). We retry on `ConcurrencyFailureException` to catch all concurrency-related exceptions regardless of the persistence layer used.
 - **Automatic retry** – If a conflict occurs, the method retries up to 4 times
 - **Exponential backoff** – Wait times increase exponentially (100ms → 200ms → 400ms → 800ms)
 - **Jitter** – Random delays prevent multiple retries from colliding again (known as the 'thundering herd' problem)
