@@ -13,6 +13,7 @@ async function getConnection(clusterEndpoint, user) {
   const client = new AuroraDSQLClient({
     host: clusterEndpoint,
     user: user,
+    retry: { maxRetries: 5 },
   });
 
   await client.connect();
@@ -41,15 +42,17 @@ async function example() {
       telephone VARCHAR(20)
     )`);
 
-    // Insert some data
-    await client.query(
-      "INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)",
-      ["John Doe", "Anytown", "555-555-1900"]
-    );
+    // Transactional write with OCC retry
+    await client.transaction(async (c) => {
+      await c.query(
+        "INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)",
+        ["John Doe", "Anytown", "555-555-1900"],
+      );
+    });
 
     // Check that data is inserted by reading it back
     const result = await client.query(
-      "SELECT id, city FROM owner where name='John Doe'"
+      "SELECT id, city FROM owner where name='John Doe'",
     );
     assert.deepEqual(result.rows[0].city, "Anytown");
     assert.notEqual(result.rows[0].id, null);
