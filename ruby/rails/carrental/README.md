@@ -122,7 +122,7 @@ The application runs in **private subnets** behind a **NAT Gateway** for outboun
 | `customers` | Customer information with name, email, phone, and driver's license number |
 | `reservations` | Rental reservations linking customers to vehicles with dates, status (`pending`, `active`, `completed`, `cancelled`), and auto-calculated pricing |
 
-> **Note:** Foreign key constraints are not supported by Aurora DSQL. Referential integrity is enforced at the application layer through Active Record associations and validations.
+> **Note:** This sample uses application-layer referential integrity. Relationships are enforced through Active Record associations and validations.
 
 ---
 
@@ -130,12 +130,12 @@ The application runs in **private subnets** behind a **NAT Gateway** for outboun
 
 | Decision | Rationale |
 |----------|-----------|
-| **UUID Primary Keys** | Aurora DSQL does not support sequences or `SERIAL` columns. All tables use UUID primary keys generated in Ruby via `SecureRandom.uuid`. |
-| **No Foreign Key Constraints** | DSQL does not support foreign key constraints. Relationships are enforced through Active Record `belongs_to`/`has_many` associations and presence validations. |
+| **UUID Primary Keys** | UUIDs distribute writes evenly across storage nodes. Generated in Ruby via `SecureRandom.uuid`. |
+| **Application-Layer Referential Integrity** | Relationships are enforced through Active Record `belongs_to`/`has_many` associations and presence validations. |
 | **IAM Token Authentication** | Instead of static passwords, the application generates short-lived IAM authentication tokens on each new database connection via the `aurora-dsql-ruby-pg` gem. |
-| **Disabled PostgreSQL Features** | The DSQL adapter initializer disables `prepared_statements`, `advisory_locks`, `supports_ddl_transactions?`, `client_min_messages=`, and `set_standard_conforming_strings` — none of which are supported by DSQL. |
-| **SSL Required** | All connections use `sslmode: verify-full` with `sslnegotiation: direct` and the Amazon Root CA certificate. |
 | **SQLite3 for Development** | Local development uses SQLite3 so developers don't need a PostgreSQL installation. The DSQL adapter initializer only activates when the PostgreSQL adapter is in use (production). |
+
+For Aurora DSQL best practices and SQL compatibility details, see the [Aurora DSQL documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility.html).
 
 ---
 

@@ -1,0 +1,14 @@
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-env --allow-read --allow-sys main.ts",
+    "test": "deno test --allow-net --allow-env --allow-read --allow-sys",
+    "test:property": "deno test --allow-net --allow-env --allow-read --allow-sys --filter property",
+    "test:integration": "deno test --allow-net --allow-env --allow-read --allow-sys --filter integration",
+    "test:occ-race": "deno test --allow-net --allow-env --allow-read --allow-sys --filter occ-race"
+  },
+  "imports": {
+    "@aws/aurora-dsql-postgresjs-connector": "npm:@aws/aurora-dsql-postgresjs-connector@^0.2",
+    "fast-check": "npm:fast-check@^4",
+    "@std/assert": "jsr:@std/assert@^1"
+  }
+}

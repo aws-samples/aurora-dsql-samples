@@ -79,7 +79,7 @@ pytest
 
 Aurora DSQL is PostgreSQL-compatible, so use the `postgresql+psycopg` dialect. The Aurora DSQL Python Connector handles IAM token generation automatically. Pass a connection creator to SQLAlchemy's `create_engine`.
 
-Aurora DSQL does not support `SAVEPOINT`, which SQLAlchemy's psycopg dialect uses during initialization. Set `isolation_level="AUTOCOMMIT"` and `autocommit=True` on the connection to avoid this:
+Set `isolation_level="AUTOCOMMIT"` and `autocommit=True` on the connection to avoid SQLAlchemy's psycopg dialect issuing `SAVEPOINT` during initialization:
 
 ```python
 import aurora_dsql_psycopg as dsql
@@ -119,9 +119,9 @@ id: Mapped[UUID] = mapped_column(
 )
 ```
 
-### Relationships without foreign key constraints
+### Relationships with application-layer referential integrity
 
-Aurora DSQL supports JOIN operations but does not enforce foreign key constraints. Do not use `ForeignKey()` in column definitions. Instead, define relationships using `relationship()` with explicit `primaryjoin` and `foreign()` annotations:
+This sample uses application-layer referential integrity. Define relationships using `relationship()` with explicit `primaryjoin` and `foreign()` annotations instead of `ForeignKey()`:
 
 ```python
 from sqlalchemy.orm import relationship, foreign
@@ -140,6 +140,8 @@ Pet.owner = relationship(Owner, primaryjoin=foreign(Pet.owner_id) == Owner.id, b
 ```
 
 The `foreign()` annotation tells SQLAlchemy which column is the "foreign" side of the join, replacing the role that `ForeignKey()` normally plays.
+
+For the full list of Aurora DSQL SQL compatibility details, see the [PostgreSQL compatibility reference](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility.html).
 
 ## Additional resources
 * [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)

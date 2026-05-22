@@ -1,0 +1,63 @@
+name: PR Slack Notifications to dsql-jumpstart-crux
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  pull_request_target:
+    types: [review_requested]
+
+permissions:
+  contents: read
+
+jobs:
+  notify-new-pr:
+    if: github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack of new PR
+        env:
+          REPO: ${{ github.repository }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg content ":github-pr-open: *New PR* in \`$REPO\`
+          *$PR_TITLE*
+          Author: $PR_AUTHOR
+          Link: $PR_URL" \
+            '{Content: $content}')"
+
+  notify-team-review:
+    if: github.event.action == 'review_requested'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if team review requested
+        id: check_team
+        env:
+          TEAMS_JSON: ${{ toJSON(github.event.pull_request.requested_teams) }}
+        run: |
+          MATCH=$(echo "$TEAMS_JSON" | jq '[.[] | select(.slug == "aws-aurora-dsql-maintainers" or .slug == "agent-plugins-dsql" or .slug == "aurora-dsql-maintainers")] | length')
+          echo "team_match=$MATCH" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Slack of team review request
+        if: steps.check_team.outputs.team_match != '0'
+        env:
+          TEAMS_JSON: ${{ toJSON(github.event.pull_request.requested_teams) }}
+          REPO: ${{ github.repository }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          TEAM_NAMES=$(echo "$TEAMS_JSON" | jq -r '[.[] | .slug] | join(", ")')
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg content ":eyes: *Team review requested* in \`$REPO\`
+          *$PR_TITLE*
+          Teams: ${TEAM_NAMES}
+          Author: $PR_AUTHOR
+          Link: $PR_URL" \
+            '{Content: $content}')"

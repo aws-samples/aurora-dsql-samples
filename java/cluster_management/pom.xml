@@ -12,14 +12,14 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <mainClass>org.example.Example</mainClass>
-        <project.build.awssdk.version>2.43.0</project.build.awssdk.version>
+        <project.build.awssdk.version>2.44.11</project.build.awssdk.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>6.0.3</version>
+            <version>6.1.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -36,7 +36,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-nop</artifactId>
-            <version>2.0.17</version>
+            <version>2.0.18</version>
             <scope>runtime</scope>
         </dependency>
     </dependencies>
