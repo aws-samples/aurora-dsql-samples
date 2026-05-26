@@ -9,6 +9,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -83,35 +84,39 @@ public class ExamplePreferred {
 
     private void executeExample(Connection conn, int connectionNumber) throws SQLException {
         // Create a new table named owner
-        Statement create = conn.createStatement();
-        create.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS owner(
-                id uuid NOT NULL DEFAULT gen_random_uuid(),
-                name varchar(30) NOT NULL,
-                city varchar(80) NOT NULL,
-                telephone varchar(20) DEFAULT NULL,
-                PRIMARY KEY (id))""");
-        create.close();
+        try (Statement create = conn.createStatement()) {
+            create.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS owner(
+                    id uuid NOT NULL DEFAULT gen_random_uuid(),
+                    name varchar(30) NOT NULL,
+                    city varchar(80) NOT NULL,
+                    telephone varchar(20) DEFAULT NULL,
+                    PRIMARY KEY (id))""");
+        }
 
         // Insert some data with a unique identifier
         String uniqueName = "John Doe " + System.currentTimeMillis() + "_" + connectionNumber;
-        Statement insert = conn.createStatement();
-        insert.executeUpdate(
-                "INSERT INTO owner (name, city, telephone) VALUES ('" + uniqueName + "', 'Anytown', '555-555-1991')");
-        insert.close();
+        try (PreparedStatement insert = conn.prepareStatement(
+                "INSERT INTO owner (name, city, telephone) VALUES (?, ?, ?)")) {
+            insert.setString(1, uniqueName);
+            insert.setString(2, "Anytown");
+            insert.setString(3, "555-555-1991");
+            insert.executeUpdate();
+        }
 
         // Read back the data and verify
-        String selectSQL = "SELECT * FROM owner WHERE name = '" + uniqueName + "'";
-        Statement read = conn.createStatement();
-        ResultSet rs = read.executeQuery(selectSQL);
-        while (rs.next()) {
-            assert rs.getString("id") != null;
-            assert rs.getString("name").equals(uniqueName);
-            assert rs.getString("city").equals("Anytown");
-            assert rs.getString("telephone").equals("555-555-1991");
-            System.out.println("Data verified: " + rs.getString("name") + " from " + rs.getString("city"));
+        try (PreparedStatement read = conn.prepareStatement("SELECT * FROM owner WHERE name = ?")) {
+            read.setString(1, uniqueName);
+            try (ResultSet rs = read.executeQuery()) {
+                while (rs.next()) {
+                    assert rs.getString("id") != null;
+                    assert rs.getString("name").equals(uniqueName);
+                    assert rs.getString("city").equals("Anytown");
+                    assert rs.getString("telephone").equals("555-555-1991");
+                    System.out.println("Data verified: " + rs.getString("name") + " from " + rs.getString("city"));
+                }
+            }
         }
-        read.close();
     }
 
     public static void main(String[] args) throws SQLException {
@@ -148,10 +153,10 @@ public class ExamplePreferred {
                 example.executeExample(conn3, 3);
             }
 
-            try (Connection conn = example.getConnection()) {
-                Statement cleanup = conn.createStatement();
-                int deletedRows = cleanup.executeUpdate("DELETE FROM owner WHERE name LIKE '%John Doe%'");
-                cleanup.close();
+            try (Connection conn = example.getConnection();
+                 PreparedStatement cleanup = conn.prepareStatement("DELETE FROM owner WHERE name LIKE ?")) {
+                cleanup.setString(1, "%John Doe%");
+                int deletedRows = cleanup.executeUpdate();
 
                 System.out.println("Cleaned up " + deletedRows + " test records");
             }
