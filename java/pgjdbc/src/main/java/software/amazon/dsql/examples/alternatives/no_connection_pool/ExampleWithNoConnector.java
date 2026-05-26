@@ -12,6 +12,7 @@ import software.amazon.awssdk.regions.Region;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -67,43 +68,48 @@ public class ExampleWithNoConnector {
 
         try (Connection conn = ExampleWithNoConnector.getConnection(clusterEndpoint, clusterUser, region)) {
             if (!clusterUser.equals("admin")) {
-                Statement setSchema = conn.createStatement();
-                setSchema.execute("SET search_path=myschema");
-                setSchema.close();
+                try (Statement setSchema = conn.createStatement()) {
+                    setSchema.execute("SET search_path=myschema");
+                }
             }
             // Create a new table named owner
-            Statement create = conn.createStatement();
-            create.executeUpdate("""
-                    CREATE TABLE IF NOT EXISTS owner(
-                    id uuid NOT NULL DEFAULT gen_random_uuid(),
-                    name varchar(30) NOT NULL,
-                    city varchar(80) NOT NULL,
-                    telephone varchar(20) DEFAULT NULL,
-                    PRIMARY KEY (id))""");
-            create.close();
+            try (Statement create = conn.createStatement()) {
+                create.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS owner(
+                        id uuid NOT NULL DEFAULT gen_random_uuid(),
+                        name varchar(30) NOT NULL,
+                        city varchar(80) NOT NULL,
+                        telephone varchar(20) DEFAULT NULL,
+                        PRIMARY KEY (id))""");
+            }
 
             // Insert some data
-            Statement insert = conn.createStatement();
-            insert.executeUpdate(
-                    "INSERT INTO owner (name, city, telephone) VALUES ('John Doe', 'Anytown', '555-555-1999')");
-            insert.close();
+            try (PreparedStatement insert = conn.prepareStatement(
+                    "INSERT INTO owner (name, city, telephone) VALUES (?, ?, ?)")) {
+                insert.setString(1, "John Doe");
+                insert.setString(2, "Anytown");
+                insert.setString(3, "555-555-1999");
+                insert.executeUpdate();
+            }
 
             // Read back the data and assert they are present
-            String selectSQL = "SELECT * FROM owner";
-            Statement read = conn.createStatement();
-            ResultSet rs = read.executeQuery(selectSQL);
-            while (rs.next()) {
-                assert rs.getString("id") != null;
-                assert rs.getString("name").equals("John Doe");
-                assert rs.getString("city").equals("Anytown");
-                assert rs.getString("telephone").equals("555-555-1999");
+            try (PreparedStatement read = conn.prepareStatement("SELECT * FROM owner WHERE name = ?")) {
+                read.setString(1, "John Doe");
+                try (ResultSet rs = read.executeQuery()) {
+                    while (rs.next()) {
+                        assert rs.getString("id") != null;
+                        assert rs.getString("name").equals("John Doe");
+                        assert rs.getString("city").equals("Anytown");
+                        assert rs.getString("telephone").equals("555-555-1999");
+                    }
+                }
             }
 
             // Delete some data
-            String deleteSql = String.format("DELETE FROM owner where name='John Doe'");
-            Statement delete = conn.createStatement();
-            delete.executeUpdate(deleteSql);
-            delete.close();
+            try (PreparedStatement delete = conn.prepareStatement("DELETE FROM owner WHERE name = ?")) {
+                delete.setString(1, "John Doe");
+                delete.executeUpdate();
+            }
         }
         System.out.println("Connection exercised successfully");
     }
