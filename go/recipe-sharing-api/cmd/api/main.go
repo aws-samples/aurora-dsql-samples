@@ -1,9 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 
-// Command api runs the Recipe Sharing API locally using Gin and SQLite.
-// This entrypoint is for local development only. For production deployment
-// on AWS Lambda with Amazon Aurora DSQL, use cmd/lambda/main.go.
+// Command api runs the Recipe Sharing API as a local HTTP server backed
+// by Amazon Aurora DSQL. This entrypoint is useful for local testing
+// against a remote DSQL cluster. For production deployment on AWS Lambda,
+// use cmd/lambda/main.go.
 package main
 
 import (
@@ -20,31 +21,34 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
+
+	// Read the Amazon Aurora DSQL endpoint from the environment.
+	endpoint := os.Getenv("DSQL_ENDPOINT")
+	if endpoint == "" {
+		log.Fatal("DSQL_ENDPOINT environment variable is required")
+	}
+
+	// Create the Amazon Aurora DSQL store with IAM token-based authentication.
+	dsqlStore, err := store.NewDSQLStore(ctx, endpoint)
+	if err != nil {
+		log.Fatalf("Failed to connect to Amazon Aurora DSQL: %v", err)
+	}
+	defer dsqlStore.Close()
+
+	// Create the database schema if it does not already exist.
+	if err := dsqlStore.InitSchema(ctx); err != nil {
+		log.Fatalf("Failed to initialize database schema: %v", err)
+	}
+
 	// Determine the listen port from the environment, defaulting to 8080.
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	// Open the SQLite database for local development.
-	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		dbPath = "recipe_share.db"
-	}
-
-	sqliteStore, err := store.NewSQLiteStore(dbPath)
-	if err != nil {
-		log.Fatalf("Failed to open SQLite database: %v", err)
-	}
-	defer sqliteStore.Close()
-
-	// Create the database tables if they do not already exist.
-	if err := sqliteStore.InitSchema(context.Background()); err != nil {
-		log.Fatalf("Failed to initialize database schema: %v", err)
-	}
-
-	// Build the Gin router with the SQLite store.
-	r := router.New(sqliteStore)
+	// Build the Gin router with the DSQL store.
+	r := router.New(dsqlStore)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
@@ -53,7 +57,7 @@ func main() {
 
 	// Start the server in a goroutine so we can handle graceful shutdown.
 	go func() {
-		log.Printf("Recipe Sharing API listening on http://localhost:%s", port)
+		log.Printf("Recipe Sharing API listening on http://localhost:%s (Aurora DSQL: %s)", port, endpoint)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
@@ -65,9 +69,9 @@ func main() {
 	<-quit
 	log.Println("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 	log.Println("Server stopped")

@@ -2,7 +2,7 @@
 
 ## Go + Gin + Amazon Aurora DSQL
 
-A recipe sharing API built with **Go 1.25** and the **Gin** web framework, backed by **Amazon Aurora DSQL** in production and **SQLite** for local development. Deployed to AWS as an **AWS Lambda** function behind **Amazon API Gateway** (REST API), with infrastructure defined in **AWS CloudFormation**.
+A recipe sharing API built with **Go 1.26** and the **Gin** web framework, backed by **Amazon Aurora DSQL** (PostgreSQL-compatible). Deployed to AWS as an **AWS Lambda** function behind **Amazon API Gateway** (REST API), with infrastructure defined in **AWS CloudFormation**.
 
 This project serves as the companion code sample for an AWS technical blog post demonstrating how to use Go with Amazon Aurora DSQL.
 
@@ -13,7 +13,7 @@ This project serves as the companion code sample for an AWS technical blog post 
 ### Local Development
 
 ```
-Gin HTTP Server (port 8080) → SQLite
+Gin HTTP Server (port 8080) → Amazon Aurora DSQL
 ```
 
 ### Production (AWS)
@@ -88,7 +88,7 @@ Foreign key constraints are not used in this sample. Referential integrity is en
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| **Go** | 1.24+ | Build the API binary |
+| **Go** | 1.26+ | Build the API binary |
 | **AWS CLI** | v2.x | Deploy to AWS |
 | **python3** | 3.x | JSON parsing in test script |
 | **jq** | 1.6+ | Parse deployment outputs |
@@ -97,19 +97,20 @@ Foreign key constraints are not used in this sample. Referential integrity is en
 You also need:
 - An AWS account with permissions to create Lambda, API Gateway, IAM, CloudWatch, S3, and CloudFormation resources
 - An Amazon Aurora DSQL cluster (created separately)
+- AWS credentials configured locally (needed for both local development and deployment)
 
 ---
 
 ## Local Development
 
-No AWS credentials or Amazon Aurora DSQL cluster are required for local development. The API uses SQLite locally.
+An Amazon Aurora DSQL cluster and valid AWS credentials are required for local development.
 
 ```bash
 # Install dependencies
 go mod tidy
 
-# Run the API server
-go run cmd/api/main.go
+# Run the API server (replace with your cluster endpoint)
+DSQL_ENDPOINT=<your-cluster-id>.dsql.<region>.on.aws go run cmd/api/main.go
 ```
 
 The API is available at `http://localhost:8080`.
@@ -177,12 +178,12 @@ The script validates prerequisites, cross-compiles the Go binary for Linux/ARM64
 
 ```
 ├── cmd/
-│   ├── api/main.go              # Local dev entrypoint (Gin + SQLite)
-│   └── lambda/main.go           # Production entrypoint (Gin + Lambda + DSQL)
+│   ├── api/main.go              # Local dev entrypoint (Gin + Aurora DSQL)
+│   └── lambda/main.go           # Production entrypoint (Gin + Lambda + Aurora DSQL)
 ├── internal/
 │   ├── handler/                 # Gin route handlers (chef, recipe, rating, health)
 │   ├── model/                   # Data structs and input/output types
-│   ├── store/                   # Store interface + SQLite and DSQL implementations
+│   ├── store/                   # Store interface + Aurora DSQL implementation
 │   ├── middleware/              # Request logging and CORS middleware
 │   └── router/                  # Gin router setup and route registration
 ├── infrastructure/
@@ -190,9 +191,6 @@ The script validates prerequisites, cross-compiles the Go binary for Linux/ARM64
 ├── deploy.sh                    # Deployment script
 ├── test-api.sh                  # API smoke test script
 ├── go.mod / go.sum              # Go module dependencies
-├── .gitignore
-├── DESIGN_SPECIFICATION.md      # Detailed design document
-├── TASK_LIST.md                 # Implementation task tracking
 └── README.md
 ```
 
@@ -218,14 +216,13 @@ For Aurora DSQL best practices and SQL compatibility details, see the [Aurora DS
 | Variable | Description |
 |----------|-------------|
 | `DSQL_ENDPOINT` | Amazon Aurora DSQL cluster endpoint |
-| `DB_TYPE` | Set to `dsql` (configured by CloudFormation) |
 
 ### Local Development
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `DSQL_ENDPOINT` | *(required)* | Amazon Aurora DSQL cluster endpoint |
 | `PORT` | `8080` | HTTP listen port |
-| `DB_PATH` | `recipe_share.db` | SQLite database file path |
 
 ---
 
