@@ -14,9 +14,9 @@ import (
 
 func setupStore(t *testing.T) (*store.DSQLStore, context.Context) {
 	t.Helper()
-	endpoint := os.Getenv("CLUSTER_ENDPOINT")
+	endpoint := os.Getenv("DSQL_ENDPOINT")
 	if endpoint == "" {
-		t.Fatal("CLUSTER_ENDPOINT environment variable is required")
+		t.Fatal("DSQL_ENDPOINT environment variable is required")
 	}
 	ctx := context.Background()
 	s, err := store.NewDSQLStore(ctx, endpoint)

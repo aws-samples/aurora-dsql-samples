@@ -11,8 +11,8 @@ import (
 )
 
 // New creates a Gin engine with middleware and all API routes registered.
-// The store parameter allows the router to work with either the SQLite
-// store (local development) or the Amazon Aurora DSQL store (production).
+// The store parameter allows the router to work with any implementation
+// of the Store interface (e.g., the Amazon Aurora DSQL store).
 func New(s store.Store) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
