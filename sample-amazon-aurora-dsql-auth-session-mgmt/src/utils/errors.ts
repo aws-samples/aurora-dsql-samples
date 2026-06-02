@@ -14,13 +14,22 @@
  *
  * Subclasses set `statusCode` and `code` so the global error handler can
  * build the correct `ApiResponse` without inspecting error messages.
+ *
+ * The optional `cause` (forwarded to `Error`'s standard ErrorOptions) lets
+ * callers attach an underlying error for forensic logging without exposing
+ * it to API clients.
  */
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly code: string;
 
-  constructor(message: string, statusCode: number, code: string) {
-    super(message);
+  constructor(
+    message: string,
+    statusCode: number,
+    code: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
     this.name = this.constructor.name;
     this.statusCode = statusCode;
     this.code = code;
@@ -82,7 +91,10 @@ export class InvalidSessionError extends AppError {
  * request from being fulfilled right now.
  */
 export class ServiceUnavailableError extends AppError {
-  constructor(message: string = 'Service temporarily unavailable') {
-    super(message, 503, 'SERVICE_UNAVAILABLE');
+  constructor(
+    message: string = 'Service temporarily unavailable',
+    options?: ErrorOptions,
+  ) {
+    super(message, 503, 'SERVICE_UNAVAILABLE', options);
   }
 }

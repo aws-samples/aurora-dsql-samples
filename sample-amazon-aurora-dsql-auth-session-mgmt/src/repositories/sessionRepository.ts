@@ -45,9 +45,12 @@ export interface PoolLike {
 
 /**
  * Minimal interface for a database client obtained from the pool.
+ *
+ * `rowCount` mirrors the `pg` driver's contract for DML statements. Tests
+ * and mocks must populate it for write operations.
  */
 export interface ClientLike {
-  query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  query(sql: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[]; rowCount?: number }>;
   release(): void;
 }
 
@@ -130,7 +133,14 @@ export function createSessionRepository(pool: PoolLike) {
 
           await client.query('COMMIT');
         } catch (error: unknown) {
-          await client.query('ROLLBACK');
+          // Best-effort rollback. If ROLLBACK itself throws (e.g. dead
+          // connection), preserve the *original* error so the caller still
+          // sees the SQLSTATE that drove the failure.
+          try {
+            await client.query('ROLLBACK');
+          } catch {
+            // swallow — re-throwing the original error below is more useful
+          }
           throw error;
         } finally {
           client.release();
@@ -195,28 +205,49 @@ export function createSessionRepository(pool: PoolLike) {
     },
 
     /**
-     * Revoke a single session by setting its `revoked_at` timestamp.
+     * Revoke a single session for a specific user.
      *
-     * The write is wrapped in the OCC retry utility for transient
-     * serialization error handling.
+     * Authorization is enforced at the SQL layer: the WHERE clause filters
+     * by both `id` AND `user_id`, so a request to revoke a session that
+     * belongs to a different user matches zero rows and returns `false`.
+     * This prevents Insecure Direct Object Reference (IDOR) — an attacker
+     * who guesses or steals another user's session ID cannot revoke it.
+     *
+     * @param userId    - The authenticated user (used as an authorization filter).
+     * @param sessionId - The session to revoke.
+     * @returns `true` when a row was updated (session belonged to the user
+     *          and was active); `false` when nothing matched (wrong user,
+     *          unknown session ID, or already revoked).
      */
-    async revokeById(sessionId: string): Promise<void> {
-      await retryWithBackoff(async () => {
+    async revokeByIdForUser(
+      userId: string,
+      sessionId: string,
+    ): Promise<boolean> {
+      return retryWithBackoff(async () => {
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
 
-          await client.query(
+          const result = await client.query(
             `UPDATE sessions
              SET revoked_at = NOW()
              WHERE id = $1
+               AND user_id = $2
                AND revoked_at IS NULL`,
-            [sessionId],
+            [sessionId, userId],
           );
 
           await client.query('COMMIT');
+
+          return getRowCount(result) > 0;
         } catch (error: unknown) {
-          await client.query('ROLLBACK');
+          // Best-effort rollback. Preserve the *original* error if ROLLBACK
+          // also throws (e.g. dead connection) so callers see the real cause.
+          try {
+            await client.query('ROLLBACK');
+          } catch {
+            // swallow — re-throwing the original error below is more useful
+          }
           throw error;
         } finally {
           client.release();
@@ -289,7 +320,13 @@ export function createSessionRepository(pool: PoolLike) {
             // Our mock interface returns it via rows.length or a rowCount prop.
             return getRowCount(result);
           } catch (error: unknown) {
-            await client.query('ROLLBACK');
+            // Best-effort rollback. Preserve the *original* error if
+            // ROLLBACK also throws.
+            try {
+              await client.query('ROLLBACK');
+            } catch {
+              // swallow — re-throwing the original error below is more useful
+            }
             throw error;
           } finally {
             client.release();
@@ -312,7 +349,9 @@ export function createSessionRepository(pool: PoolLike) {
  * Maps a raw database row to a typed `Session` object.
  *
  * Handles the conversion of timestamp strings to `Date` objects and parses
- * the JSONB `client_metadata` column.
+ * the `client_metadata` column. Note: `client_metadata` is a TEXT column
+ * (Aurora DSQL does not support JSONB at this time), so the value is
+ * stored as a JSON-encoded string.
  */
 function mapRowToSession(row: Record<string, unknown>): Session {
   return {
@@ -329,14 +368,23 @@ function mapRowToSession(row: Record<string, unknown>): Session {
 /**
  * Safely parses the `client_metadata` column value.
  *
- * PostgreSQL's `pg` driver may return JSONB columns as already-parsed objects
- * or as raw strings depending on configuration. This helper handles both.
+ * The column is TEXT (Aurora DSQL does not support JSONB), so the `pg`
+ * driver always returns a string. We accept both string and pre-parsed
+ * object shapes for robustness against future driver changes or test mocks.
+ *
+ * If the stored value is not valid JSON, log the error rather than
+ * silently returning an empty object — that way operators can detect
+ * corruption or out-of-band writers that bypass `JSON.stringify`.
  */
 function parseClientMetadata(value: unknown): ClientMetadata {
   if (typeof value === 'string') {
     try {
       return JSON.parse(value) as ClientMetadata;
-    } catch {
+    } catch (error) {
+      console.warn(
+        '[sessionRepository] failed to parse client_metadata; defaulting to {}',
+        { error: error instanceof Error ? error.message : String(error) },
+      );
       return {};
     }
   }
@@ -349,13 +397,16 @@ function parseClientMetadata(value: unknown): ClientMetadata {
 /**
  * Extracts the row count from a query result.
  *
- * The `pg` library includes a `rowCount` property on DML results. Our narrow
- * `ClientLike` interface doesn't expose it directly, so we check for it at
- * runtime and fall back to 0.
+ * The `pg` library always sets `rowCount` for DML statements. We treat a
+ * missing value as a programming error rather than silently returning 0,
+ * because callers (e.g. the batch-revoke loop) rely on the value to know
+ * when to stop iterating.
  */
 function getRowCount(result: { rows: Record<string, unknown>[]; rowCount?: number }): number {
   if (typeof result.rowCount === 'number') {
     return result.rowCount;
   }
-  return 0;
+  throw new Error(
+    'Database driver did not return rowCount on a DML result; cannot determine affected rows',
+  );
 }

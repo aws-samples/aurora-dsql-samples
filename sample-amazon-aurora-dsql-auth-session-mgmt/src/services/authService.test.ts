@@ -156,6 +156,32 @@ describe('AuthService', () => {
       ).rejects.toThrow(AuthenticationError);
     });
 
+    it('runs dummyVerify in the no-user branch so login latency is independent of email existence (anti-enumeration)', async () => {
+      // Spy on bcrypt.compare to count calls. The timing-attack mitigation
+      // requires that the no-user branch perform the same bcrypt work as
+      // the wrong-password branch. We assert at least one bcrypt.compare
+      // happens before the AuthenticationError is thrown.
+      const bcrypt = (await import('bcryptjs')).default;
+      const compareSpy = vi.spyOn(bcrypt, 'compare');
+
+      userRepository = createMockUserRepository({
+        findByEmail: vi.fn(async () => null),
+      });
+      const authService = createAuthService({ userRepository, sessionService });
+
+      await expect(
+        authService.login('missing@example.com', 'whatever'),
+      ).rejects.toThrow(AuthenticationError);
+
+      // The dummyVerify path called bcrypt.compare once. Without the
+      // mitigation this spy would have zero calls when the user is
+      // missing, vs one call when the password is wrong — exactly the
+      // timing oracle the fix removes.
+      expect(compareSpy).toHaveBeenCalledTimes(1);
+
+      compareSpy.mockRestore();
+    });
+
     it('should throw AuthenticationError when password is incorrect', async () => {
       const { hash } = await import('../utils/passwordHasher');
       const passwordHash = await hash('correctPassword1');

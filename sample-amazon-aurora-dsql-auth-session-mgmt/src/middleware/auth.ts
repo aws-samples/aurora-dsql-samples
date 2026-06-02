@@ -90,14 +90,24 @@ export function createAuthMiddleware(deps: {
     // Step 1 — Extract the Bearer token from the Authorization header.
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader) {
       return next(new InvalidSessionError('Authorization header is required'));
     }
 
-    const token = authHeader.slice(7); // Remove "Bearer " prefix
+    if (!authHeader.startsWith('Bearer ')) {
+      return next(
+        new InvalidSessionError(
+          'Authorization header must use the Bearer scheme',
+        ),
+      );
+    }
+
+    const token = authHeader.slice(7).trim(); // Remove "Bearer " prefix and any padding
 
     if (token.length === 0) {
-      return next(new InvalidSessionError('Authorization header is required'));
+      return next(
+        new InvalidSessionError('Bearer token is missing from Authorization header'),
+      );
     }
 
     try {

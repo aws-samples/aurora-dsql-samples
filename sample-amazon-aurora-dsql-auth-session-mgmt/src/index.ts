@@ -16,6 +16,7 @@
 //  12.3 — Connection pool with bounded size
 // ---------------------------------------------------------------------------
 
+import { RequestHandler } from 'express';
 import { getPool, closePool } from './db/connection';
 import { runMigrations } from './db/migrate';
 import { createUserRepository } from './repositories/userRepository';
@@ -71,7 +72,15 @@ async function main(): Promise<void> {
   const authMiddleware = createAuthMiddleware({ sessionService, userRepository });
 
   // Step 5 — Create the fully-wired Express application.
-  const app = createApp({ authService, sessionService, authMiddleware });
+  // The middleware augments the request with `user` and `sessionId` after
+  // running. Cast to the standard `RequestHandler` signature for wiring;
+  // the augmented properties are read inside route handlers via an
+  // `AuthenticatedRequest` cast.
+  const app = createApp({
+    authService,
+    sessionService,
+    authMiddleware: authMiddleware as RequestHandler,
+  });
 
   // Step 6 — Start the HTTP server.
   const PORT = parseInt(process.env.PORT || '3000', 10);

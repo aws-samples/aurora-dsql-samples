@@ -67,7 +67,14 @@ export interface SessionRepositoryLike {
   }): Promise<void>;
   findByTokenHash(tokenHash: string): Promise<Session | null>;
   findActiveByUserId(userId: string): Promise<Session[]>;
-  revokeById(sessionId: string): Promise<void>;
+  /**
+   * Revoke a session that belongs to a specific user. The repository's
+   * UPDATE is filtered by both `id` and `user_id`, returning `true` only
+   * when a row was actually updated. This is the authorization boundary
+   * for session revocation — a user passing another user's session ID
+   * matches zero rows and gets `false`.
+   */
+  revokeByIdForUser(userId: string, sessionId: string): Promise<boolean>;
   revokeAllByUserId(userId: string, excludeSessionId?: string): Promise<number>;
 }
 
@@ -202,16 +209,27 @@ export function createSessionService(deps: {
     },
 
     /**
-     * Revoke a specific session.
+     * Revoke a specific session that belongs to the given user.
      *
-     * Marks the session as revoked so subsequent validation attempts for
-     * its token will be rejected (Requirement 6.1, 6.3).
+     * The user ID is used as an authorization filter — the underlying
+     * repository UPDATE matches `WHERE id = $sessionId AND user_id = $userId`,
+     * so a request to revoke a session belonging to a different user
+     * matches zero rows and throws `InvalidSessionError`. This prevents
+     * Insecure Direct Object Reference (IDOR): an attacker who guesses or
+     * obtains another user's session ID cannot revoke it.
      *
-     * @param userId    - The authenticated user's identifier (for authorization).
+     * Requirements: 6.1, 6.3.
+     *
+     * @param userId    - The authenticated user (authorization scope).
      * @param sessionId - The session to revoke.
+     * @throws {InvalidSessionError} If the session does not exist, has
+     *   already been revoked, or belongs to a different user.
      */
     async revokeSession(userId: string, sessionId: string): Promise<void> {
-      await sessionRepository.revokeById(sessionId);
+      const revoked = await sessionRepository.revokeByIdForUser(userId, sessionId);
+      if (!revoked) {
+        throw new InvalidSessionError('Session not found');
+      }
     },
 
     /**

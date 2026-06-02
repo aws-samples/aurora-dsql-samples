@@ -92,7 +92,7 @@ describe('createAuthMiddleware', () => {
 
     expect(next).toHaveBeenCalledWith(expect.any(InvalidSessionError));
     expect((next.mock.calls[0][0] as InvalidSessionError).message).toBe(
-      'Authorization header is required',
+      'Authorization header must use the Bearer scheme',
     );
   });
 
@@ -106,8 +106,10 @@ describe('createAuthMiddleware', () => {
     await middleware(req, mockRes(), next);
 
     expect(next).toHaveBeenCalledWith(expect.any(InvalidSessionError));
+    // Distinct from the "no header" message — this case is "header is
+    // present and uses the Bearer scheme, but the token slot is empty".
     expect((next.mock.calls[0][0] as InvalidSessionError).message).toBe(
-      'Authorization header is required',
+      'Bearer token is missing from Authorization header',
     );
   });
 

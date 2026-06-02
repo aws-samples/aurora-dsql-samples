@@ -20,7 +20,7 @@ function createMockSessionRepository(
     create: vi.fn(async () => {}),
     findByTokenHash: vi.fn(async () => null),
     findActiveByUserId: vi.fn(async () => []),
-    revokeById: vi.fn(async () => {}),
+    revokeByIdForUser: vi.fn(async () => true),
     revokeAllByUserId: vi.fn(async () => 0),
     ...overrides,
   };
@@ -243,12 +243,48 @@ describe('SessionService', () => {
   // -----------------------------------------------------------------------
 
   describe('revokeSession', () => {
-    it('should delegate to the repository revokeById', async () => {
+    it('passes both userId and sessionId to revokeByIdForUser so the repository enforces ownership', async () => {
       const service = createSessionService({ sessionRepository });
 
       await service.revokeSession('user-1', 'session-42');
 
-      expect(sessionRepository.revokeById).toHaveBeenCalledWith('session-42');
+      // Assertion #1: ownership scope is forwarded to the repository call.
+      expect(sessionRepository.revokeByIdForUser).toHaveBeenCalledWith(
+        'user-1',
+        'session-42',
+      );
+    });
+
+    it('throws InvalidSessionError when the repository reports no row was updated (cross-user IDOR or unknown id)', async () => {
+      // Simulate the SQL-layer authorization filter rejecting the revoke:
+      // either the session ID does not exist, is already revoked, or
+      // belongs to a different user. The repository returns false; the
+      // service must surface this as InvalidSessionError so an attacker
+      // cannot distinguish the cases.
+      sessionRepository = createMockSessionRepository({
+        revokeByIdForUser: vi.fn(async () => false),
+      });
+      const service = createSessionService({ sessionRepository });
+
+      await expect(
+        service.revokeSession('attacker-user', 'victim-session-id'),
+      ).rejects.toThrow(InvalidSessionError);
+
+      expect(sessionRepository.revokeByIdForUser).toHaveBeenCalledWith(
+        'attacker-user',
+        'victim-session-id',
+      );
+    });
+
+    it('does not throw when the repository confirms the row was updated', async () => {
+      sessionRepository = createMockSessionRepository({
+        revokeByIdForUser: vi.fn(async () => true),
+      });
+      const service = createSessionService({ sessionRepository });
+
+      await expect(
+        service.revokeSession('user-1', 'session-42'),
+      ).resolves.toBeUndefined();
     });
   });
 

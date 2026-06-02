@@ -110,7 +110,14 @@ export function createUserRepository(pool: PoolLike) {
             createdAt: new Date(row.createdAt as string),
           };
         } catch (error: unknown) {
-          await client.query('ROLLBACK');
+          // Best-effort rollback. If ROLLBACK itself throws (e.g. dead
+          // connection), preserve the *original* error so we can still
+          // detect a unique-constraint violation and surface ConflictError.
+          try {
+            await client.query('ROLLBACK');
+          } catch {
+            // swallow — the original error below is more useful
+          }
 
           // Map PostgreSQL unique-violation on email to a friendly ConflictError
           if (isUniqueViolation(error)) {

@@ -64,13 +64,23 @@ const DDL_STATEMENTS: string[] = [
   client_metadata TEXT
 )`,
 
-  // 3. Index on sessions.user_id for fast lookups by user
+  // 3. Index on sessions.user_id for fast lookups by user.
+  //
   // Aurora DSQL requires ASYNC index creation — indexes are built in the
   // background without blocking reads or writes.
+  //
+  // IMPORTANT: `CREATE INDEX ASYNC` returns immediately; the index will
+  // not be VALID until the background build completes. Reads against
+  // `sessions.user_id` will fall back to a full scan until then. Wait for
+  // index validity before relying on the index for performance —
+  // see https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-supported-sql-features.html
+  // for guidance on monitoring async index build status.
+  //
+  // Note: `sessions.token_hash` is intentionally NOT given an explicit
+  // CREATE INDEX statement. The `UNIQUE` constraint declared in the
+  // `sessions` table above already creates a backing unique index — adding
+  // a second index on the same column is redundant and wastes write IOPS.
   `CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_user_id ON sessions (user_id)`,
-
-  // 4. Index on sessions.token_hash for fast token validation
-  `CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_token_hash ON sessions (token_hash)`,
 ];
 
 // ---------------------------------------------------------------------------
@@ -95,9 +105,14 @@ export async function runMigrations(pool: PoolLike): Promise<void> {
       await client.query(sql);
       await client.query('COMMIT');
     } catch (error) {
-      // Roll back the failed transaction so the connection is left in a
-      // clean state before being returned to the pool.
-      await client.query('ROLLBACK');
+      // Best-effort rollback. If ROLLBACK itself throws (e.g. dead
+      // connection), preserve the *original* error — the SQLSTATE from the
+      // failed DDL is more useful for debugging than the rollback failure.
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // swallow — re-throwing the original error below is more useful
+      }
       throw error;
     } finally {
       client.release();

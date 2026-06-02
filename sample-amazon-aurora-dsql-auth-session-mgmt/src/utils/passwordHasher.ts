@@ -61,3 +61,39 @@ export async function verify(
 ): Promise<boolean> {
   return bcrypt.compare(password, hashValue);
 }
+
+// ---------------------------------------------------------------------------
+// Anti-enumeration helper
+// ---------------------------------------------------------------------------
+
+/**
+ * A precomputed bcrypt hash used as a decoy for failed login attempts where
+ * the email does not exist. Without this, the "no-such-user" branch returns
+ * almost immediately while the "wrong-password" branch spends 80–100 ms in
+ * bcrypt — a timing delta that lets attackers enumerate which emails are
+ * registered, even though both branches return identical error messages.
+ *
+ * The hash here is the bcrypt of the literal string "dummy-password" at
+ * cost 10. The actual value is irrelevant; what matters is that we run the
+ * full bcrypt verify path so the timing is indistinguishable from a real
+ * mismatch.
+ */
+const DUMMY_HASH =
+  '$2a$10$CwTycUXWue0Thq9StjUM0uJ8b/l1xXoGQ4f7nWk0bM7lSk0iKxbpe';
+
+/**
+ * Run a bcrypt verify against a fixed dummy hash and discard the result.
+ *
+ * Call this from the "no such user" branch of a login flow to equalize
+ * latency with the "wrong password" branch. This defends against email
+ * enumeration via timing analysis (Requirement 2.4).
+ *
+ * @param password - Any string, typically the password the user submitted.
+ *                   The value is irrelevant; we only care that bcrypt does
+ *                   the same amount of work as a real verify.
+ */
+export async function dummyVerify(password: string): Promise<void> {
+  // Result is intentionally discarded — we just want bcrypt to spend the
+  // same CPU time it would on a real comparison.
+  await bcrypt.compare(password, DUMMY_HASH);
+}

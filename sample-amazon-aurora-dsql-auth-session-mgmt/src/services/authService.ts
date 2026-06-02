@@ -25,7 +25,7 @@
 import crypto from 'node:crypto';
 import { User, ClientMetadata } from '../types';
 import { AuthenticationError } from '../utils/errors';
-import { hash, verify } from '../utils/passwordHasher';
+import { dummyVerify, hash, verify } from '../utils/passwordHasher';
 
 // ---------------------------------------------------------------------------
 // Dependency interfaces (narrow types for testability)
@@ -147,7 +147,12 @@ export function createAuthService(deps: {
       const user = await userRepository.findByEmail(email);
 
       if (!user) {
-        // Generic error — do not reveal that the email was not found.
+        // Run a dummy bcrypt verify so this branch takes the same time as
+        // the wrong-password branch below. Without this, an attacker could
+        // distinguish "email not registered" (~milliseconds) from "wrong
+        // password" (~80-100 ms at cost 10) via timing, even though both
+        // branches return the same generic error message.
+        await dummyVerify(password);
         throw new AuthenticationError();
       }
 

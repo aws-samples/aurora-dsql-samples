@@ -149,8 +149,24 @@ export async function retryWithBackoff<T>(
     }
   }
 
-  // All retries exhausted — surface a user-friendly 503 error
+  // All retries exhausted — surface a 503 to the caller, but preserve the
+  // original SQLSTATE / message so operators can diagnose the OCC storm.
+  // We log the underlying error here (in addition to attaching it as
+  // `cause`) so the forensic context is captured even if the caller's
+  // error handler discards causes.
+  console.error(
+    '[OCC conflict] Retries exhausted; surfacing ServiceUnavailableError',
+    {
+      attempts: maxRetries + 1,
+      lastError:
+        lastError instanceof Error
+          ? { message: lastError.message, code: (lastError as { code?: string }).code }
+          : String(lastError),
+    },
+  );
+
   throw new ServiceUnavailableError(
     'Transaction failed after maximum retry attempts due to concurrent modification conflicts',
+    { cause: lastError },
   );
 }

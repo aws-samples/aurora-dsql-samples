@@ -60,9 +60,10 @@ describe('runMigrations', () => {
 
     await runMigrations(pool);
 
-    // We expect 4 separate transactions: users table, sessions table,
-    // and two indexes.
-    expect(clients).toHaveLength(4);
+    // We expect 3 separate transactions: users table, sessions table,
+    // and the user_id index. The token_hash UNIQUE constraint already
+    // creates a backing index, so we deliberately do NOT add a second.
+    expect(clients).toHaveLength(3);
 
     // Each client should have received BEGIN → DDL → COMMIT
     for (const client of clients) {
@@ -110,14 +111,14 @@ describe('runMigrations', () => {
     expect(ddl).toContain('ON sessions (user_id)');
   });
 
-  it('creates the token_hash index fourth', async () => {
+  it('does not add a redundant token_hash index (UNIQUE constraint already creates one)', async () => {
     const { pool, clients } = createMockPool();
 
     await runMigrations(pool);
 
-    const ddl = clients[3].queries[1];
-    expect(ddl).toContain('CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_token_hash');
-    expect(ddl).toContain('ON sessions (token_hash)');
+    const allDdl = clients.map((c) => c.queries[1]).join('\n');
+    expect(allDdl).not.toContain('idx_sessions_token_hash');
+    expect(allDdl).not.toMatch(/CREATE INDEX[^\n]*ON sessions \(token_hash\)/);
   });
 
   it('releases every client back to the pool', async () => {

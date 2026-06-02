@@ -269,7 +269,7 @@ describe('sessionRepository', () => {
       expect(selectQuery!.params).toEqual(['hash-abc']);
     });
 
-    it('parses JSONB client_metadata from a string', async () => {
+    it('parses TEXT-encoded client_metadata from a JSON string', async () => {
       const now = new Date().toISOString();
       const client = createMockClient({
         defaultRows: [
@@ -382,23 +382,55 @@ describe('sessionRepository', () => {
   });
 
   // -----------------------------------------------------------------------
-  // revokeById
+  // revokeByIdForUser
   // -----------------------------------------------------------------------
 
-  describe('revokeById', () => {
-    it('updates the session with a revoked_at timestamp', async () => {
+  describe('revokeByIdForUser', () => {
+    it('updates the session with a revoked_at timestamp scoped by both id and user_id', async () => {
       const client = createMockClient({ defaultRowCount: 1 });
       const pool = createMockPool(client);
       const repo = createSessionRepository(pool);
 
-      await repo.revokeById('session-1');
+      const result = await repo.revokeByIdForUser('user-1', 'session-1');
 
       const updateQuery = client.queries.find((q) =>
         q.sql.includes('UPDATE sessions'),
       );
       expect(updateQuery).toBeDefined();
       expect(updateQuery!.sql).toContain('SET revoked_at = NOW()');
-      expect(updateQuery!.params).toEqual(['session-1']);
+      // Critical: the WHERE clause must filter by BOTH id AND user_id so a
+      // user cannot revoke another user's session by guessing the id (IDOR).
+      expect(updateQuery!.sql).toContain('id = $1');
+      expect(updateQuery!.sql).toContain('user_id = $2');
+      expect(updateQuery!.params).toEqual(['session-1', 'user-1']);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when the session id does not match the user (IDOR-prevention)', async () => {
+      // The UPDATE matches zero rows because the session belongs to
+      // someone else. The repository must surface this as `false` so the
+      // service can throw InvalidSessionError without leaking that the
+      // session does in fact exist.
+      const client = createMockClient({ defaultRowCount: 0 });
+      const pool = createMockPool(client);
+      const repo = createSessionRepository(pool);
+
+      const result = await repo.revokeByIdForUser(
+        'attacker-user',
+        'victim-session-id',
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('returns false when the session is already revoked', async () => {
+      const client = createMockClient({ defaultRowCount: 0 });
+      const pool = createMockPool(client);
+      const repo = createSessionRepository(pool);
+
+      const result = await repo.revokeByIdForUser('user-1', 'already-revoked');
+
+      expect(result).toBe(false);
     });
 
     it('only revokes sessions that are not already revoked', async () => {
@@ -406,7 +438,7 @@ describe('sessionRepository', () => {
       const pool = createMockPool(client);
       const repo = createSessionRepository(pool);
 
-      await repo.revokeById('session-1');
+      await repo.revokeByIdForUser('user-1', 'session-1');
 
       const updateQuery = client.queries.find((q) =>
         q.sql.includes('UPDATE sessions'),
@@ -419,7 +451,7 @@ describe('sessionRepository', () => {
       const pool = createMockPool(client);
       const repo = createSessionRepository(pool);
 
-      await repo.revokeById('session-1');
+      await repo.revokeByIdForUser('user-1', 'session-1');
 
       const sqls = client.queries.map((q) => q.sql);
       expect(sqls[0]).toBe('BEGIN');
@@ -437,7 +469,9 @@ describe('sessionRepository', () => {
       const pool = createMockPool(client);
       const repo = createSessionRepository(pool);
 
-      await expect(repo.revokeById('session-1')).rejects.toThrow('db error');
+      await expect(
+        repo.revokeByIdForUser('user-1', 'session-1'),
+      ).rejects.toThrow('db error');
 
       const sqls = client.queries.map((q) => q.sql);
       expect(sqls).toContain('ROLLBACK');
@@ -448,7 +482,7 @@ describe('sessionRepository', () => {
       const pool = createMockPool(client);
       const repo = createSessionRepository(pool);
 
-      await repo.revokeById('session-1');
+      await repo.revokeByIdForUser('user-1', 'session-1');
 
       expect(client.release).toHaveBeenCalledTimes(1);
     });

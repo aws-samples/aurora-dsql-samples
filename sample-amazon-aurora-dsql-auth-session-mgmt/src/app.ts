@@ -5,11 +5,12 @@
 // Configures the Express application with JSON body parsing, route mounting,
 // and the global error handler.
 //
-// The app is exported in two forms:
-//   1. `createApp(deps)` — factory function that accepts injected services
-//      and middleware, used for testing and production wiring.
-//   2. `default export` — a bare app instance with no routes mounted, kept
-//      for backward compatibility with existing tests.
+// The app is exported via the `createApp(deps)` factory, which accepts
+// injected services and middleware. Tests construct the app with
+// lightweight stubs; production wiring lives in `index.ts`.
+//
+// A bare default export is also provided for tests that exercise app-level
+// behavior (404, JSON parsing) without needing real services.
 //
 // Requirements:
 //   8.7 — Consistent JSON response structure
@@ -34,8 +35,13 @@ import { errorHandler } from './middleware/errorHandler';
 export interface AppDependencies {
   authService: AuthServiceLike;
   sessionService: SessionServiceLike;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authMiddleware: any;
+  /**
+   * Authentication middleware. Express's `RequestHandler` type covers any
+   * middleware function with the standard `(req, res, next)` signature.
+   * Production middleware is created by `createAuthMiddleware` in
+   * `src/middleware/auth.ts`; tests can inject a no-op or a stub.
+   */
+  authMiddleware: RequestHandler;
 }
 
 /**
@@ -90,8 +96,13 @@ export function createApp(deps: AppDependencies): express.Express {
 }
 
 // ---------------------------------------------------------------------------
-// Default export (bare app for backward compatibility)
+// Default export — bare app for app-level tests
 // ---------------------------------------------------------------------------
+//
+// This bare instance has no routes mounted, only JSON parsing and the global
+// error handler. It exists so app-level tests in `app.test.ts` can verify
+// generic Express behavior (404 for unknown paths, malformed-JSON handling,
+// 500 envelope shape) without constructing service stubs.
 
 const app = express();
 app.use(express.json());
