@@ -121,9 +121,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-dsql"
-version = "1.58.0"
+version = "1.59.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65c0014f2e63b25c8961789b5e8ce95723b3fd068849096f5b5e29ddf2604bb5"
+checksum = "fa25d805c3cfbd8e0ef0ca2803a91e44b06ea5aca03e8d3dd171d12f785eb176"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
@@ -224,9 +224,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sigv4"
-version = "1.4.4"
+version = "1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7083fb918b38474ac65ffbf8a69fc8792d36879f4ac5f1667b43aec61efe9a5"
+checksum = "bae38512beae0ffee7010fc24e7a8a123c53efdfef42a61e80fda4882418dc71"
 dependencies = [
  "aws-credential-types",
  "aws-smithy-http",
