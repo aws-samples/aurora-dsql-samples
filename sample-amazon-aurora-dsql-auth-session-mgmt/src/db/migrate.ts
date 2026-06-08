@@ -61,7 +61,7 @@ const DDL_STATEMENTS: string[] = [
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ,
-  client_metadata TEXT
+  client_metadata JSONB
 )`,
 
   // 3. Index on sessions.user_id for fast lookups by user.

@@ -136,7 +136,6 @@ SELECT id, user_id, created_at, expires_at, revoked_at FROM sessions;
 ## DSQL-Specific Patterns
 
 - No foreign keys: referential integrity enforced in application code
-- No JSONB: `client_metadata` is `TEXT` with app-layer JSON serialization
 - `CREATE INDEX ASYNC` (not `CREATE INDEX`)
 - OCC retry with exponential backoff (SQLSTATE 40001)
 - IAM-based database authentication (no static passwords)

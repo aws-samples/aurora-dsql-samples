@@ -182,15 +182,6 @@ Owner.hasMany(Pet, { foreignKey: 'ownerId', constraints: false });
 
 ### Data types
 
-**JSON/JSONB**: Aurora DSQL supports `JSON` and `JSONB` columns natively. Use `DataTypes.JSONB` (recommended for queryable structured data) or `DataTypes.JSON` directly:
-
-```ts
-metadata: {
-  type: DataTypes.JSONB,
-  allowNull: true,
-}
-```
-
 **ENUM**: Use `DataTypes.STRING` with validation in `Model.init()`:
 
 ```ts

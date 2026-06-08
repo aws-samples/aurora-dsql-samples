@@ -98,7 +98,7 @@ describe('runMigrations', () => {
     expect(ddl).toContain('token_hash VARCHAR(64) NOT NULL UNIQUE');
     expect(ddl).toContain('expires_at TIMESTAMPTZ NOT NULL');
     expect(ddl).toContain('revoked_at TIMESTAMPTZ');
-    expect(ddl).toContain('client_metadata TEXT');
+    expect(ddl).toContain('client_metadata JSONB');
   });
 
   it('creates the user_id index third', async () => {
