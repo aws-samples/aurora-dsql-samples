@@ -347,10 +347,6 @@ export function createSessionRepository(pool: PoolLike) {
 
 /**
  * Maps a raw database row to a typed `Session` object.
- *
- * Handles the conversion of timestamp strings to `Date` objects. The `pg`
- * driver returns the `JSONB` `client_metadata` column as an already-parsed
- * object, so it is read directly with no extra deserialization.
  */
 function mapRowToSession(row: Record<string, unknown>): Session {
   return {
