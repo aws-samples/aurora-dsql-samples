@@ -182,18 +182,12 @@ Owner.hasMany(Pet, { foreignKey: 'ownerId', constraints: false });
 
 ### Data types
 
-**JSON/JSONB**: Use `DataTypes.TEXT` with getter/setter in `Model.init()` for serialization:
+**JSON/JSONB**: Aurora DSQL supports `JSON` and `JSONB` columns natively. Use `DataTypes.JSONB` (recommended for queryable structured data) or `DataTypes.JSON` directly:
 
 ```ts
 metadata: {
-  type: DataTypes.TEXT,
-  get() {
-    const val = this.getDataValue('metadata');
-    return val ? JSON.parse(val) : null;
-  },
-  set(val: object) {
-    this.setDataValue('metadata', JSON.stringify(val));
-  }
+  type: DataTypes.JSONB,
+  allowNull: true,
 }
 ```
 
