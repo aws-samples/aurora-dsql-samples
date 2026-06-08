@@ -147,7 +147,7 @@ describe('sessionRepository', () => {
         'user-uuid-1',
         'abc123hash',
         validSession.expiresAt,
-        JSON.stringify(validSession.clientMetadata),
+        validSession.clientMetadata,
       ]);
     });
 
@@ -267,29 +267,6 @@ describe('sessionRepository', () => {
       );
       expect(selectQuery).toBeDefined();
       expect(selectQuery!.params).toEqual(['hash-abc']);
-    });
-
-    it('parses TEXT-encoded client_metadata from a JSON string', async () => {
-      const now = new Date().toISOString();
-      const client = createMockClient({
-        defaultRows: [
-          {
-            id: 'session-1',
-            userId: 'user-1',
-            tokenHash: 'hash123',
-            createdAt: now,
-            expiresAt: now,
-            revokedAt: null,
-            clientMetadata: '{"ipAddress":"10.0.0.1"}',
-          },
-        ],
-      });
-      const pool = createMockPool(client);
-      const repo = createSessionRepository(pool);
-
-      const session = await repo.findByTokenHash('hash123');
-
-      expect(session!.clientMetadata).toEqual({ ipAddress: '10.0.0.1' });
     });
 
     it('releases the client back to the pool', async () => {

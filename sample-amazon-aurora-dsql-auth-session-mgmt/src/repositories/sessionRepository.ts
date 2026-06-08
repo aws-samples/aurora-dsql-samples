@@ -127,7 +127,7 @@ export function createSessionRepository(pool: PoolLike) {
               session.userId,
               session.tokenHash,
               session.expiresAt,
-              JSON.stringify(session.clientMetadata),
+              session.clientMetadata,
             ],
           );
 
@@ -347,11 +347,6 @@ export function createSessionRepository(pool: PoolLike) {
 
 /**
  * Maps a raw database row to a typed `Session` object.
- *
- * Handles the conversion of timestamp strings to `Date` objects and parses
- * the `client_metadata` column. Note: `client_metadata` is a TEXT column
- * (Aurora DSQL does not support JSONB at this time), so the value is
- * stored as a JSON-encoded string.
  */
 function mapRowToSession(row: Record<string, unknown>): Session {
   return {
@@ -361,37 +356,8 @@ function mapRowToSession(row: Record<string, unknown>): Session {
     createdAt: new Date(row.createdAt as string),
     expiresAt: new Date(row.expiresAt as string),
     revokedAt: row.revokedAt ? new Date(row.revokedAt as string) : null,
-    clientMetadata: parseClientMetadata(row.clientMetadata),
+    clientMetadata: (row.clientMetadata as ClientMetadata | null) ?? {},
   };
-}
-
-/**
- * Safely parses the `client_metadata` column value.
- *
- * The column is TEXT (Aurora DSQL does not support JSONB), so the `pg`
- * driver always returns a string. We accept both string and pre-parsed
- * object shapes for robustness against future driver changes or test mocks.
- *
- * If the stored value is not valid JSON, log the error rather than
- * silently returning an empty object — that way operators can detect
- * corruption or out-of-band writers that bypass `JSON.stringify`.
- */
-function parseClientMetadata(value: unknown): ClientMetadata {
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value) as ClientMetadata;
-    } catch (error) {
-      console.warn(
-        '[sessionRepository] failed to parse client_metadata; defaulting to {}',
-        { error: error instanceof Error ? error.message : String(error) },
-      );
-      return {};
-    }
-  }
-  if (typeof value === 'object' && value !== null) {
-    return value as ClientMetadata;
-  }
-  return {};
 }
 
 /**
