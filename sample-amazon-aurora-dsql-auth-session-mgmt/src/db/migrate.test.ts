@@ -7,10 +7,14 @@ import { runMigrations, PoolLike, ClientLike } from './migrate';
 
 /**
  * Creates a mock client that records every SQL statement it receives.
- * Optionally accepts a callback that can throw to simulate failures.
+ *
+ * Returns `{ rows: [{ job_id: 'fake-job-id' }] }` for `CREATE INDEX ASYNC`
+ * statements (matching the real DSQL behaviour that returns a job_id row),
+ * and `{ rows: [] }` for everything else. Tests that need a different shape
+ * can pass a custom `onQuery` to override.
  */
 function createMockClient(
-  onQuery?: (sql: string) => void
+  onQuery?: (sql: string) => void,
 ): ClientLike & { queries: string[] } {
   const queries: string[] = [];
   return {
@@ -18,6 +22,10 @@ function createMockClient(
     query: vi.fn(async (sql: string) => {
       queries.push(sql);
       onQuery?.(sql);
+      if (sql.startsWith('CREATE INDEX ASYNC')) {
+        return { rows: [{ job_id: 'fake-job-id' }] };
+      }
+      return { rows: [] };
     }),
     release: vi.fn(),
   };
@@ -60,17 +68,22 @@ describe('runMigrations', () => {
 
     await runMigrations(pool);
 
-    // We expect 3 separate transactions: users table, sessions table,
-    // and the user_id index. The token_hash UNIQUE constraint already
-    // creates a backing index, so we deliberately do NOT add a second.
-    expect(clients).toHaveLength(3);
+    // 3 DDL transactions (users table, sessions table, user_id index) plus
+    // a 4th client for the post-DDL `sys.wait_for_job` call after the
+    // async index. The token_hash UNIQUE constraint already creates a
+    // backing index, so we deliberately do NOT add a second.
+    expect(clients).toHaveLength(4);
 
-    // Each client should have received BEGIN → DDL → COMMIT
-    for (const client of clients) {
+    // First three clients ran BEGIN → DDL → COMMIT.
+    for (const client of clients.slice(0, 3)) {
       expect(client.queries[0]).toBe('BEGIN');
       expect(client.queries[2]).toBe('COMMIT');
       expect(client.queries).toHaveLength(3);
     }
+
+    // The 4th client ran the wait_for_job for the async index.
+    expect(clients[3].queries).toHaveLength(1);
+    expect(clients[3].queries[0]).toBe('SELECT sys.wait_for_job($1)');
   });
 
   it('creates the users table first', async () => {
@@ -98,7 +111,7 @@ describe('runMigrations', () => {
     expect(ddl).toContain('token_hash VARCHAR(64) NOT NULL UNIQUE');
     expect(ddl).toContain('expires_at TIMESTAMPTZ NOT NULL');
     expect(ddl).toContain('revoked_at TIMESTAMPTZ');
-    expect(ddl).toContain('client_metadata JSONB');
+    expect(ddl).toContain('client_metadata TEXT');
   });
 
   it('creates the user_id index third', async () => {
@@ -116,9 +129,27 @@ describe('runMigrations', () => {
 
     await runMigrations(pool);
 
-    const allDdl = clients.map((c) => c.queries[1]).join('\n');
+    const allDdl = clients.slice(0, 3).map((c) => c.queries[1]).join('\n');
     expect(allDdl).not.toContain('idx_sessions_token_hash');
     expect(allDdl).not.toMatch(/CREATE INDEX[^\n]*ON sessions \(token_hash\)/);
+  });
+
+  it('waits for the async index job to complete', async () => {
+    const { pool, clients } = createMockPool();
+
+    await runMigrations(pool);
+
+    // The 4th client (after the 3 DDL clients) ran SELECT sys.wait_for_job($1).
+    expect(clients[3].queries[0]).toBe('SELECT sys.wait_for_job($1)');
+  });
+
+  it('skips wait_for_job when waitForAsyncJobs is false', async () => {
+    const { pool, clients } = createMockPool();
+
+    await runMigrations(pool, { waitForAsyncJobs: false });
+
+    // Only the 3 DDL clients — no wait_for_job client.
+    expect(clients).toHaveLength(3);
   });
 
   it('releases every client back to the pool', async () => {
@@ -135,47 +166,48 @@ describe('runMigrations', () => {
   // Error handling
   // -----------------------------------------------------------------------
 
-  it('rolls back and re-throws when a DDL statement fails', async () => {
-    const ddlError = new Error('relation already exists');
-    let callCount = 0;
-
-    const failingPool: PoolLike = {
+  it('rolls back the transaction when a DDL statement fails', async () => {
+    const clients: ReturnType<typeof createMockClient>[] = [];
+    const pool: PoolLike = {
       connect: vi.fn(async () => {
-        callCount++;
-        // Fail on the second DDL (sessions table)
-        if (callCount === 2) {
-          return createMockClient((sql) => {
-            if (sql !== 'BEGIN' && sql !== 'ROLLBACK') {
-              throw ddlError;
-            }
-          });
-        }
-        return createMockClient();
+        const indexBeingCreated = clients.length; // 0,1,2,...
+        const client = createMockClient((sql) => {
+          // Throw on the second client's DDL (the sessions table CREATE)
+          if (indexBeingCreated === 1 && sql.startsWith('CREATE TABLE')) {
+            throw new Error('simulated DDL failure');
+          }
+        });
+        clients.push(client);
+        return client;
       }),
     };
 
-    await expect(runMigrations(failingPool)).rejects.toThrow(
-      'relation already exists'
-    );
+    await expect(runMigrations(pool)).rejects.toThrow('simulated DDL failure');
+
+    // Second client should have run BEGIN, attempted DDL, and ROLLBACK.
+    const secondClient = clients[1];
+    expect(secondClient.queries).toContain('BEGIN');
+    expect(secondClient.queries).toContain('ROLLBACK');
   });
 
-  it('rolls back the transaction on failure before releasing the client', async () => {
-    const ddlError = new Error('syntax error');
-    const failingClient = createMockClient((sql) => {
-      if (sql !== 'BEGIN' && sql !== 'ROLLBACK') {
-        throw ddlError;
-      }
-    });
-
-    const failingPool: PoolLike = {
-      connect: vi.fn(async () => failingClient),
+  it('still releases the client when the DDL fails', async () => {
+    const clients: ReturnType<typeof createMockClient>[] = [];
+    const pool: PoolLike = {
+      connect: vi.fn(async () => {
+        const indexBeingCreated = clients.length;
+        const client = createMockClient((sql) => {
+          // Fail the very first DDL (users table CREATE)
+          if (indexBeingCreated === 0 && sql.startsWith('CREATE TABLE')) {
+            throw new Error('simulated failure');
+          }
+        });
+        clients.push(client);
+        return client;
+      }),
     };
 
-    await expect(runMigrations(failingPool)).rejects.toThrow('syntax error');
+    await expect(runMigrations(pool)).rejects.toThrow('simulated failure');
 
-    // Should have attempted ROLLBACK after the failure
-    expect(failingClient.queries).toContain('ROLLBACK');
-    // Client must still be released even after an error
-    expect(failingClient.release).toHaveBeenCalledTimes(1);
+    expect(clients[0].release).toHaveBeenCalledTimes(1);
   });
 });

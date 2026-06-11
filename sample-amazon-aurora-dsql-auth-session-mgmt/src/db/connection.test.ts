@@ -65,6 +65,7 @@ describe('DSQL Connection Pool', () => {
       database: 'postgres',
       max: 10,
       idleTimeoutMillis: 300_000,
+      maxLifetimeSeconds: 3300,
     });
     expect(pool).toBeDefined();
   });

@@ -28,13 +28,15 @@ let pool: AuroraDSQLPool | null = null;
  * Returns the shared DSQL connection pool, creating it on first access.
  *
  * The pool is configured with:
- * - `host`              — read from the `DSQL_ENDPOINT` environment variable
- * - `user`              — `'admin'` (DSQL's default IAM-authenticated user)
- * - `database`          — `'postgres'` (DSQL's fixed database name)
- * - `max`               — 10 concurrent connections
- * - `idleTimeoutMillis` — 300 000 ms (5 minutes), well under the 1-hour
- *                         DSQL connection timeout so connections are recycled
- *                         before they expire
+ * - `host`               — read from the `DSQL_ENDPOINT` environment variable
+ * - `user`               — `'admin'` (DSQL's default IAM-authenticated user)
+ * - `database`           — `'postgres'` (DSQL's fixed database name)
+ * - `max`                — 10 concurrent connections
+ * - `idleTimeoutMillis`  — 300 000 ms (5 minutes), well under the 1-hour
+ *                           DSQL connection timeout so connections are
+ *                           recycled before they expire
+ * - `maxLifetimeSeconds` — 3 300 s (55 minutes), so each connection retires
+ *                           ahead of DSQL's hard 1-hour cap
  *
  * @throws {Error} If `DSQL_ENDPOINT` is not set in the environment.
  */
@@ -56,6 +58,10 @@ export function getPool(): AuroraDSQLPool {
     database: 'postgres',
     max: 10,
     idleTimeoutMillis: 300_000, // 5 minutes
+    // Aurora DSQL closes any single connection at 1 hour. Recycle each
+    // connection at 55 minutes so a request never lands on a connection
+    // that the cluster is about to close.
+    maxLifetimeSeconds: 3300,
   });
 
   return pool;
