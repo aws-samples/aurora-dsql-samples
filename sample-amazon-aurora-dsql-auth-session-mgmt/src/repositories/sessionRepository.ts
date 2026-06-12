@@ -352,14 +352,15 @@ export function createSessionRepository(pool: PoolLike) {
  * stored as a JSON-encoded string.
  */
 function mapRowToSession(row: Record<string, unknown>): Session {
+  const sessionId = row.id as string;
   return {
-    id: row.id as string,
+    id: sessionId,
     userId: row.userId as string,
     tokenHash: row.tokenHash as string,
     createdAt: new Date(row.createdAt as string),
     expiresAt: new Date(row.expiresAt as string),
     revokedAt: row.revokedAt ? new Date(row.revokedAt as string) : null,
-    clientMetadata: parseClientMetadata(row.clientMetadata),
+    clientMetadata: parseClientMetadata(row.clientMetadata, sessionId),
   };
 }
 
@@ -370,18 +371,29 @@ function mapRowToSession(row: Record<string, unknown>): Session {
  * driver always returns a string. We accept both string and pre-parsed
  * object shapes for robustness against future driver changes or test mocks.
  *
- * If the stored value is not valid JSON, log the error rather than
- * silently returning an empty object — that way operators can detect
- * corruption or out-of-band writers that bypass `JSON.stringify`.
+ * If the stored value is not valid JSON, log the error along with the
+ * session id and the value's length so an operator can locate and inspect
+ * the offending row. The runtime shape of the parsed object is NOT
+ * validated, the cast to ClientMetadata is structural; a stored `[]` or
+ * a stringified field where an object is expected will pass through.
+ * For a sample that's acceptable, but treat parsed metadata as untrusted
+ * if you tighten the schema later.
  */
-function parseClientMetadata(value: unknown): ClientMetadata {
+function parseClientMetadata(
+  value: unknown,
+  sessionId?: string,
+): ClientMetadata {
   if (typeof value === 'string') {
     try {
       return JSON.parse(value) as ClientMetadata;
     } catch (error) {
       console.warn(
         '[sessionRepository] failed to parse client_metadata; defaulting to {}',
-        { error: error instanceof Error ? error.message : String(error) },
+        {
+          sessionId: sessionId ?? '<unknown>',
+          valueLength: value.length,
+          error: error instanceof Error ? error.message : String(error),
+        },
       );
       return {};
     }

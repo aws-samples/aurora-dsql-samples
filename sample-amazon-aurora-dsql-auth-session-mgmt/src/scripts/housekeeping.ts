@@ -12,18 +12,26 @@
 // issues against recently revoked tokens without leaking active access.
 // Adjust the threshold to match your retention policy.
 //
+// Each batch is wrapped in retryWithBackoff so transient OCC serialization
+// errors (SQLSTATE 40001) are retried in-process. This matters because
+// many orchestrators (cron, ECS scheduled tasks) do not retry on non-zero
+// exit by default; without the in-process retry, a single OCC conflict on
+// any batch would surface as a failed run that silently misses cleanup
+// until the next scheduled invocation.
+//
 // Invocation:
 //   ts-node src/scripts/housekeeping.ts
 //   node dist/scripts/housekeeping.js
 //
 // Required environment:
-//   DSQL_ENDPOINT  — e.g. "<cluster-id>.dsql.us-east-1.on.aws"
-//   AWS_REGION     — e.g. "us-east-1"
-//   AWS_*          — credentials for an IAM principal mapped to a DB role
+//   DSQL_ENDPOINT  - e.g. "<cluster-id>.dsql.us-east-1.on.aws"
+//   AWS_REGION     - e.g. "us-east-1"
+//   AWS_*          - credentials for an IAM principal mapped to a DB role
 //                    that has DELETE on `sessions`
 // ---------------------------------------------------------------------------
 
 import { closePool, getPool } from '../db/connection';
+import { retryWithBackoff } from '../utils/retryWithBackoff';
 
 /** DSQL caps any single DML transaction at 3,000 rows. */
 const BATCH_SIZE = 3_000;
@@ -46,42 +54,42 @@ export async function purgeOldSessions(
   const pool = getPool();
   let totalDeleted = 0;
 
-  // Loop until a batch revoked fewer rows than the cap — that's the signal
+  // Loop until a batch revoked fewer rows than the cap, that's the signal
   // that no more eligible rows remain.
   while (true) {
-    const client = await pool.connect();
-    let batchDeleted = 0;
-    try {
-      // Each batch is its own transaction. We don't need OCC retry here
-      // because the housekeeping job is the only writer touching old rows
-      // in practice; if it ever conflicts with concurrent revocation, the
-      // job is idempotent and can simply be re-run.
-      await client.query('BEGIN');
-
-      const result = await client.query(
-        `DELETE FROM sessions
-          WHERE id IN (
-            SELECT id FROM sessions
-             WHERE expires_at < NOW() - $1::interval
-                OR (revoked_at IS NOT NULL
-                    AND revoked_at < NOW() - $1::interval)
-             LIMIT $2
-          )`,
-        [`${retentionDays} days`, BATCH_SIZE],
-      );
-
-      await client.query('COMMIT');
-      batchDeleted = result.rowCount ?? 0;
-    } catch (error) {
+    // Wrap each batch in retryWithBackoff so an OCC conflict during cleanup
+    // doesn't fail the whole run. The DELETE is idempotent, so retrying is
+    // always safe.
+    const batchDeleted = await retryWithBackoff(async () => {
+      const client = await pool.connect();
       try {
-        await client.query('ROLLBACK');
-      } catch {
-        // swallow
+        await client.query('BEGIN');
+
+        const result = await client.query(
+          `DELETE FROM sessions
+            WHERE id IN (
+              SELECT id FROM sessions
+               WHERE expires_at < NOW() - $1::interval
+                  OR (revoked_at IS NOT NULL
+                      AND revoked_at < NOW() - $1::interval)
+               LIMIT $2
+            )`,
+          [`${retentionDays} days`, BATCH_SIZE],
+        );
+
+        await client.query('COMMIT');
+        return result.rowCount ?? 0;
+      } catch (error) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          // swallow
+        }
+        throw error;
+      } finally {
+        client.release();
       }
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
 
     totalDeleted += batchDeleted;
     if (batchDeleted < BATCH_SIZE) break;

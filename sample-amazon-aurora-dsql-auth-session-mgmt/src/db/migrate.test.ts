@@ -19,7 +19,7 @@ function createMockClient(
   const queries: string[] = [];
   return {
     queries,
-    query: vi.fn(async (sql: string) => {
+    query: vi.fn(async (sql: string, _params?: unknown[]) => {
       queries.push(sql);
       onQuery?.(sql);
       if (sql.startsWith('CREATE INDEX ASYNC')) {
@@ -140,7 +140,12 @@ describe('runMigrations', () => {
     await runMigrations(pool);
 
     // The 4th client (after the 3 DDL clients) ran SELECT sys.wait_for_job($1).
-    expect(clients[3].queries[0]).toBe('SELECT sys.wait_for_job($1)');
+    // Assert on the params too so a regression that passes undefined for $1
+    // would fail the test.
+    expect(clients[3].query).toHaveBeenCalledWith(
+      'SELECT sys.wait_for_job($1)',
+      ['fake-job-id'],
+    );
   });
 
   it('skips wait_for_job when waitForAsyncJobs is false', async () => {

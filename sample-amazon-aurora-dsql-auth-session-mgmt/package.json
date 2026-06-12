@@ -9,7 +9,8 @@
     "dev": "ts-node src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "housekeeping": "node dist/scripts/housekeeping.js"
+    "housekeeping": "node dist/scripts/housekeeping.js",
+    "setup-runtime-role": "node dist/scripts/setup-runtime-role.js"
   },
   "keywords": [
     "aurora-dsql",

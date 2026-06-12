@@ -58,11 +58,25 @@ export function getPool(): AuroraDSQLPool {
     database: 'postgres',
     max: 10,
     idleTimeoutMillis: 300_000, // 5 minutes
-    // Aurora DSQL closes any single connection at 1 hour. Recycle each
-    // connection at 55 minutes so a request never lands on a connection
-    // that the cluster is about to close.
+    // Matches the connector default in @aws/aurora-dsql-node-postgres-connector
+    // v0.1.9 (parsePgConfig sets maxLifetimeSeconds: 3300 unless overridden);
+    // kept here for visibility so readers see the 1-hour cap accommodation
+    // without having to grep the connector source.
     maxLifetimeSeconds: 3300,
   });
+
+  // Production guarantee: AuroraDSQLPool always exposes transaction(), and
+  // the repositories rely on it for OCC retry. Surface a clear error here
+  // if a future refactor accidentally returns a plain pg.Pool, rather than
+  // silently degrading to the manual BEGIN/COMMIT fallback that exists for
+  // unit-test mocks.
+  if (typeof (pool as { transaction?: unknown }).transaction !== 'function') {
+    throw new Error(
+      'Pool does not expose transaction(); expected AuroraDSQLPool from ' +
+        '@aws/aurora-dsql-node-postgres-connector. Repositories rely on ' +
+        'pool.transaction() for OCC retry.',
+    );
+  }
 
   return pool;
 }
