@@ -166,6 +166,13 @@ This sample focuses on demonstrating Aurora DSQL patterns. Before running in pro
   ```
 
   Then change `connection.ts` to connect as `app_runtime` instead of `admin`, and attach an IAM task-role policy that grants only `dsql:DbConnect` (not `dsql:DbConnectAdmin`). Keep `admin` for one-off setup steps such as creating the role itself or running migrations. This follows Aurora DSQL's [Database roles and IAM authentication](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-database-roles.html) guidance.
+
+  To roll the role back, you must revoke the IAM mapping before dropping the role, otherwise `DROP ROLE` fails with `2BP01 cannot be dropped because some objects depend on it`:
+
+  ```sql
+  AWS IAM REVOKE app_runtime FROM 'arn:aws:iam::111122223333:role/auth-service-task-role';
+  DROP ROLE app_runtime;
+  ```
 - **Rate limiting.** This sample does not include `express-rate-limit` or any throttling. At minimum, add per-IP rate limits to `/api/auth/register` and `/api/auth/login` to slow brute-force credential stuffing.
 - **Trusted proxy / X-Forwarded-For handling.** `req.ip` is recorded in `client_metadata` for session listing. Behind a load balancer, this is the LB IP unless you configure `app.set('trust proxy', ...)` with the correct hop count. Configure it explicitly. Never set `trust proxy: true` on a publicly exposed app, since that lets clients spoof `X-Forwarded-For`.
 - **bcrypt cost factor.** `passwordHasher.ts` uses cost 10 (~80-100 ms per verify on a typical CPU), suitable for a proof-of-concept. Increase to 12 or higher in production after benchmarking your target hardware.
