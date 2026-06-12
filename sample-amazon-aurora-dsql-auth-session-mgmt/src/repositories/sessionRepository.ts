@@ -38,9 +38,18 @@ import { retryWithBackoff } from '../utils/retryWithBackoff';
  * Mirrors the pattern used by the user repository — accepting a narrow type
  * instead of the concrete `AuroraDSQLPool` keeps this module easy to
  * unit-test with a simple mock.
+ *
+ * The optional `transaction(callback)` method matches the surface of
+ * `AuroraDSQLPool.transaction` from `@aws/aurora-dsql-node-postgres-connector`.
+ * When the pool implements it (production), the repository routes
+ * transactional work through the connector's built-in OCC retry helper —
+ * the same mechanism the blog post recommends. When it does not (tests with
+ * a lightweight mock), the repository falls back to a manual BEGIN/COMMIT
+ * loop wrapped in `retryWithBackoff` for equivalent behaviour.
  */
 export interface PoolLike {
   connect(): Promise<ClientLike>;
+  transaction?<T>(callback: (client: ClientLike) => Promise<T>): Promise<T>;
 }
 
 /**
@@ -67,6 +76,52 @@ export interface ClientLike {
 const DSQL_MAX_ROWS_PER_TRANSACTION = 3_000;
 
 // ---------------------------------------------------------------------------
+// Transaction helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Run `callback` inside a transaction with OCC retry.
+ *
+ * If the pool exposes `transaction()` (production path: AuroraDSQLPool from
+ * `@aws/aurora-dsql-node-postgres-connector`), delegate to it so we get the
+ * connector's built-in retry helper that catches both `OC000` (data
+ * conflicts) and `OC001` (schema conflicts) under SQLSTATE `40001`.
+ *
+ * If not (test path: lightweight mock pool), fall back to a manual
+ * BEGIN/COMMIT loop wrapped in `retryWithBackoff` so unit tests keep working
+ * without the real connector.
+ */
+async function runInTransaction<T>(
+  pool: PoolLike,
+  callback: (client: ClientLike) => Promise<T>,
+): Promise<T> {
+  if (pool.transaction) {
+    return pool.transaction(callback);
+  }
+
+  return retryWithBackoff(async () => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await callback(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error: unknown) {
+      // Best-effort rollback. Preserve the original error if ROLLBACK
+      // also throws (e.g. dead connection).
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // swallow — re-throwing the original error below is more useful
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Repository
 // ---------------------------------------------------------------------------
 
@@ -87,9 +142,10 @@ export function createSessionRepository(pool: PoolLike) {
      * Insert a new session record into the `sessions` table.
      *
      * Before inserting, verifies that the referenced `user_id` exists in the
-     * `users` table (application-level referential integrity). The write is
-     * wrapped in the OCC retry utility so that transient serialization errors
-     * from Aurora DSQL are retried automatically.
+     * `users` table (application-level referential integrity). Transactional
+     * work routes through `runInTransaction`, which uses
+     * `AuroraDSQLPool.transaction` (with built-in OCC retry) in production
+     * and a manual BEGIN/COMMIT + `retryWithBackoff` fallback under test.
      *
      * @throws {InvalidSessionError} If the `userId` does not exist in the users table.
      */
@@ -100,51 +156,32 @@ export function createSessionRepository(pool: PoolLike) {
       expiresAt: Date;
       clientMetadata: ClientMetadata;
     }): Promise<void> {
-      await retryWithBackoff(async () => {
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
+      await runInTransaction(pool, async (client) => {
+        // Application-level referential integrity check (Requirement 9.3).
+        // Aurora DSQL does not support foreign keys, so we verify the
+        // referenced user exists before inserting the session.
+        const userCheck = await client.query(
+          'SELECT id FROM users WHERE id = $1',
+          [session.userId],
+        );
 
-          // Application-level referential integrity check (Requirement 9.3).
-          // Aurora DSQL does not support foreign keys, so we verify the
-          // referenced user exists before inserting the session.
-          const userCheck = await client.query(
-            'SELECT id FROM users WHERE id = $1',
-            [session.userId],
+        if (userCheck.rows.length === 0) {
+          throw new InvalidSessionError(
+            `User with id ${session.userId} does not exist`,
           );
-
-          if (userCheck.rows.length === 0) {
-            throw new InvalidSessionError(
-              `User with id ${session.userId} does not exist`,
-            );
-          }
-
-          await client.query(
-            `INSERT INTO sessions (id, user_id, token_hash, created_at, expires_at, revoked_at, client_metadata)
-             VALUES ($1, $2, $3, NOW(), $4, NULL, $5)`,
-            [
-              session.id,
-              session.userId,
-              session.tokenHash,
-              session.expiresAt,
-              session.clientMetadata,
-            ],
-          );
-
-          await client.query('COMMIT');
-        } catch (error: unknown) {
-          // Best-effort rollback. If ROLLBACK itself throws (e.g. dead
-          // connection), preserve the *original* error so the caller still
-          // sees the SQLSTATE that drove the failure.
-          try {
-            await client.query('ROLLBACK');
-          } catch {
-            // swallow — re-throwing the original error below is more useful
-          }
-          throw error;
-        } finally {
-          client.release();
         }
+
+        await client.query(
+          `INSERT INTO sessions (id, user_id, token_hash, created_at, expires_at, revoked_at, client_metadata)
+           VALUES ($1, $2, $3, NOW(), $4, NULL, $5)`,
+          [
+            session.id,
+            session.userId,
+            session.tokenHash,
+            session.expiresAt,
+            session.clientMetadata,
+          ],
+        );
       });
     },
 
@@ -223,35 +260,17 @@ export function createSessionRepository(pool: PoolLike) {
       userId: string,
       sessionId: string,
     ): Promise<boolean> {
-      return retryWithBackoff(async () => {
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-
-          const result = await client.query(
-            `UPDATE sessions
+      return runInTransaction(pool, async (client) => {
+        const result = await client.query(
+          `UPDATE sessions
              SET revoked_at = NOW()
-             WHERE id = $1
-               AND user_id = $2
-               AND revoked_at IS NULL`,
-            [sessionId, userId],
-          );
+           WHERE id = $1
+             AND user_id = $2
+             AND revoked_at IS NULL`,
+          [sessionId, userId],
+        );
 
-          await client.query('COMMIT');
-
-          return getRowCount(result) > 0;
-        } catch (error: unknown) {
-          // Best-effort rollback. Preserve the *original* error if ROLLBACK
-          // also throws (e.g. dead connection) so callers see the real cause.
-          try {
-            await client.query('ROLLBACK');
-          } catch {
-            // swallow — re-throwing the original error below is more useful
-          }
-          throw error;
-        } finally {
-          client.release();
-        }
+        return getRowCount(result) > 0;
       });
     },
 
@@ -276,61 +295,40 @@ export function createSessionRepository(pool: PoolLike) {
       // DSQL limit (Requirement 12.1, 12.2).
       let batchRevoked: number;
       do {
-        batchRevoked = await retryWithBackoff(async () => {
-          const client = await pool.connect();
-          try {
-            await client.query('BEGIN');
+        batchRevoked = await runInTransaction(pool, async (client) => {
+          // Build the UPDATE with an optional exclusion clause.
+          // We use a sub-select with LIMIT to cap each transaction at
+          // DSQL_MAX_ROWS_PER_TRANSACTION rows.
+          let sql: string;
+          let params: unknown[];
 
-            // Build the UPDATE with an optional exclusion clause.
-            // We use a sub-select with LIMIT to cap each transaction at
-            // DSQL_MAX_ROWS_PER_TRANSACTION rows.
-            let sql: string;
-            let params: unknown[];
-
-            if (excludeSessionId) {
-              sql = `UPDATE sessions
-                     SET revoked_at = NOW()
-                     WHERE id IN (
-                       SELECT id FROM sessions
-                       WHERE user_id = $1
-                         AND revoked_at IS NULL
-                         AND expires_at > NOW()
-                         AND id != $2
-                       LIMIT $3
-                     )`;
-              params = [userId, excludeSessionId, DSQL_MAX_ROWS_PER_TRANSACTION];
-            } else {
-              sql = `UPDATE sessions
-                     SET revoked_at = NOW()
-                     WHERE id IN (
-                       SELECT id FROM sessions
-                       WHERE user_id = $1
-                         AND revoked_at IS NULL
-                         AND expires_at > NOW()
-                       LIMIT $2
-                     )`;
-              params = [userId, DSQL_MAX_ROWS_PER_TRANSACTION];
-            }
-
-            const result = await client.query(sql, params);
-
-            await client.query('COMMIT');
-
-            // `pg` returns rowCount on the result object for DML statements.
-            // Our mock interface returns it via rows.length or a rowCount prop.
-            return getRowCount(result);
-          } catch (error: unknown) {
-            // Best-effort rollback. Preserve the *original* error if
-            // ROLLBACK also throws.
-            try {
-              await client.query('ROLLBACK');
-            } catch {
-              // swallow — re-throwing the original error below is more useful
-            }
-            throw error;
-          } finally {
-            client.release();
+          if (excludeSessionId) {
+            sql = `UPDATE sessions
+                   SET revoked_at = NOW()
+                   WHERE id IN (
+                     SELECT id FROM sessions
+                     WHERE user_id = $1
+                       AND revoked_at IS NULL
+                       AND expires_at > NOW()
+                       AND id != $2
+                     LIMIT $3
+                   )`;
+            params = [userId, excludeSessionId, DSQL_MAX_ROWS_PER_TRANSACTION];
+          } else {
+            sql = `UPDATE sessions
+                   SET revoked_at = NOW()
+                   WHERE id IN (
+                     SELECT id FROM sessions
+                     WHERE user_id = $1
+                       AND revoked_at IS NULL
+                       AND expires_at > NOW()
+                     LIMIT $2
+                   )`;
+            params = [userId, DSQL_MAX_ROWS_PER_TRANSACTION];
           }
+
+          const result = await client.query(sql, params);
+          return getRowCount(result);
         });
 
         totalRevoked += batchRevoked;
@@ -347,17 +345,63 @@ export function createSessionRepository(pool: PoolLike) {
 
 /**
  * Maps a raw database row to a typed `Session` object.
+ *
+ * Handles the conversion of timestamp strings to `Date` objects and parses
+ * the `client_metadata` column. Note: `client_metadata` is a TEXT column
+ * (Aurora DSQL does not support JSONB at this time), so the value is
+ * stored as a JSON-encoded string.
  */
 function mapRowToSession(row: Record<string, unknown>): Session {
+  const sessionId = row.id as string;
   return {
-    id: row.id as string,
+    id: sessionId,
     userId: row.userId as string,
     tokenHash: row.tokenHash as string,
     createdAt: new Date(row.createdAt as string),
     expiresAt: new Date(row.expiresAt as string),
     revokedAt: row.revokedAt ? new Date(row.revokedAt as string) : null,
-    clientMetadata: (row.clientMetadata as ClientMetadata | null) ?? {},
+    clientMetadata: parseClientMetadata(row.clientMetadata, sessionId),
   };
+}
+
+/**
+ * Safely parses the `client_metadata` column value.
+ *
+ * The column is TEXT (Aurora DSQL does not support JSONB), so the `pg`
+ * driver always returns a string. We accept both string and pre-parsed
+ * object shapes for robustness against future driver changes or test mocks.
+ *
+ * If the stored value is not valid JSON, log the error along with the
+ * session id and the value's length so an operator can locate and inspect
+ * the offending row. The runtime shape of the parsed object is NOT
+ * validated, the cast to ClientMetadata is structural; a stored `[]` or
+ * a stringified field where an object is expected will pass through.
+ * For a sample that's acceptable, but treat parsed metadata as untrusted
+ * if you tighten the schema later.
+ */
+function parseClientMetadata(
+  value: unknown,
+  sessionId?: string,
+): ClientMetadata {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as ClientMetadata;
+    } catch (error) {
+      console.warn(
+        '[sessionRepository] failed to parse client_metadata; defaulting to {}',
+        {
+          sessionId: sessionId ?? '<unknown>',
+          valueLength: value.length,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      return {};
+    }
+  }
+  if (typeof value === 'object' && value !== null) {
+    return value as ClientMetadata;
+  }
+  return {};
 }
 
 /**

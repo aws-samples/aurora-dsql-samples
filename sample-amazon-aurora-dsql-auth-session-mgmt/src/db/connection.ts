@@ -28,13 +28,15 @@ let pool: AuroraDSQLPool | null = null;
  * Returns the shared DSQL connection pool, creating it on first access.
  *
  * The pool is configured with:
- * - `host`              — read from the `DSQL_ENDPOINT` environment variable
- * - `user`              — `'admin'` (DSQL's default IAM-authenticated user)
- * - `database`          — `'postgres'` (DSQL's fixed database name)
- * - `max`               — 10 concurrent connections
- * - `idleTimeoutMillis` — 300 000 ms (5 minutes), well under the 1-hour
- *                         DSQL connection timeout so connections are recycled
- *                         before they expire
+ * - `host`               — read from the `DSQL_ENDPOINT` environment variable
+ * - `user`               — `'admin'` (DSQL's default IAM-authenticated user)
+ * - `database`           — `'postgres'` (DSQL's fixed database name)
+ * - `max`                — 10 concurrent connections
+ * - `idleTimeoutMillis`  — 300 000 ms (5 minutes), well under the 1-hour
+ *                           DSQL connection timeout so connections are
+ *                           recycled before they expire
+ * - `maxLifetimeSeconds` — 3 300 s (55 minutes), so each connection retires
+ *                           ahead of DSQL's hard 1-hour cap
  *
  * @throws {Error} If `DSQL_ENDPOINT` is not set in the environment.
  */
@@ -56,7 +58,25 @@ export function getPool(): AuroraDSQLPool {
     database: 'postgres',
     max: 10,
     idleTimeoutMillis: 300_000, // 5 minutes
+    // Matches the connector default in @aws/aurora-dsql-node-postgres-connector
+    // v0.1.9 (parsePgConfig sets maxLifetimeSeconds: 3300 unless overridden);
+    // kept here for visibility so readers see the 1-hour cap accommodation
+    // without having to grep the connector source.
+    maxLifetimeSeconds: 3300,
   });
+
+  // Production guarantee: AuroraDSQLPool always exposes transaction(), and
+  // the repositories rely on it for OCC retry. Surface a clear error here
+  // if a future refactor accidentally returns a plain pg.Pool, rather than
+  // silently degrading to the manual BEGIN/COMMIT fallback that exists for
+  // unit-test mocks.
+  if (typeof (pool as { transaction?: unknown }).transaction !== 'function') {
+    throw new Error(
+      'Pool does not expose transaction(); expected AuroraDSQLPool from ' +
+        '@aws/aurora-dsql-node-postgres-connector. Repositories rely on ' +
+        'pool.transaction() for OCC retry.',
+    );
+  }
 
   return pool;
 }
