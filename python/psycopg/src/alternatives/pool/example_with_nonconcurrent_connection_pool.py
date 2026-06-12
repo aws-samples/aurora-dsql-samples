@@ -3,8 +3,6 @@
 
 import os
 
-from psycopg_pool import ConnectionPool as PsycopgPool
-
 import aurora_dsql_psycopg as dsql
 
 
@@ -20,25 +18,31 @@ def connect_with_pool(cluster_user, cluster_endpoint):
         "sslrootcert": ssl_cert_path,
     }
 
-    pool = PsycopgPool(
-        "",  # Empty conninfo
-        connection_class=dsql.DSQLConnection,
-        kwargs=conn_params,  # Pass params as kwargs
+    pool = dsql.create_pool(
+        "",
+        kwargs=conn_params,
         min_size=2,
         max_size=8,
         max_lifetime=3300,
+        retry=True,
     )
 
-    # Use the pool as a context manager
-    with pool as p:
-        # Request a connection from the pool
-        with p.connection() as conn:
-            # Execute a query
+    with pool:
+        with pool.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
                 result = cur.fetchone()
                 print(f"Query result: {result}")
                 assert result[0] == 1
+
+        def insert_owner(conn):
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO owner(name, city, telephone) VALUES(%s, %s, %s)",
+                    ("John Doe", "Anytown", "555-555-1900"),
+                )
+
+        pool.run_transaction(insert_owner)
 
 
 def main():
