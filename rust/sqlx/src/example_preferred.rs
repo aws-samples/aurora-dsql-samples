@@ -32,8 +32,8 @@ async fn main() -> anyhow::Result<()> {
             .after_connect(move |conn, _meta| {
                 let schema = schema_owned.clone();
                 Box::pin(async move {
-                    conn.execute(format!("SET search_path = '{}'", schema).as_str())
-                        .await?;
+                    let sql = format!("SET search_path = '{}'", schema);
+                    conn.execute(sqlx::AssertSqlSafe(sql)).await?;
                     Ok(())
                 })
             }),
