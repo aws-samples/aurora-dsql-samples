@@ -100,8 +100,15 @@ Icon?
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
 
+# Python
+__pycache__/
+*.pyc
+
 # TypeScript build outputs
 dist/
 
 # Nested git directories in sample projects
 sample-amazon-aurora-dsql-agent/.git/
+
+# Python virtual environments
+.venv/
