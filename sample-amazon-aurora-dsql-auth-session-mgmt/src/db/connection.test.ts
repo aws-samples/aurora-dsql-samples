@@ -14,6 +14,9 @@ const constructorCalls: unknown[] = [];
 vi.mock('@aws/aurora-dsql-node-postgres-connector', () => {
   class MockAuroraDSQLPool {
     end = mockEnd;
+    // Stub method matching the real connector's signature so the
+    // typeof-check assertion in getPool() passes.
+    transaction = async <T>(cb: (client: unknown) => Promise<T>): Promise<T> => cb({});
     constructor(config: unknown) {
       constructorCalls.push(config);
     }
@@ -65,6 +68,7 @@ describe('DSQL Connection Pool', () => {
       database: 'postgres',
       max: 10,
       idleTimeoutMillis: 300_000,
+      maxLifetimeSeconds: 3300,
     });
     expect(pool).toBeDefined();
   });

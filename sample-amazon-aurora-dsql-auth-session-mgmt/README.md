@@ -153,13 +153,34 @@ The `sessions.token_hash` column is intentionally NOT given an explicit `CREATE 
 
 ### Production hardening checklist
 
-This sample focuses on demonstrating Aurora DSQL patterns. Before running in production, add the following layers, none of which are DSQL-specific:
+This sample focuses on demonstrating Aurora DSQL patterns. Before running in production, add the following layers:
 
+- **Custom database role for the runtime.** The default `connection.ts` connects as `admin`, which is fine for the proof-of-concept but gives the runtime far more authority than it needs. For production, run the included setup script once to create a least-privilege role and map it to your runtime IAM principal:
+
+  ```bash
+  AWS_REGION=us-east-1 \
+  DSQL_ENDPOINT=<cluster-id>.dsql.us-east-1.on.aws \
+  APP_ROLE_NAME=app_runtime \
+  APP_TASK_ROLE_ARN=arn:aws:iam::111122223333:role/auth-service-task-role \
+  npm run setup-runtime-role
+  ```
+
+  Then change `connection.ts` to connect as `app_runtime` instead of `admin`, and attach an IAM task-role policy that grants only `dsql:DbConnect` (not `dsql:DbConnectAdmin`). Keep `admin` for one-off setup steps such as creating the role itself or running migrations. This follows Aurora DSQL's [Database roles and IAM authentication](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-database-roles.html) guidance.
+
+  To roll the role back, revoke its table privileges and the IAM mapping before dropping it. Otherwise `DROP ROLE` fails with `2BP01 cannot be dropped because some objects depend on it` (the table grants and the IAM mapping are independent dependencies, both must be removed):
+
+  ```sql
+  REVOKE ALL ON users    FROM app_runtime;
+  REVOKE ALL ON sessions FROM app_runtime;
+  AWS IAM REVOKE app_runtime FROM 'arn:aws:iam::111122223333:role/auth-service-task-role';
+  DROP ROLE app_runtime;
+  ```
 - **Rate limiting.** This sample does not include `express-rate-limit` or any throttling. At minimum, add per-IP rate limits to `/api/auth/register` and `/api/auth/login` to slow brute-force credential stuffing.
-- **Trusted proxy / X-Forwarded-For handling.** `req.ip` is recorded in `client_metadata` for session listing. Behind a load balancer, this is the LB IP unless you configure `app.set('trust proxy', ...)` with the correct hop count. Configure it explicitly — never set `trust proxy: true` on a publicly exposed app, since that lets clients spoof `X-Forwarded-For`.
-- **bcrypt cost factor.** `passwordHasher.ts` uses cost 10 (~80–100 ms per verify on a typical CPU), suitable for a proof-of-concept. Increase to 12 or higher in production after benchmarking your target hardware.
-- **Logging and observability.** Replace the `console.warn` / `console.error` calls in `retryWithBackoff.ts` with a structured logger of your choice and forward to CloudWatch / your aggregator.
+- **Trusted proxy / X-Forwarded-For handling.** `req.ip` is recorded in `client_metadata` for session listing. Behind a load balancer, this is the LB IP unless you configure `app.set('trust proxy', ...)` with the correct hop count. Configure it explicitly. Never set `trust proxy: true` on a publicly exposed app, since that lets clients spoof `X-Forwarded-For`.
+- **bcrypt cost factor.** `passwordHasher.ts` uses cost 10 (~80-100 ms per verify on a typical CPU), suitable for a proof-of-concept. Increase to 12 or higher in production after benchmarking your target hardware.
+- **Logging and observability.** Replace the `console.warn` / `console.error` calls in `retryWithBackoff.ts` with a structured logger of your choice and forward to CloudWatch or your aggregator.
 - **Token storage on the client.** This sample returns the session token in JSON. In a browser app you'll typically want an HTTP-only, Secure cookie instead.
+- **Periodic session purge.** Run `npm run housekeeping` on a schedule (cron, ECS scheduled task, EventBridge-triggered Lambda) to delete expired and long-revoked rows. Configurable via `SESSION_RETENTION_DAYS` (default 30 days). The script wraps each batch in `retryWithBackoff` so transient OCC conflicts don't fail the run.
 
 ## Cleanup
 
