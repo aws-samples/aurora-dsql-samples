@@ -167,9 +167,11 @@ This sample focuses on demonstrating Aurora DSQL patterns. Before running in pro
 
   Then change `connection.ts` to connect as `app_runtime` instead of `admin`, and attach an IAM task-role policy that grants only `dsql:DbConnect` (not `dsql:DbConnectAdmin`). Keep `admin` for one-off setup steps such as creating the role itself or running migrations. This follows Aurora DSQL's [Database roles and IAM authentication](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-database-roles.html) guidance.
 
-  To roll the role back, you must revoke the IAM mapping before dropping the role, otherwise `DROP ROLE` fails with `2BP01 cannot be dropped because some objects depend on it`:
+  To roll the role back, revoke its table privileges and the IAM mapping before dropping it. Otherwise `DROP ROLE` fails with `2BP01 cannot be dropped because some objects depend on it` (the table grants and the IAM mapping are independent dependencies, both must be removed):
 
   ```sql
+  REVOKE ALL ON users    FROM app_runtime;
+  REVOKE ALL ON sessions FROM app_runtime;
   AWS IAM REVOKE app_runtime FROM 'arn:aws:iam::111122223333:role/auth-service-task-role';
   DROP ROLE app_runtime;
   ```

@@ -46,10 +46,14 @@
 // if the role already exists. Re-run only after dropping the role, or
 // guard your invocation with environment checks.
 //
-// Undo path: to drop the role you must first revoke the IAM mapping, or
-// `DROP ROLE` fails with `2BP01 cannot be dropped because some objects
-// depend on it`:
+// Undo path: to drop the role you must first revoke its table privileges
+// AND the IAM mapping. The table grants and the IAM mapping are
+// independent dependencies; both block `DROP ROLE` independently with
+// `2BP01 cannot be dropped because some objects depend on it`. The three
+// REVOKEs can be in any order, but all must precede `DROP ROLE`:
 //
+//   REVOKE ALL ON users    FROM app_runtime;
+//   REVOKE ALL ON sessions FROM app_runtime;
 //   AWS IAM REVOKE app_runtime FROM 'arn:aws:iam::111122223333:role/auth-service-task-role';
 //   DROP ROLE app_runtime;
 //
