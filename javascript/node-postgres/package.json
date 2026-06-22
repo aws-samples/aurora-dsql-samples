@@ -12,7 +12,7 @@
   "dependencies": {
     "@aws/aurora-dsql-node-postgres-connector": "^0.1.9",
     "assert": "2.1.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "jest": "^30.4.2"
