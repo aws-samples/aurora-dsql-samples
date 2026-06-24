@@ -9,7 +9,6 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
-import javax.sql.DataSource;
 
 /**
  * Main entry point for Aurora DSQL batch operations demo (Java).
