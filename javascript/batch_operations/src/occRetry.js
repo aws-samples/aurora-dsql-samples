@@ -25,7 +25,8 @@ function sleep(ms) {
  *
  * @param {import('pg').PoolClient} client - A node-postgres pool client.
  * @param {(client: import('pg').PoolClient) => Promise<*>} operation - Async
- *   function that performs database work. Should NOT commit.
+ *   function that performs database work. Must call BEGIN; caller commits after
+ *   success.
  * @param {number} [maxRetries=3] - Maximum retry attempts.
  * @param {number} [baseDelayMs=100] - Base delay in milliseconds for backoff.
  * @returns {Promise<*>} The return value of `operation(client)`.
@@ -40,7 +41,7 @@ async function executeWithRetry(client, operation, maxRetries = 3, baseDelayMs =
         if (attempt >= maxRetries) {
           throw new MaxRetriesExceededError(maxRetries);
         }
-        const delayMs = baseDelayMs * Math.pow(2, attempt);
+        const delayMs = baseDelayMs * Math.pow(2, attempt) * (0.5 + Math.random());
         console.warn(
           `OCC conflict, retry ${attempt + 1}/${maxRetries} after ${delayMs}ms`
         );

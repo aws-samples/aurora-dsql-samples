@@ -5,6 +5,7 @@ package com.example.dsql.batch_operations;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 
 /**
@@ -57,7 +58,7 @@ public class OccRetry {
                     if (attempt >= maxRetries) {
                         throw new MaxRetriesExceededException(maxRetries);
                     }
-                    long delayMs = baseDelayMs * (1L << attempt);
+                    long delayMs = (long) (baseDelayMs * (1L << attempt) * (0.5 + ThreadLocalRandom.current().nextDouble()));
                     logger.warning(String.format(
                             "OCC conflict, retry %d/%d after %dms",
                             attempt + 1, maxRetries, delayMs));

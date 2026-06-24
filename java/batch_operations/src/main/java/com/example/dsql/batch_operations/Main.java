@@ -8,6 +8,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 
 /**
@@ -22,6 +23,8 @@ import javax.sql.DataSource;
  */
 public class Main {
 
+    private static final Logger logger = Logger.getLogger(Main.class.getName());
+
     @FunctionalInterface
     interface BatchOperation {
         int run() throws SQLException, OccRetry.MaxRetriesExceededException;
@@ -29,15 +32,15 @@ public class Main {
 
     private static int runOperation(String label, BatchOperation op)
             throws SQLException, OccRetry.MaxRetriesExceededException {
-        System.out.println();
-        System.out.println("=".repeat(60));
-        System.out.println("  " + label);
-        System.out.println("=".repeat(60));
+        logger.info("");
+        logger.info("=".repeat(60));
+        logger.info("  " + label);
+        logger.info("=".repeat(60));
         long start = System.currentTimeMillis();
         int total = op.run();
         double elapsed = (System.currentTimeMillis() - start) / 1000.0;
-        System.out.printf("%n  Summary: %d rows affected in %.2fs%n", total, elapsed);
-        System.out.println("=".repeat(60));
+        logger.info(String.format("%n  Summary: %d rows affected in %.2fs", total, elapsed));
+        logger.info("=".repeat(60));
         return total;
     }
 
@@ -77,19 +80,22 @@ public class Main {
                 case "--batch-size": config.put("batch-size", args[++i]); break;
                 case "--num-workers": config.put("num-workers", args[++i]); break;
                 default:
-                    System.err.println("Unknown argument: " + args[i]);
-                    System.exit(1);
+                    throw new IllegalArgumentException("Unknown argument: " + args[i]);
             }
         }
         if (!config.containsKey("endpoint")) {
-            System.err.println("Usage: gradle run --args=\"--endpoint <cluster-endpoint> "
+            throw new IllegalArgumentException(
+                    "Usage: gradle run --args=\"--endpoint <cluster-endpoint> "
                     + "[--user admin] [--batch-size 1000] [--num-workers 4]\"");
-            System.exit(1);
         }
         return config;
     }
 
-    public static void main(String[] args) {
+    /**
+     * Run all batch operations. This method throws on failure rather than
+     * calling System.exit, making it suitable for both CLI and test usage.
+     */
+    public static void execute(String[] args) throws SQLException, OccRetry.MaxRetriesExceededException {
         Map<String, String> config = parseArgs(args);
         String endpoint = config.get("endpoint");
         String user = config.get("user");
@@ -113,17 +119,25 @@ public class Main {
             runOperation("Parallel Batch UPDATE (books -> archived) [" + numWorkers + " workers]",
                 () -> BatchUpdate.parallelBatchUpdate(pool, table, "status = 'archived'",
                     "category = 'books' AND status != 'archived'", numWorkers, batchSize, 3, 100));
-
-        } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(1);
-        } catch (OccRetry.MaxRetriesExceededException e) {
-            System.err.println("Max retries exceeded: " + e.getMessage());
-            System.exit(1);
         } finally {
             pool.close();
         }
-        System.out.println("\nDemo complete.");
+        logger.info("\nDemo complete.");
+    }
+
+    public static void main(String[] args) {
+        try {
+            execute(args);
+        } catch (SQLException e) {
+            logger.severe("Database error: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        } catch (OccRetry.MaxRetriesExceededException e) {
+            logger.severe("Max retries exceeded: " + e.getMessage());
+            System.exit(1);
+        } catch (IllegalArgumentException e) {
+            logger.severe(e.getMessage());
+            System.exit(1);
+        }
     }
 }

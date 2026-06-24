@@ -12,12 +12,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 
 /**
  * Sequential and parallel batch UPDATE for Aurora DSQL.
  */
 public class BatchUpdate {
+
+    private static final Logger logger = Logger.getLogger(BatchUpdate.class.getName());
 
     /** Stop retrying a batch after this many consecutive OCC exhaustions. */
     private static final int MAX_CONSECUTIVE_FAILURES = 10;
@@ -45,11 +48,11 @@ public class BatchUpdate {
                 conn.commit();
                 totalUpdated += updated;
                 consecutiveFailures = 0;
-                System.out.println("Updated " + updated + " rows (total: " + totalUpdated + ")");
+                logger.info("Updated " + updated + " rows (total: " + totalUpdated + ")");
                 if (updated == 0) break;
             } catch (OccRetry.MaxRetriesExceededException e) {
                 consecutiveFailures++;
-                System.out.println("Batch OCC retries exhausted (" + consecutiveFailures
+                logger.warning("Batch OCC retries exhausted (" + consecutiveFailures
                         + "/" + MAX_CONSECUTIVE_FAILURES + "), retrying batch with fresh connection");
                 if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) throw e;
             }
@@ -62,7 +65,7 @@ public class BatchUpdate {
             if (rs.next()) {
                 int remaining = rs.getInt(1);
                 if (remaining > 0) {
-                    System.out.println("WARNING: " + remaining + " rows still match condition after updating " + totalUpdated + " rows");
+                    logger.warning(remaining + " rows still match condition after updating " + totalUpdated + " rows");
                 }
             }
         }
@@ -88,7 +91,7 @@ public class BatchUpdate {
             futures.add(executor.submit(() -> {
                 int totalUpdated = 0;
                 int consecutiveFailures = 0;
-                String partitionCondition = condition
+                String partitionCondition = "(" + condition + ")"
                         + " AND abs(hashtext(CAST(id AS text))) % " + numWorkers + " = " + workerId;
 
                 while (true) {
@@ -107,11 +110,11 @@ public class BatchUpdate {
                         conn.commit();
                         totalUpdated += updated;
                         consecutiveFailures = 0;
-                        System.out.println("Worker " + workerId + ": Updated " + updated + " rows (total: " + totalUpdated + ")");
+                        logger.info("Worker " + workerId + ": Updated " + updated + " rows (total: " + totalUpdated + ")");
                         if (updated == 0) break;
                     } catch (OccRetry.MaxRetriesExceededException e) {
                         consecutiveFailures++;
-                        System.out.println("Worker " + workerId + ": Batch OCC retries exhausted ("
+                        logger.warning("Worker " + workerId + ": Batch OCC retries exhausted ("
                                 + consecutiveFailures + "/" + MAX_CONSECUTIVE_FAILURES
                                 + "), retrying batch with fresh connection");
                         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) throw e;
@@ -137,7 +140,7 @@ public class BatchUpdate {
             }
         }
 
-        System.out.println("Parallel update complete: " + total + " rows updated by " + numWorkers + " workers");
+        logger.info("Parallel update complete: " + total + " rows updated by " + numWorkers + " workers");
 
         // Post-verification: ensure no matching rows remain (uses original condition, not partitioned)
         try (Connection conn = pool.getConnection();
@@ -146,7 +149,7 @@ public class BatchUpdate {
             if (rs.next()) {
                 int remaining = rs.getInt(1);
                 if (remaining > 0) {
-                    System.out.println("WARNING: " + remaining + " rows still match condition after updating " + total + " rows");
+                    logger.warning(remaining + " rows still match condition after updating " + total + " rows");
                 }
             }
         }

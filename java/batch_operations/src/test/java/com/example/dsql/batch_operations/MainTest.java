@@ -49,10 +49,10 @@ public class MainTest {
     }
 
     @Test
-    public void testBatchOperations() {
-        assertAll(() -> Main.main(new String[]{
+    public void testBatchOperations() throws Exception {
+        Main.execute(new String[]{
             "--endpoint", System.getenv("CLUSTER_ENDPOINT"),
             "--user", System.getenv().getOrDefault("CLUSTER_USER", "admin")
-        }));
+        });
     }
 }

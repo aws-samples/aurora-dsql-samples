@@ -44,7 +44,7 @@ def parallel_batch_delete(
         total_deleted = 0
         consecutive_failures = 0
         partition_condition = (
-            f"{condition} AND abs(hashtext(id::text)) % {num_workers} = {worker_id}"
+            f"({condition}) AND abs(hashtext(id::text)) % {num_workers} = {worker_id}"
         )
 
         while True:

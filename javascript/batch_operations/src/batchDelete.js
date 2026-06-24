@@ -108,7 +108,7 @@ async function parallelBatchDelete(
     let totalDeleted = 0;
     let consecutiveFailures = 0;
     const partitionCondition =
-      `${condition} AND abs(hashtext(id::text)) % ${numWorkers} = ${workerId}`;
+      `(${condition}) AND abs(hashtext(id::text)) % ${numWorkers} = ${workerId}`;
 
     while (true) {
       const client = await pool.connect();

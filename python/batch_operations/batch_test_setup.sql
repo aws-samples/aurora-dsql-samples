@@ -12,7 +12,8 @@
 --   toys         → (unused, remains in table)
 --
 -- Aurora DSQL limits each transaction to 3,000 row mutations, so we insert
--- in batches of 1,000 rows. Run each INSERT as a separate transaction.
+-- in batches of 1,000 rows. Each INSERT is a separate transaction when run
+-- via psql's default autocommit behavior.
 -- =============================================================================
 
 -- Drop the table if it already exists
@@ -35,180 +36,31 @@ CREATE INDEX ASYNC idx_batch_test_category ON batch_test (category);
 
 -- =============================================================================
 -- Populate the table with 25,000 rows of test data (25 batches of 1,000).
--- Each INSERT is 1,000 rows — run each as a separate transaction.
+-- Each INSERT is 1,000 rows — psql runs each as a separate transaction.
 -- =============================================================================
 
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
-
-INSERT INTO batch_test (category, status, value)
-SELECT
-    (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)],
-    'active',
-    round((random() * 1000)::numeric, 2)
-FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);
+INSERT INTO batch_test (category, status, value) SELECT (ARRAY['electronics', 'clothing', 'food', 'books', 'toys'])[floor(random() * 5 + 1)], 'active', round((random() * 1000)::numeric, 2) FROM generate_series(1, 1000);

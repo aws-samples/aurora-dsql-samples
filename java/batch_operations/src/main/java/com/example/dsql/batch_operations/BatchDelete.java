@@ -12,12 +12,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 
 /**
  * Sequential and parallel batch DELETE for Aurora DSQL.
  */
 public class BatchDelete {
+
+    private static final Logger logger = Logger.getLogger(BatchDelete.class.getName());
 
     /** Stop retrying a batch after this many consecutive OCC exhaustions. */
     private static final int MAX_CONSECUTIVE_FAILURES = 10;
@@ -44,11 +47,11 @@ public class BatchDelete {
                 conn.commit();
                 totalDeleted += deleted;
                 consecutiveFailures = 0;
-                System.out.println("Deleted " + deleted + " rows (total: " + totalDeleted + ")");
+                logger.info("Deleted " + deleted + " rows (total: " + totalDeleted + ")");
                 if (deleted == 0) break;
             } catch (OccRetry.MaxRetriesExceededException e) {
                 consecutiveFailures++;
-                System.out.println("Batch OCC retries exhausted (" + consecutiveFailures
+                logger.warning("Batch OCC retries exhausted (" + consecutiveFailures
                         + "/" + MAX_CONSECUTIVE_FAILURES + "), retrying batch with fresh connection");
                 if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) throw e;
             }
@@ -61,7 +64,7 @@ public class BatchDelete {
             if (rs.next()) {
                 int remaining = rs.getInt(1);
                 if (remaining > 0) {
-                    System.out.println("WARNING: " + remaining + " rows still match condition after deleting " + totalDeleted + " rows");
+                    logger.warning(remaining + " rows still match condition after deleting " + totalDeleted + " rows");
                 }
             }
         }
@@ -87,7 +90,7 @@ public class BatchDelete {
             futures.add(executor.submit(() -> {
                 int totalDeleted = 0;
                 int consecutiveFailures = 0;
-                String partitionCondition = condition
+                String partitionCondition = "(" + condition + ")"
                         + " AND abs(hashtext(CAST(id AS text))) % " + numWorkers + " = " + workerId;
 
                 while (true) {
@@ -105,11 +108,11 @@ public class BatchDelete {
                         conn.commit();
                         totalDeleted += deleted;
                         consecutiveFailures = 0;
-                        System.out.println("Worker " + workerId + ": Deleted " + deleted + " rows (total: " + totalDeleted + ")");
+                        logger.info("Worker " + workerId + ": Deleted " + deleted + " rows (total: " + totalDeleted + ")");
                         if (deleted == 0) break;
                     } catch (OccRetry.MaxRetriesExceededException e) {
                         consecutiveFailures++;
-                        System.out.println("Worker " + workerId + ": Batch OCC retries exhausted ("
+                        logger.warning("Worker " + workerId + ": Batch OCC retries exhausted ("
                                 + consecutiveFailures + "/" + MAX_CONSECUTIVE_FAILURES
                                 + "), retrying batch with fresh connection");
                         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) throw e;
@@ -135,7 +138,7 @@ public class BatchDelete {
             }
         }
 
-        System.out.println("Parallel delete complete: " + total + " rows deleted by " + numWorkers + " workers");
+        logger.info("Parallel delete complete: " + total + " rows deleted by " + numWorkers + " workers");
 
         // Post-verification: ensure no matching rows remain (uses original condition, not partitioned)
         try (Connection conn = pool.getConnection();
@@ -144,7 +147,7 @@ public class BatchDelete {
             if (rs.next()) {
                 int remaining = rs.getInt(1);
                 if (remaining > 0) {
-                    System.out.println("WARNING: " + remaining + " rows still match condition after deleting " + total + " rows");
+                    logger.warning(remaining + " rows still match condition after deleting " + total + " rows");
                 }
             }
         }

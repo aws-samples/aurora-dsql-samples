@@ -4,6 +4,7 @@
 """OCC retry logic with exponential backoff for Aurora DSQL batch operations."""
 
 import logging
+import random
 import time
 
 import psycopg2
@@ -51,7 +52,7 @@ def execute_with_retry(connection, operation, max_retries=3, base_delay_ms=100):
             connection.rollback()
             if attempt >= max_retries:
                 raise MaxRetriesExceeded(max_retries)
-            delay_ms = base_delay_ms * (2 ** attempt)
+            delay_ms = base_delay_ms * (2 ** attempt) * (0.5 + random.random())
             logger.warning(
                 "OCC conflict, retry %d/%d after %dms",
                 attempt + 1,

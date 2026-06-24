@@ -45,7 +45,7 @@ def parallel_batch_update(
         total_updated = 0
         consecutive_failures = 0
         partition_condition = (
-            f"{condition} AND abs(hashtext(id::text)) % {num_workers} = {worker_id}"
+            f"({condition}) AND abs(hashtext(id::text)) % {num_workers} = {worker_id}"
         )
 
         while True:

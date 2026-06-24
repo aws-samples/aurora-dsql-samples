@@ -12,8 +12,6 @@ The parallel variant partitions rows across worker threads using
 disjoint subset, avoiding OCC conflicts between workers.
 """
 
-import threading
-
 from occ_retry import MaxRetriesExceeded, execute_with_retry
 
 # Stop retrying a batch after this many consecutive OCC exhaustions.
