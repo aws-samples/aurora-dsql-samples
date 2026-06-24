@@ -1,3 +1,3 @@
-boto3>=1.43.35
+boto3>=1.43.36
 botocore>=1.43.35
 pytest>=9.1.1
