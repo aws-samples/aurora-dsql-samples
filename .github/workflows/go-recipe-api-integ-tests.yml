@@ -49,7 +49,7 @@ jobs:
     - name: Run integration tests
       working-directory: ./go/recipe-sharing-api
       env:
-        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        DSQL_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         REGION: ${{ needs.create-cluster.outputs.region }}
       run: |
         go test -v ./test/...
