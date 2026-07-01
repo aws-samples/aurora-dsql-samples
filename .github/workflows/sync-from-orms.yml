@@ -1,0 +1,44 @@
+name: Sync Examples from ORMs
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Clone ORMs mono-repo
+        run: |
+          git clone --depth 1 https://github.com/awslabs/aurora-dsql-orms.git /tmp/orms
+
+      - name: Sync Dotnet EF Core example
+        run: |
+          rsync -av --delete /tmp/orms/dotnet/ef-core/examples/InventoryApi/ dotnet/ef-core/examples/InventoryApi/
+          rsync -av --delete /tmp/orms/dotnet/ef-core/examples/InventoryApi.IntegrationTests/ dotnet/ef-core/examples/InventoryApi.IntegrationTests/
+          # The adapter is published to NuGet, so replace the source ProjectReference
+          # with a PackageReference to keep the synced example self-contained.
+          sed -i 's|<ProjectReference Include="..\\..\\src\\Amazon.AuroraDsql.EntityFrameworkCore\\Amazon.AuroraDsql.EntityFrameworkCore.csproj" />|<PackageReference Include="Amazon.AuroraDsql.EntityFrameworkCore" Version="1.0.0" />|g' dotnet/ef-core/examples/InventoryApi/InventoryApi.csproj
+
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: "Sync examples from orms"
+          title: "Sync examples from orms"
+          body: "Automated sync from orms repo"
+          branch: sync/orms
+          delete-branch: true
+
+      - name: Enable auto-merge
+        if: steps.cpr.outputs.pull-request-number
+        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ github.token }}

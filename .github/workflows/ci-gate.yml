@@ -18,6 +18,7 @@ jobs:
       deno-booking-api: ${{ steps.detect.outputs.deno-booking-api }}
       deno-postgresjs: ${{ steps.detect.outputs.deno-postgresjs }}
       dotnet-cm: ${{ steps.detect.outputs.dotnet-cm }}
+      dotnet-ef-core: ${{ steps.detect.outputs.dotnet-ef-core }}
       dotnet-npgsql: ${{ steps.detect.outputs.dotnet-npgsql }}
       go-cm: ${{ steps.detect.outputs.go-cm }}
       go-pgx: ${{ steps.detect.outputs.go-pgx }}
@@ -54,6 +55,7 @@ jobs:
               'deno-booking-api': ['deno/booking-api/postgres-js/'],
               'deno-postgresjs': ['deno/postgres-js/'],
               'dotnet-cm': ['dotnet/cluster_management/'],
+              'dotnet-ef-core': ['dotnet/ef-core/'],
               'dotnet-npgsql': ['dotnet/npgsql/'],
               'go-cm': ['go/cluster_management/'],
               'go-pgx': ['go/dsql-pgx-connector/'],
@@ -161,6 +163,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.dotnet-cm == 'true'
     uses: ./.github/workflows/dotnet-cm-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  dotnet-ef-core:
+    needs: changes
+    if: needs.changes.outputs.dotnet-ef-core == 'true'
+    uses: ./.github/workflows/dotnet-ef-core-integ-tests.yml
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
@@ -376,6 +386,7 @@ jobs:
       - deno-booking-api
       - deno-postgresjs
       - dotnet-cm
+      - dotnet-ef-core
       - dotnet-npgsql
       - go-cm
       - go-pgx
