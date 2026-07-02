@@ -48,6 +48,9 @@ async def exercise_connection(conn):
             """
     )
 
+    # Clean up any data from previous runs to avoid assertion failures
+    await conn.execute("DELETE FROM owner WHERE name = $1", "John Doe")
+
     # Insert some rows
     await conn.execute(
         "INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)",

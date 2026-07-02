@@ -31,13 +31,24 @@ async def connect_with_pool_concurrent_connections(cluster_user, cluster_endpoin
 
     pool = None
     try:
-        pool = await dsql.create_pool(**pool_params)
+        pool = await dsql.create_pool(retry=True, **pool_params)
+
         # Run multiple concurrent workers
         num_workers = 5
         tasks = [worker_task(pool, i) for i in range(num_workers)]
         results = await asyncio.gather(*tasks)
         for result in results:
             print(result)
+
+        async def insert_owner(conn):
+            await conn.execute(
+                "INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)",
+                "John Doe",
+                "Anytown",
+                "555-555-1900",
+            )
+
+        await pool.run_transaction(insert_owner)
     finally:
         if pool is not None:
             await pool.close()
