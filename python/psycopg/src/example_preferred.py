@@ -4,8 +4,6 @@
 import os
 import threading
 
-from psycopg_pool import ConnectionPool as PsycopgPool
-
 import aurora_dsql_psycopg as dsql
 
 
@@ -21,13 +19,13 @@ def connect_with_pool_concurrent_connections(cluster_user, cluster_endpoint):
         "sslrootcert": ssl_cert_path,
     }
 
-    pool = PsycopgPool(
-        "",  # Empty conninfo
-        connection_class=dsql.DSQLConnection,
-        kwargs=conn_params,  # Pass params as kwargs
+    pool = dsql.create_pool(
+        "",
+        kwargs=conn_params,
         min_size=2,
         max_size=8,
         max_lifetime=3300,
+        retry=True,
         open=True,
     )
 
@@ -64,6 +62,15 @@ def connect_with_pool_concurrent_connections(cluster_user, cluster_endpoint):
         for thread_id, exc in exceptions:
             print(f"  Thread {thread_id}: {exc}")
         raise RuntimeError(f"One or more worker threads failed: {exceptions}")
+
+    def insert_owner(conn):
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO owner(name, city, telephone) VALUES(%s, %s, %s)",
+                ("John Doe", "Anytown", "555-555-1900"),
+            )
+
+    pool.run_transaction(insert_owner)
 
 
 def main():

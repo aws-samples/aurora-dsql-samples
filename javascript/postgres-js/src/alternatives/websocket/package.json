@@ -9,20 +9,20 @@
   },
   "dependencies": {
     "@aws-sdk/client-sts": "^3.1050.0",
-    "@aws-sdk/types": "^3.973.9",
-    "@aws/aurora-dsql-postgresjs-connector": "^0.2.1",
+    "@aws-sdk/types": "^3.973.13",
+    "@aws/aurora-dsql-postgresjs-connector": "^0.3.0",
     "buffer": "^6.0.3",
     "net-browserify": "^0.2.4",
     "performance-now": "^2.1.0",
     "postgres": "^3.4.7",
     "process": "^0.11.10",
     "react": "^19.2.6",
-    "react-dom": "^19.2.5",
+    "react-dom": "^19.2.7",
     "setimmediate": "^1.0.5",
     "timers-browserify": "^2.0.12"
   },
   "devDependencies": {
-    "@babel/core": "^8.0.1",
+    "@babel/core": "^7.22.0",
     "@babel/preset-react": "^7.22.0",
     "@eslint/js": "^9.0.0",
     "@types/react": "^19.2.14",
@@ -40,7 +40,7 @@
     "typescript": "^5.0.0",
     "webpack": "^5.88.0",
     "webpack-cli": "^5.1.0",
-    "webpack-dev-server": "^5.2.5"
+    "webpack-dev-server": "^5.2.4"
   },
   "overrides": {
     "ws": "^8.18.0",
