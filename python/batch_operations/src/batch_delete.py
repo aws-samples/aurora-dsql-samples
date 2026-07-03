@@ -8,8 +8,12 @@ batch as a separate transaction to stay within the 3,000-row mutation limit.
 Uses OCC retry logic with exponential backoff for serialization conflicts.
 
 The parallel variant partitions rows across worker threads using
-``abs(hashtext(id::text)) % num_workers`` so that each worker operates on a
-disjoint subset, avoiding OCC conflicts between workers.
+``abs(hashtext(id::text)::bigint) % num_workers`` so that each worker operates on a
+disjoint subset, reducing OCC conflicts between workers.
+
+NOTE: The ``table`` and ``condition`` parameters are interpolated directly into SQL.
+They must come from trusted, developer-controlled sources — never from end-user
+input. Use parameterized queries ($1, %s) for user-supplied values within conditions.
 """
 
 from occ_retry import MaxRetriesExceeded, execute_with_retry
@@ -18,8 +22,22 @@ from occ_retry import MaxRetriesExceeded, execute_with_retry
 MAX_CONSECUTIVE_FAILURES = 10
 
 
+class IncompleteBatchError(Exception):
+    """Raised when rows still match the condition after a batch operation completes."""
+
+    def __init__(self, remaining, total_affected):
+        super().__init__(
+            f"{remaining} rows still match condition after processing {total_affected} rows"
+        )
+        self.remaining = remaining
+        self.total_affected = total_affected
+
+
 def batch_delete(pool, table, condition, batch_size=1000, max_retries=3, base_delay_ms=100):
     """Delete rows in batches, committing each batch as a separate transaction.
+
+    The commit is included inside the OCC retry scope so that commit-time
+    serialization failures (SQLSTATE 40001) are retried automatically.
 
     If a single batch exhausts its OCC retries, the loop retries that batch
     with a fresh connection (up to ``MAX_CONSECUTIVE_FAILURES`` times) instead
@@ -28,15 +46,23 @@ def batch_delete(pool, table, condition, batch_size=1000, max_retries=3, base_de
 
     Args:
         pool: A ``dsql.AuroraDSQLThreadedConnectionPool`` instance.
-        table: Name of the table to delete from.
-        condition: SQL WHERE clause (without the ``WHERE`` keyword).
+        table: Name of the table to delete from (trusted input only).
+        condition: SQL WHERE clause without the ``WHERE`` keyword (trusted input only).
         batch_size: Number of rows to delete per transaction (default 1,000).
         max_retries: Maximum OCC retry attempts per batch (default 3).
         base_delay_ms: Base delay in milliseconds for exponential backoff (default 100).
 
     Returns:
         Total number of rows deleted across all batches.
+
+    Raises:
+        IncompleteBatchError: If rows still match the condition after the operation.
+        MaxRetriesExceeded: If OCC retries are exhausted after MAX_CONSECUTIVE_FAILURES
+            consecutive batch failures.
     """
+    if batch_size < 1:
+        raise ValueError("batch_size must be >= 1")
+
     total_deleted = 0
     consecutive_failures = 0
 
@@ -54,12 +80,13 @@ def batch_delete(pool, table, condition, batch_size=1000, max_retries=3, base_de
                             LIMIT {batch_size}
                         )"""
                     )
-                    return cur.rowcount
+                    deleted = cur.rowcount
+                conn.commit()
+                return deleted
 
             deleted = execute_with_retry(
                 conn, delete_batch, max_retries=max_retries, base_delay_ms=base_delay_ms
             )
-            conn.commit()
             total_deleted += deleted
             consecutive_failures = 0  # reset on success
             print(f"Deleted {deleted} rows (total: {total_deleted})")
@@ -89,7 +116,7 @@ def batch_delete(pool, table, condition, batch_size=1000, max_retries=3, base_de
             remaining = cur.fetchone()[0]
         conn.commit()
         if remaining > 0:
-            print(f"WARNING: {remaining} rows still match condition after deleting {total_deleted} rows")
+            raise IncompleteBatchError(remaining, total_deleted)
     finally:
         pool.putconn(conn)
 

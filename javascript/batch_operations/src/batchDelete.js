@@ -7,6 +7,10 @@
  * Deletes rows matching a condition in configurable-size batches, committing
  * each batch as a separate transaction to stay within the 3,000-row mutation
  * limit.
+ *
+ * NOTE: The `table` and `condition` parameters are interpolated directly into SQL.
+ * They must come from trusted, developer-controlled sources — never from end-user
+ * input. Use parameterized queries ($1) for user-supplied values within conditions.
  */
 
 const { MaxRetriesExceededError, executeWithRetry } = require("./occRetry");
@@ -14,22 +18,36 @@ const { MaxRetriesExceededError, executeWithRetry } = require("./occRetry");
 /** Stop retrying a batch after this many consecutive OCC exhaustions. */
 const MAX_CONSECUTIVE_FAILURES = 10;
 
+class IncompleteBatchError extends Error {
+  constructor(remaining, totalAffected) {
+    super(`${remaining} rows still match condition after deleting ${totalAffected} rows`);
+    this.name = "IncompleteBatchError";
+    this.remaining = remaining;
+    this.totalAffected = totalAffected;
+  }
+}
+
 /**
  * Delete rows in batches, committing each batch as a separate transaction.
+ *
+ * The COMMIT is inside the OCC retry scope so that commit-time serialization
+ * failures (SQLSTATE 40001) are retried automatically.
  *
  * If a single batch exhausts its OCC retries, the loop retries that batch
  * with a fresh connection (up to MAX_CONSECUTIVE_FAILURES times) instead
  * of aborting the entire operation.
  *
  * @param {import('pg').Pool} pool
- * @param {string} table
- * @param {string} condition - SQL WHERE clause (without `WHERE`).
+ * @param {string} table - Table name (trusted input only).
+ * @param {string} condition - SQL WHERE clause without `WHERE` (trusted input only).
  * @param {number} [batchSize=1000]
  * @param {number} [maxRetries=3]
  * @param {number} [baseDelayMs=100]
  * @returns {Promise<number>} Total rows deleted.
  */
 async function batchDelete(pool, table, condition, batchSize = 1000, maxRetries = 3, baseDelayMs = 100) {
+  if (batchSize < 1) throw new RangeError("batchSize must be >= 1");
+
   let totalDeleted = 0;
   let consecutiveFailures = 0;
 
@@ -38,18 +56,19 @@ async function batchDelete(pool, table, condition, batchSize = 1000, maxRetries 
     try {
       const sql = `DELETE FROM ${table} WHERE id IN (SELECT id FROM ${table} WHERE ${condition} LIMIT ${batchSize})`;
 
+      // BEGIN + DML + COMMIT all inside retry scope so commit-time 40001 is retried.
       const deleted = await executeWithRetry(
         client,
         async (c) => {
           await c.query("BEGIN");
           const result = await c.query(sql);
+          await c.query("COMMIT");
           return result.rowCount;
         },
         maxRetries,
         baseDelayMs
       );
 
-      await client.query("COMMIT");
       totalDeleted += deleted;
       consecutiveFailures = 0;
       console.log(`Deleted ${deleted} rows (total: ${totalDeleted})`);
@@ -78,7 +97,7 @@ async function batchDelete(pool, table, condition, batchSize = 1000, maxRetries 
     const res = await verifyClient.query(`SELECT COUNT(*) FROM ${table} WHERE ${condition}`);
     const remaining = parseInt(res.rows[0].count, 10);
     if (remaining > 0) {
-      console.log(`WARNING: ${remaining} rows still match condition after deleting ${totalDeleted} rows`);
+      throw new IncompleteBatchError(remaining, totalDeleted);
     }
   } finally {
     verifyClient.release();
@@ -90,11 +109,15 @@ async function batchDelete(pool, table, condition, batchSize = 1000, maxRetries 
 /**
  * Delete rows in parallel using multiple concurrent async workers.
  *
- * Partitions rows using `abs(hashtext(id::text)) % num_workers = worker_id`.
+ * Partitions rows using `abs(hashtext(id::text)::bigint) % num_workers = worker_id`.
+ * The bigint cast prevents integer overflow when hashtext returns INT_MIN.
+ *
+ * Uses Promise.allSettled to collect partial progress from all workers before
+ * reporting failures.
  *
  * @param {import('pg').Pool} pool
- * @param {string} table
- * @param {string} condition
+ * @param {string} table - Table name (trusted input only).
+ * @param {string} condition - SQL WHERE clause without `WHERE` (trusted input only).
  * @param {number} [numWorkers=4]
  * @param {number} [batchSize=1000]
  * @param {number} [maxRetries=3]
@@ -104,29 +127,34 @@ async function batchDelete(pool, table, condition, batchSize = 1000, maxRetries 
 async function parallelBatchDelete(
   pool, table, condition, numWorkers = 4, batchSize = 1000, maxRetries = 3, baseDelayMs = 100
 ) {
+  if (numWorkers < 1) throw new RangeError("numWorkers must be >= 1");
+  if (batchSize < 1) throw new RangeError("batchSize must be >= 1");
+
   async function worker(workerId) {
     let totalDeleted = 0;
     let consecutiveFailures = 0;
+    // Cast hashtext to bigint before abs() to prevent overflow on INT_MIN.
     const partitionCondition =
-      `(${condition}) AND abs(hashtext(id::text)) % ${numWorkers} = ${workerId}`;
+      `(${condition}) AND abs(hashtext(id::text)::bigint) % ${numWorkers} = ${workerId}`;
 
     while (true) {
       const client = await pool.connect();
       try {
         const sql = `DELETE FROM ${table} WHERE id IN (SELECT id FROM ${table} WHERE ${partitionCondition} LIMIT ${batchSize})`;
 
+        // BEGIN + DML + COMMIT inside retry scope.
         const deleted = await executeWithRetry(
           client,
           async (c) => {
             await c.query("BEGIN");
             const result = await c.query(sql);
+            await c.query("COMMIT");
             return result.rowCount;
           },
           maxRetries,
           baseDelayMs
         );
 
-        await client.query("COMMIT");
         totalDeleted += deleted;
         consecutiveFailures = 0;
         console.log(`Worker ${workerId}: Deleted ${deleted} rows (total: ${totalDeleted})`);
@@ -153,8 +181,26 @@ async function parallelBatchDelete(
   }
 
   const workers = Array.from({ length: numWorkers }, (_, i) => worker(i));
-  const results = await Promise.all(workers);
-  const total = results.reduce((sum, n) => sum + n, 0);
+  const results = await Promise.allSettled(workers);
+
+  let total = 0;
+  const failures = [];
+  for (let i = 0; i < results.length; i++) {
+    if (results[i].status === "fulfilled") {
+      total += results[i].value;
+    } else {
+      failures.push({ workerId: i, error: results[i].reason });
+    }
+  }
+
+  if (failures.length > 0) {
+    console.log(`Partial progress: ${total} rows deleted before failure`);
+    for (const { workerId, error } of failures) {
+      console.log(`  Worker ${workerId} failed: ${error.message}`);
+    }
+    throw failures[0].error;
+  }
+
   console.log(`Parallel delete complete: ${total} rows deleted by ${numWorkers} workers`);
 
   // Post-verification: ensure no matching rows remain (uses original condition, not partitioned)
@@ -163,7 +209,7 @@ async function parallelBatchDelete(
     const res = await verifyClient.query(`SELECT COUNT(*) FROM ${table} WHERE ${condition}`);
     const remaining = parseInt(res.rows[0].count, 10);
     if (remaining > 0) {
-      console.log(`WARNING: ${remaining} rows still match condition after deleting ${total} rows`);
+      throw new IncompleteBatchError(remaining, total);
     }
   } finally {
     verifyClient.release();
@@ -172,4 +218,4 @@ async function parallelBatchDelete(
   return total;
 }
 
-module.exports = { batchDelete, parallelBatchDelete };
+module.exports = { batchDelete, parallelBatchDelete, IncompleteBatchError };

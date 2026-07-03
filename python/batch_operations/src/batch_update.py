@@ -7,6 +7,11 @@ Updates rows matching a condition in configurable-size batches, committing each
 batch as a separate transaction to stay within the 3,000-row mutation limit.
 Uses a subquery pattern to select rows not yet updated, and sets updated_at =
 NOW() to track processed rows.
+
+NOTE: The ``table``, ``set_clause``, and ``condition`` parameters are interpolated
+directly into SQL. They must come from trusted, developer-controlled sources — never
+from end-user input. Use parameterized queries ($1, %s) for user-supplied values
+within conditions.
 """
 
 from occ_retry import MaxRetriesExceeded, execute_with_retry
@@ -15,8 +20,22 @@ from occ_retry import MaxRetriesExceeded, execute_with_retry
 MAX_CONSECUTIVE_FAILURES = 10
 
 
+class IncompleteBatchError(Exception):
+    """Raised when rows still match the condition after a batch operation completes."""
+
+    def __init__(self, remaining, total_affected):
+        super().__init__(
+            f"{remaining} rows still match condition after processing {total_affected} rows"
+        )
+        self.remaining = remaining
+        self.total_affected = total_affected
+
+
 def batch_update(pool, table, set_clause, condition, batch_size=1000, max_retries=3, base_delay_ms=100):
     """Update rows in batches, committing each batch as a separate transaction.
+
+    The commit is included inside the OCC retry scope so that commit-time
+    serialization failures (SQLSTATE 40001) are retried automatically.
 
     Uses a subquery to select rows not yet updated and sets ``updated_at = NOW()``
     on each batch to track which rows have been processed.
@@ -27,18 +46,26 @@ def batch_update(pool, table, set_clause, condition, batch_size=1000, max_retrie
 
     Args:
         pool: A ``dsql.AuroraDSQLThreadedConnectionPool`` instance.
-        table: Name of the table to update.
-        set_clause: SQL SET expressions (without the ``SET`` keyword),
+        table: Name of the table to update (trusted input only).
+        set_clause: SQL SET expressions without the ``SET`` keyword (trusted input only),
             e.g. ``"status = 'processed'"``.
-        condition: SQL WHERE clause (without the ``WHERE`` keyword) that
-            identifies rows needing update.
+        condition: SQL WHERE clause without the ``WHERE`` keyword (trusted input only)
+            that identifies rows needing update.
         batch_size: Number of rows to update per transaction (default 1,000).
         max_retries: Maximum OCC retry attempts per batch (default 3).
         base_delay_ms: Base delay in milliseconds for exponential backoff (default 100).
 
     Returns:
         Total number of rows updated across all batches.
+
+    Raises:
+        IncompleteBatchError: If rows still match the condition after the operation.
+        MaxRetriesExceeded: If OCC retries are exhausted after MAX_CONSECUTIVE_FAILURES
+            consecutive batch failures.
     """
+    if batch_size < 1:
+        raise ValueError("batch_size must be >= 1")
+
     total_updated = 0
     consecutive_failures = 0
 
@@ -56,12 +83,13 @@ def batch_update(pool, table, set_clause, condition, batch_size=1000, max_retrie
                             LIMIT {batch_size}
                         )"""
                     )
-                    return cur.rowcount
+                    updated = cur.rowcount
+                conn.commit()
+                return updated
 
             updated = execute_with_retry(
                 conn, update_batch, max_retries=max_retries, base_delay_ms=base_delay_ms
             )
-            conn.commit()
             total_updated += updated
             consecutive_failures = 0  # reset on success
             print(f"Updated {updated} rows (total: {total_updated})")
@@ -91,7 +119,7 @@ def batch_update(pool, table, set_clause, condition, batch_size=1000, max_retrie
             remaining = cur.fetchone()[0]
         conn.commit()
         if remaining > 0:
-            print(f"WARNING: {remaining} rows still match condition after updating {total_updated} rows")
+            raise IncompleteBatchError(remaining, total_updated)
     finally:
         pool.putconn(conn)
 

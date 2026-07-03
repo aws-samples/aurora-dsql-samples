@@ -17,6 +17,11 @@ import javax.sql.DataSource;
 
 /**
  * Sequential and parallel batch UPDATE for Aurora DSQL.
+ *
+ * <p>NOTE: The {@code table}, {@code setClause}, and {@code condition} parameters
+ * are interpolated directly into SQL. They must come from trusted,
+ * developer-controlled sources — never from end-user input. Use parameterized
+ * queries for user-supplied values within conditions.</p>
  */
 public class BatchUpdate {
 
@@ -25,10 +30,29 @@ public class BatchUpdate {
     /** Stop retrying a batch after this many consecutive OCC exhaustions. */
     private static final int MAX_CONSECUTIVE_FAILURES = 10;
 
+    /**
+     * Thrown when rows still match the condition after a batch operation completes.
+     */
+    public static class IncompleteBatchException extends SQLException {
+        private final int remaining;
+        private final int totalAffected;
+
+        public IncompleteBatchException(int remaining, int totalAffected) {
+            super(remaining + " rows still match condition after updating " + totalAffected + " rows");
+            this.remaining = remaining;
+            this.totalAffected = totalAffected;
+        }
+
+        public int getRemaining() { return remaining; }
+        public int getTotalAffected() { return totalAffected; }
+    }
+
     public static int batchUpdate(
             DataSource pool, String table, String setClause, String condition,
             int batchSize, int maxRetries, long baseDelayMs)
             throws SQLException, OccRetry.MaxRetriesExceededException {
+
+        if (batchSize < 1) throw new IllegalArgumentException("batchSize must be >= 1");
 
         int totalUpdated = 0;
         int consecutiveFailures = 0;
@@ -39,13 +63,15 @@ public class BatchUpdate {
                         + " WHERE id IN (SELECT id FROM " + table
                         + " WHERE " + condition + " LIMIT " + batchSize + ")";
 
+                // Commit is inside the retry scope so commit-time 40001 is retried.
                 int updated = OccRetry.executeWithRetry(conn, (c) -> {
                     try (Statement stmt = c.createStatement()) {
-                        return stmt.executeUpdate(sql);
+                        int count = stmt.executeUpdate(sql);
+                        c.commit();
+                        return count;
                     }
                 }, maxRetries, baseDelayMs);
 
-                conn.commit();
                 totalUpdated += updated;
                 consecutiveFailures = 0;
                 logger.info("Updated " + updated + " rows (total: " + totalUpdated + ")");
@@ -65,7 +91,7 @@ public class BatchUpdate {
             if (rs.next()) {
                 int remaining = rs.getInt(1);
                 if (remaining > 0) {
-                    logger.warning(remaining + " rows still match condition after updating " + totalUpdated + " rows");
+                    throw new IncompleteBatchException(remaining, totalUpdated);
                 }
             }
         }
@@ -83,6 +109,9 @@ public class BatchUpdate {
             int numWorkers, int batchSize, int maxRetries, long baseDelayMs)
             throws SQLException, OccRetry.MaxRetriesExceededException {
 
+        if (numWorkers < 1) throw new IllegalArgumentException("numWorkers must be >= 1");
+        if (batchSize < 1) throw new IllegalArgumentException("batchSize must be >= 1");
+
         ExecutorService executor = Executors.newFixedThreadPool(numWorkers);
         List<Future<Integer>> futures = new ArrayList<>();
 
@@ -91,8 +120,9 @@ public class BatchUpdate {
             futures.add(executor.submit(() -> {
                 int totalUpdated = 0;
                 int consecutiveFailures = 0;
+                // Cast hashtext to bigint before abs() to prevent overflow on INT_MIN.
                 String partitionCondition = "(" + condition + ")"
-                        + " AND abs(hashtext(CAST(id AS text))) % " + numWorkers + " = " + workerId;
+                        + " AND abs(hashtext(CAST(id AS text))::bigint) % " + numWorkers + " = " + workerId;
 
                 while (true) {
                     try (Connection conn = pool.getConnection()) {
@@ -101,13 +131,15 @@ public class BatchUpdate {
                                 + " WHERE id IN (SELECT id FROM " + table
                                 + " WHERE " + partitionCondition + " LIMIT " + batchSize + ")";
 
+                        // Commit inside retry scope.
                         int updated = OccRetry.executeWithRetry(conn, (c) -> {
                             try (Statement stmt = c.createStatement()) {
-                                return stmt.executeUpdate(sql);
+                                int count = stmt.executeUpdate(sql);
+                                c.commit();
+                                return count;
                             }
                         }, maxRetries, baseDelayMs);
 
-                        conn.commit();
                         totalUpdated += updated;
                         consecutiveFailures = 0;
                         logger.info("Worker " + workerId + ": Updated " + updated + " rows (total: " + totalUpdated + ")");
@@ -149,7 +181,7 @@ public class BatchUpdate {
             if (rs.next()) {
                 int remaining = rs.getInt(1);
                 if (remaining > 0) {
-                    logger.warning(remaining + " rows still match condition after updating " + total + " rows");
+                    throw new IncompleteBatchException(remaining, total);
                 }
             }
         }

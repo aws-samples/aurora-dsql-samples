@@ -36,6 +36,14 @@ function parseArgs() {
     );
     process.exit(1);
   }
+  if (config.batchSize < 1 || config.batchSize >= 3000) {
+    console.error("--batch-size must be between 1 and 2999");
+    process.exit(1);
+  }
+  if (config.numWorkers < 1) {
+    console.error("--num-workers must be >= 1");
+    process.exit(1);
+  }
   return config;
 }
 

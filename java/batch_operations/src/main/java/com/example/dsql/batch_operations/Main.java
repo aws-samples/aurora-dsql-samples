@@ -87,6 +87,16 @@ public class Main {
                     "Usage: gradle run --args=\"--endpoint <cluster-endpoint> "
                     + "[--user admin] [--batch-size 1000] [--num-workers 4]\"");
         }
+
+        int batchSize = Integer.parseInt(config.get("batch-size"));
+        int numWorkers = Integer.parseInt(config.get("num-workers"));
+        if (batchSize < 1 || batchSize >= 3000) {
+            throw new IllegalArgumentException("--batch-size must be between 1 and 2999");
+        }
+        if (numWorkers < 1) {
+            throw new IllegalArgumentException("--num-workers must be >= 1");
+        }
+
         return config;
     }
 

@@ -37,15 +37,22 @@ def parse_args():
         "--batch-size",
         type=int,
         default=1000,
-        help="Rows per batch transaction (default: 1000)",
+        help="Rows per batch transaction (default: 1000, must be 1-2999)",
     )
     parser.add_argument(
         "--num-workers",
         type=int,
         default=4,
-        help="Number of parallel workers (default: 4)",
+        help="Number of parallel workers (default: 4, must be >= 1)",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.batch_size < 1 or args.batch_size >= 3000:
+        parser.error("--batch-size must be between 1 and 2999")
+    if args.num_workers < 1:
+        parser.error("--num-workers must be >= 1")
+
+    return args
 
 
 def create_pool(endpoint, user, num_workers):

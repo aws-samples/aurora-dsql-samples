@@ -33,7 +33,8 @@ def execute_with_retry(connection, operation, max_retries=3, base_delay_ms=100):
     Args:
         connection: A psycopg2 connection object.
         operation: A callable that accepts a connection and performs database
-            work. It should NOT commit — the caller is responsible for commits.
+            work including commit. The operation should call ``conn.commit()``
+            at the end so that commit-time serialization failures are retried.
         max_retries: Maximum number of retry attempts (default 3).
         base_delay_ms: Base delay in milliseconds for exponential backoff
             (default 100).

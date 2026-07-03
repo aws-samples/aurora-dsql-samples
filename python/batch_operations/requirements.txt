@@ -1,2 +1,2 @@
-aurora-dsql-psycopg2>=1.0.0
+aurora-dsql-python-connector
 psycopg2-binary>=2.9.0

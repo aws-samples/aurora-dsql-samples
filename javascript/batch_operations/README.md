@@ -23,8 +23,8 @@ Aurora DSQL limits each transaction to 3,000 row mutations. To DELETE or UPDATE 
 you must split the work into batches, each committed as a separate transaction.
 
 The parallel pattern partitions rows across workers using
-`abs(hashtext(id::text)) % num_workers = worker_id`, ensuring workers operate on disjoint sets of rows
-and avoid OCC conflicts with each other.
+`abs(hashtext(id::text)::bigint) % num_workers = worker_id`, ensuring workers operate on disjoint sets of rows
+and reduce OCC conflicts with each other.
 
 ⚠️ **Important**
 
@@ -99,6 +99,9 @@ node src/main.js --endpoint "$CLUSTER_ENDPOINT" --user "$CLUSTER_USER"
 After running the demo, drop the test table to avoid unnecessary storage:
 
 ```bash
+export CLUSTER_ENDPOINT="<your-cluster-endpoint>"
+export CLUSTER_REGION="<your-region>"
+
 # Generate a fresh token if the previous one expired
 export PGPASSWORD=$(aws dsql generate-db-connect-admin-auth-token \
   --hostname $CLUSTER_ENDPOINT \

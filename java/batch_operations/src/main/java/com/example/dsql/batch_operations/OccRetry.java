@@ -38,7 +38,8 @@ public class OccRetry {
      * Execute a database operation with OCC conflict retry and exponential backoff.
      *
      * @param connection a JDBC connection (autoCommit should be false)
-     * @param operation  the database operation to execute
+     * @param operation  the database operation to execute; should include commit()
+     *                   so that commit-time serialization failures are retried
      * @param maxRetries maximum retry attempts (default 3)
      * @param baseDelayMs  base delay in milliseconds for backoff (default 100)
      * @return the return value of the operation

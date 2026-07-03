@@ -17,6 +17,11 @@ import javax.sql.DataSource;
 
 /**
  * Sequential and parallel batch DELETE for Aurora DSQL.
+ *
+ * <p>NOTE: The {@code table} and {@code condition} parameters are interpolated
+ * directly into SQL. They must come from trusted, developer-controlled sources —
+ * never from end-user input. Use parameterized queries for user-supplied values
+ * within conditions.</p>
  */
 public class BatchDelete {
 
@@ -25,10 +30,29 @@ public class BatchDelete {
     /** Stop retrying a batch after this many consecutive OCC exhaustions. */
     private static final int MAX_CONSECUTIVE_FAILURES = 10;
 
+    /**
+     * Thrown when rows still match the condition after a batch operation completes.
+     */
+    public static class IncompleteBatchException extends SQLException {
+        private final int remaining;
+        private final int totalAffected;
+
+        public IncompleteBatchException(int remaining, int totalAffected) {
+            super(remaining + " rows still match condition after deleting " + totalAffected + " rows");
+            this.remaining = remaining;
+            this.totalAffected = totalAffected;
+        }
+
+        public int getRemaining() { return remaining; }
+        public int getTotalAffected() { return totalAffected; }
+    }
+
     public static int batchDelete(
             DataSource pool, String table, String condition,
             int batchSize, int maxRetries, long baseDelayMs)
             throws SQLException, OccRetry.MaxRetriesExceededException {
+
+        if (batchSize < 1) throw new IllegalArgumentException("batchSize must be >= 1");
 
         int totalDeleted = 0;
         int consecutiveFailures = 0;
@@ -38,13 +62,15 @@ public class BatchDelete {
                 String sql = "DELETE FROM " + table + " WHERE id IN (SELECT id FROM " + table
                         + " WHERE " + condition + " LIMIT " + batchSize + ")";
 
+                // Commit is inside the retry scope so commit-time 40001 is retried.
                 int deleted = OccRetry.executeWithRetry(conn, (c) -> {
                     try (Statement stmt = c.createStatement()) {
-                        return stmt.executeUpdate(sql);
+                        int count = stmt.executeUpdate(sql);
+                        c.commit();
+                        return count;
                     }
                 }, maxRetries, baseDelayMs);
 
-                conn.commit();
                 totalDeleted += deleted;
                 consecutiveFailures = 0;
                 logger.info("Deleted " + deleted + " rows (total: " + totalDeleted + ")");
@@ -64,7 +90,7 @@ public class BatchDelete {
             if (rs.next()) {
                 int remaining = rs.getInt(1);
                 if (remaining > 0) {
-                    logger.warning(remaining + " rows still match condition after deleting " + totalDeleted + " rows");
+                    throw new IncompleteBatchException(remaining, totalDeleted);
                 }
             }
         }
@@ -82,6 +108,9 @@ public class BatchDelete {
             int numWorkers, int batchSize, int maxRetries, long baseDelayMs)
             throws SQLException, OccRetry.MaxRetriesExceededException {
 
+        if (numWorkers < 1) throw new IllegalArgumentException("numWorkers must be >= 1");
+        if (batchSize < 1) throw new IllegalArgumentException("batchSize must be >= 1");
+
         ExecutorService executor = Executors.newFixedThreadPool(numWorkers);
         List<Future<Integer>> futures = new ArrayList<>();
 
@@ -90,8 +119,9 @@ public class BatchDelete {
             futures.add(executor.submit(() -> {
                 int totalDeleted = 0;
                 int consecutiveFailures = 0;
+                // Cast hashtext to bigint before abs() to prevent overflow on INT_MIN.
                 String partitionCondition = "(" + condition + ")"
-                        + " AND abs(hashtext(CAST(id AS text))) % " + numWorkers + " = " + workerId;
+                        + " AND abs(hashtext(CAST(id AS text))::bigint) % " + numWorkers + " = " + workerId;
 
                 while (true) {
                     try (Connection conn = pool.getConnection()) {
@@ -99,13 +129,15 @@ public class BatchDelete {
                         String sql = "DELETE FROM " + table + " WHERE id IN (SELECT id FROM " + table
                                 + " WHERE " + partitionCondition + " LIMIT " + batchSize + ")";
 
+                        // Commit inside retry scope.
                         int deleted = OccRetry.executeWithRetry(conn, (c) -> {
                             try (Statement stmt = c.createStatement()) {
-                                return stmt.executeUpdate(sql);
+                                int count = stmt.executeUpdate(sql);
+                                c.commit();
+                                return count;
                             }
                         }, maxRetries, baseDelayMs);
 
-                        conn.commit();
                         totalDeleted += deleted;
                         consecutiveFailures = 0;
                         logger.info("Worker " + workerId + ": Deleted " + deleted + " rows (total: " + totalDeleted + ")");
@@ -147,7 +179,7 @@ public class BatchDelete {
             if (rs.next()) {
                 int remaining = rs.getInt(1);
                 if (remaining > 0) {
-                    logger.warning(remaining + " rows still match condition after deleting " + total + " rows");
+                    throw new IncompleteBatchException(remaining, total);
                 }
             }
         }

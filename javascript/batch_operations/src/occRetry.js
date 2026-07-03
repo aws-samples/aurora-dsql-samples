@@ -25,8 +25,8 @@ function sleep(ms) {
  *
  * @param {import('pg').PoolClient} client - A node-postgres pool client.
  * @param {(client: import('pg').PoolClient) => Promise<*>} operation - Async
- *   function that performs database work. Must call BEGIN; caller commits after
- *   success.
+ *   function that performs database work. Must call BEGIN and COMMIT — the retry
+ *   logic handles ROLLBACK on conflict before retrying.
  * @param {number} [maxRetries=3] - Maximum retry attempts.
  * @param {number} [baseDelayMs=100] - Base delay in milliseconds for backoff.
  * @returns {Promise<*>} The return value of `operation(client)`.
