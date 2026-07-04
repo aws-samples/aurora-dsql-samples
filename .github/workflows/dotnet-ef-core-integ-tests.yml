@@ -1,4 +1,4 @@
-name: Go Recipe API integration tests
+name: Dotnet EF Core integration tests
 
 permissions: {}
 
@@ -6,28 +6,23 @@ on:
   workflow_call: {}
   workflow_dispatch:
   push:
-    branches: [ main ]
-    paths:
-      - 'go/recipe-sharing-api/**'
-      - '.github/workflows/go-recipe-api-integ-tests.yml'
+    branches: [ "main" ]
 
 jobs:
   create-cluster:
     uses: ./.github/workflows/dsql-cluster-create.yml
     with:
-      workflow_name: go-recipe-api
+      workflow_name: dotnet-ef-core
     secrets:
-      AWS_IAM_ROLE: ${{ secrets.GO_IAM_ROLE }}
+      AWS_IAM_ROLE: ${{ secrets.DOTNET_IAM_ROLE }}
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
-  test:
+  dotnet-ef-core-integ-test:
     needs: create-cluster
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
-    env:
-      GOPROXY: direct
 
     steps:
     - name: Checkout code
@@ -35,33 +30,33 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
       with:
-        go-version: '1.26'
+        dotnet-version: '8.0.x'
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: ${{ secrets.GO_IAM_ROLE }}
+        role-to-assume: ${{ secrets.DOTNET_IAM_ROLE }}
         aws-region: ${{ needs.create-cluster.outputs.region }}
 
-    - name: Run integration tests
-      working-directory: ./go/recipe-sharing-api
+    - name: Configure and run integration for EF Core
+      working-directory: ./dotnet/ef-core/examples/InventoryApi.IntegrationTests
       env:
-        DSQL_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+        CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         REGION: ${{ needs.create-cluster.outputs.region }}
       run: |
-        go test -v ./test/...
+        dotnet test
 
   delete-cluster:
     if: always() && needs.create-cluster.result == 'success'
-    needs: [create-cluster, test]
+    needs: [create-cluster, dotnet-ef-core-integ-test]
     uses: ./.github/workflows/dsql-cluster-delete.yml
     with:
       cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
       region: ${{ needs.create-cluster.outputs.region }}
     secrets:
-      AWS_IAM_ROLE: ${{ secrets.GO_IAM_ROLE }}
+      AWS_IAM_ROLE: ${{ secrets.DOTNET_IAM_ROLE }}
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials

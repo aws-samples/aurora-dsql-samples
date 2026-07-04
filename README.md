@@ -13,6 +13,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |  Language   |                      Client / ORM                       |
 |:-----------:|:-------------------------------------------------------:|
 |     C++     |                   [libpq](cpp/libpq)                    |
+| C# (dotnet) |     [EF Core](dotnet/ef-core/examples/InventoryApi)     |
 | C# (dotnet) |                 [Npgsql](dotnet/npgsql)                 |
 |     Go      |                     [pgx](go/pgx/)                      |
 |    Java     |            [HikariCP + pgJDBC](java/pgjdbc)             |

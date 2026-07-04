@@ -12,14 +12,14 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <mainClass>org.example.Example</mainClass>
-        <project.build.awssdk.version>2.46.17</project.build.awssdk.version>
+        <project.build.awssdk.version>2.46.21</project.build.awssdk.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>6.1.0</version>
+            <version>6.1.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
