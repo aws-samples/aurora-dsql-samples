@@ -30,11 +30,13 @@ OCC_SQLSTATE = "40001"
 
 def _is_occ_error(e: Exception) -> bool:
     """Check if an exception is an OCC conflict using structured SQLSTATE inspection."""
-    if isinstance(e, PostgresError) and hasattr(e, 'sqlstate'):
+    if isinstance(e, PostgresError):
         return e.sqlstate == OCC_SQLSTATE
-    # Fallback for wrapped exceptions (e.g., Tortoise OperationalError)
+    # Fallback for wrapped exceptions (e.g., Tortoise OperationalError).
+    # Match DSQL-specific OCC error codes with word boundaries to avoid
+    # false positives from unrelated messages containing these substrings.
     error_msg = str(e)
-    return OCC_SQLSTATE in error_msg or "OC000" in error_msg or "OC001" in error_msg
+    return "SQLSTATE 40001" in error_msg or "OC000" in error_msg or "OC001" in error_msg
 
 
 async def with_retry(

@@ -229,7 +229,7 @@ async def main():
     print("\n" + "=" * 70)
     total_rides = await Ride.filter(status="completed").count()
     total_revenue = sum(
-        [r.fare_amount for r in await Ride.filter(status="completed")]
+        r.fare_amount for r in await Ride.filter(status="completed")
     )
     total_payments = await Payment.filter(status="completed").count()
     print(f"  Summary: {total_rides} rides completed, "

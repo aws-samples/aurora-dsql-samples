@@ -97,7 +97,7 @@ TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
   --expires-in 3600)
 
 # Run the SQL file to create the role, schema, and permissions
-psql "host=$CLUSTER_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full password=${TOKEN}" \
+psql "host=$CLUSTER_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require password=${TOKEN}" \
   -f src/setup_app_user.sql
 ```
 
@@ -149,7 +149,6 @@ If your production architecture uses IAM roles (EC2 instance profiles, ECS task 
 .
 ├── pyproject.toml          # Project metadata and pytest configuration
 ├── requirements.txt        # Python dependencies
-├── .env.example            # Environment variable template
 ├── .gitignore
 ├── README.md
 ├── src/
@@ -182,4 +181,3 @@ If your production architecture uses IAM roles (EC2 instance profiles, ECS task 
 
 - [Aurora DSQL User Guide](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
 - [Tortoise ORM Documentation](https://tortoise.github.io/)
-- [Blog post: Building async Python applications with Tortoise ORM and Aurora DSQL](https://aws.amazon.com/blogs/database/)

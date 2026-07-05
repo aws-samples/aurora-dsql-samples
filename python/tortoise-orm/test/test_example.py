@@ -64,3 +64,63 @@ def test_retry_exports():
 
     assert callable(retry.with_retry)
     assert callable(retry._is_occ_error)
+
+
+# --- Async smoke tests for OCC retry logic ---
+
+
+@pytest.mark.asyncio
+async def test_with_retry_succeeds_on_first_attempt():
+    """Test that with_retry returns immediately on success."""
+    from retry import with_retry
+    from unittest.mock import AsyncMock
+
+    fn = AsyncMock(return_value="ok")
+    result = await with_retry(fn)
+    assert result == "ok"
+    assert fn.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_with_retry_retries_on_occ_error():
+    """Test that with_retry retries on OCC conflict (SQLSTATE 40001)."""
+    from retry import with_retry
+    from asyncpg import SerializationError
+
+    call_count = 0
+
+    async def flaky_fn():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise SerializationError("serialization failure")
+        return "recovered"
+
+    result = await with_retry(flaky_fn)
+    assert result == "recovered"
+    assert call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_with_retry_raises_non_occ_error():
+    """Test that with_retry does not retry non-OCC errors."""
+    from retry import with_retry
+
+    async def bad_fn():
+        raise ValueError("unrelated error")
+
+    with pytest.raises(ValueError, match="unrelated error"):
+        await with_retry(bad_fn)
+
+
+@pytest.mark.asyncio
+async def test_with_retry_exhausts_retries():
+    """Test that with_retry raises after max retries are exhausted."""
+    from retry import with_retry
+    from asyncpg import SerializationError
+
+    async def always_conflicts():
+        raise SerializationError("serialization failure")
+
+    with pytest.raises(SerializationError):
+        await with_retry(always_conflicts, max_retries=2)

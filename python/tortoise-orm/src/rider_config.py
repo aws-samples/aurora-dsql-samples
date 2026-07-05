@@ -19,7 +19,7 @@ if not CLUSTER_USER:
 
 # Admin uses "public" schema; non-admin users use a custom schema
 ADMIN_USER = "admin"
-SCHEMA = "public" if CLUSTER_USER == ADMIN_USER else os.environ.get("CLUSTER_SCHEMA", "myschema")
+SCHEMA = "public" if CLUSTER_USER == ADMIN_USER else os.environ.get("CLUSTER_SCHEMA", "rideshare")
 
 # Validate schema name to prevent SQL injection via environment variable tampering
 if not re.fullmatch(r'[a-zA-Z_][a-zA-Z0-9_]*', SCHEMA):
@@ -53,8 +53,31 @@ async def _dsql_safe_reset(self, *, timeout=None):
     cleanup (RESET ALL) while skipping the unsupported advisory lock call.
     Note: DEALLOCATE ALL is intentionally omitted because it conflicts with
     asyncpg's internal prepared statement cache.
+
+    IMPORTANT: This also drops asyncpg's conditional ROLLBACK. This is safe
+    because Tortoise ORM runs all operations in autocommit mode by default.
+    If you wrap work in an explicit transaction, the pool could reuse a
+    connection mid-transaction — use Tortoise's transaction context manager
+    which handles commit/rollback itself.
     """
     await self.execute("RESET ALL")
+
+
+def _connection_params() -> dict:
+    """Build shared connection parameters for Aurora DSQL.
+
+    Returns a dict with host, port, user, password (IAM token), database,
+    and ssl context. Used by both init_db() and create_schema() to avoid
+    duplicating connection setup logic.
+    """
+    return {
+        "host": CLUSTER_ENDPOINT,
+        "port": 5432,
+        "user": CLUSTER_USER,
+        "password": generate_auth_token(),
+        "database": "postgres",
+        "ssl": ssl_module.create_default_context(),
+    }
 
 
 async def init_db():
@@ -66,13 +89,10 @@ async def init_db():
     3. Creates an SSL context for TLS (required by Aurora DSQL)
     4. Initializes Tortoise ORM with the asyncpg backend
     """
-    token = generate_auth_token()
-
     # Patch asyncpg Connection.reset to skip pg_advisory_unlock_all
     asyncpg.connection.Connection.reset = _dsql_safe_reset
 
-    # Aurora DSQL requires TLS connections
-    ssl_ctx = ssl_module.create_default_context()
+    params = _connection_params()
 
     await Tortoise.init(
         config={
@@ -80,12 +100,7 @@ async def init_db():
                 "default": {
                     "engine": "tortoise.backends.asyncpg",
                     "credentials": {
-                        "host": CLUSTER_ENDPOINT,
-                        "port": 5432,
-                        "user": CLUSTER_USER,
-                        "password": token,
-                        "database": "postgres",
-                        "ssl": ssl_ctx,
+                        **params,
                         "schema": SCHEMA,
                     },
                 }
@@ -107,15 +122,7 @@ async def create_schema():
     transaction. Each CREATE TABLE executes as its own statement.
     We use a raw asyncpg connection (not the Tortoise pool) to avoid
     pool reset issues during DDL execution."""
-    ssl_ctx = ssl_module.create_default_context()
-    raw_conn = await asyncpg.connect(
-        host=CLUSTER_ENDPOINT,
-        port=5432,
-        user=CLUSTER_USER,
-        password=generate_auth_token(),
-        database="postgres",
-        ssl=ssl_ctx,
-    )
+    raw_conn = await asyncpg.connect(**_connection_params())
 
     tables = [
         """CREATE TABLE IF NOT EXISTS rider (
