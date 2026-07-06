@@ -26,10 +26,13 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |   Python    |                [Jupyter](python/jupyter)                |
 |   Python    |               [psycopg](python/psycopg/)                |
 |   Python    |              [psycopg2](python/psycopg2/)               |
+|   Python    |             [SQLAlchemy](python/sqlalchemy)             |
+|   Python    |           [Tortoise ORM](python/tortoise-orm)           |
 |    Ruby     |                   [pg](ruby/ruby-pg)                    |
 |    Ruby     |                   [Rails](ruby/rails)                   |
 |    Rust     |                    [sqlx](rust/sqlx)                    |
-| Typescript  |               [Prisma](typescript/prisma)               |
+| Typescript  |              [Drizzle](typescript/drizzle)              |
+| Typescript  |       [Prisma](typescript/prisma-multi-region)          |
 | Typescript  |            [Sequelize](typescript/sequelize)            |
 | Typescript  |             [TypeORM](typescript/type-orm)              |
 |    Deno     |        [postgres-js](deno/postgres-js/)              |
