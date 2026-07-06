@@ -1,4 +1,4 @@
 aurora-dsql-python-connector>=0.2.6
-psycopg[binary]>=3.3.3
+psycopg[binary,pool]>=3.3.3
 sqlalchemy>=2.0.48
 pytest>=9.0.2
