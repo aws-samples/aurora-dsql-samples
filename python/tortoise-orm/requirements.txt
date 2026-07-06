@@ -1,0 +1,7 @@
+# Application dependencies
+tortoise-orm[asyncpg]==1.1.7
+boto3>=1.43.36
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
