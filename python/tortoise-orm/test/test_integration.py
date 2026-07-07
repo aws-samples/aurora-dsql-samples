@@ -1,9 +1,10 @@
 """Integration test for the Tortoise ORM Aurora DSQL rideshare example.
 
 Runs the full demo application against a live Aurora DSQL cluster, verifies
-the persisted state, then removes the demo data. Requires CLUSTER_ENDPOINT,
-CLUSTER_REGION, and CLUSTER_USER to be set (provided by CI). Skipped when
-CLUSTER_ENDPOINT is absent so the unit tests can still run standalone.
+the persisted state, then removes the demo data. Requires CLUSTER_ENDPOINT
+and CLUSTER_USER to be set (provided by CI); CLUSTER_REGION is optional and
+defaults to us-east-1. Skipped when those are absent so the unit tests can
+still run standalone.
 """
 
 import importlib
@@ -14,8 +15,8 @@ import pytest
 
 
 @pytest.mark.skipif(
-    not os.environ.get("CLUSTER_ENDPOINT"),
-    reason="CLUSTER_ENDPOINT not set; skipping live integration test",
+    not (os.environ.get("CLUSTER_ENDPOINT") and os.environ.get("CLUSTER_USER")),
+    reason="CLUSTER_ENDPOINT and CLUSTER_USER not set; skipping live integration test",
 )
 @pytest.mark.asyncio
 async def test_rideshare_app_end_to_end():
@@ -50,7 +51,8 @@ async def test_rideshare_app_end_to_end():
 
         assert await Payment.filter(status="completed").count() == 3
     finally:
-        # Clean up so the run is repeatable (rider/driver emails are unique).
+        # Clean up so the run is repeatable: the demo uses fixed rider/driver
+        # emails with a unique constraint, so leftover rows would fail a rerun.
         # Reopen the connection if it was closed (main() calls close_db()).
         if not Tortoise._inited:
             await rider_config.init_db()

@@ -35,12 +35,15 @@ jobs:
       python-cm: ${{ steps.detect.outputs.python-cm }}
       python-psycopg2: ${{ steps.detect.outputs.python-psycopg2 }}
       python-psycopg3: ${{ steps.detect.outputs.python-psycopg3 }}
+      python-sqlalchemy: ${{ steps.detect.outputs.python-sqlalchemy }}
+      python-tortoise-orm: ${{ steps.detect.outputs.python-tortoise-orm }}
       ruby-cm: ${{ steps.detect.outputs.ruby-cm }}
       ruby-pg: ${{ steps.detect.outputs.ruby-pg }}
       ruby-rails: ${{ steps.detect.outputs.ruby-rails }}
       ruby-rails-carrental: ${{ steps.detect.outputs.ruby-rails-carrental }}
       rust-cm: ${{ steps.detect.outputs.rust-cm }}
       rust-sqlx: ${{ steps.detect.outputs.rust-sqlx }}
+      typescript-drizzle: ${{ steps.detect.outputs.typescript-drizzle }}
       typescript-prisma: ${{ steps.detect.outputs.typescript-prisma }}
       typescript-sequelize: ${{ steps.detect.outputs.typescript-sequelize }}
       typescript-type-orm: ${{ steps.detect.outputs.typescript-type-orm }}
@@ -72,12 +75,15 @@ jobs:
               'python-cm': ['python/cluster_management/'],
               'python-psycopg2': ['python/psycopg2/'],
               'python-psycopg3': ['python/psycopg/'],
+              'python-sqlalchemy': ['python/sqlalchemy/'],
+              'python-tortoise-orm': ['python/tortoise-orm/'],
               'ruby-cm': ['ruby/cluster_management/'],
               'ruby-pg': ['ruby/ruby-pg/'],
               'ruby-rails': ['ruby/rails/petclinic/'],
               'ruby-rails-carrental': ['ruby/rails/carrental/'],
               'rust-cm': ['rust/cluster_management/'],
               'rust-sqlx': ['rust/sqlx/'],
+              'typescript-drizzle': ['typescript/drizzle/'],
               'typescript-prisma': ['typescript/prisma-multi-region/'],
               'typescript-sequelize': ['typescript/sequelize/'],
               'typescript-type-orm': ['typescript/type-orm/'],
@@ -295,6 +301,22 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
+  python-sqlalchemy:
+    needs: changes
+    if: needs.changes.outputs.python-sqlalchemy == 'true'
+    uses: ./.github/workflows/python-sqlalchemy-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  python-tortoise-orm:
+    needs: changes
+    if: needs.changes.outputs.python-tortoise-orm == 'true'
+    uses: ./.github/workflows/python-tortoise-orm-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   ruby-cm:
     needs: changes
     if: needs.changes.outputs.ruby-cm == 'true'
@@ -339,6 +361,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.rust-sqlx == 'true'
     uses: ./.github/workflows/rust-sqlx-integ-test.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  typescript-drizzle:
+    needs: changes
+    if: needs.changes.outputs.typescript-drizzle == 'true'
+    uses: ./.github/workflows/typescript-drizzle-integ-tests.yml
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
@@ -403,12 +433,15 @@ jobs:
       - python-cm
       - python-psycopg2
       - python-psycopg3
+      - python-sqlalchemy
+      - python-tortoise-orm
       - ruby-cm
       - ruby-pg
       - ruby-rails
       - ruby-rails-carrental
       - rust-cm
       - rust-sqlx
+      - typescript-drizzle
       - typescript-prisma
       - typescript-sequelize
       - typescript-type-orm
