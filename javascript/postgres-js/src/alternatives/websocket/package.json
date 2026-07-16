@@ -22,8 +22,8 @@
     "timers-browserify": "^2.0.12"
   },
   "devDependencies": {
-    "@babel/core": "^7.22.0",
-    "@babel/preset-react": "^7.22.0",
+    "@babel/core": "^8.0.1",
+    "@babel/preset-react": "^8.0.1",
     "@eslint/js": "^9.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -31,7 +31,7 @@
     "@types/webpack-dev-server": "^4.7.1",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "babel-loader": "^9.1.0",
+    "babel-loader": "^10.1.1",
     "eslint": "^9.0.0",
     "eslint-plugin-react": "^7.37.0",
     "eslint-plugin-react-hooks": "^5.0.0",
@@ -40,7 +40,7 @@
     "typescript": "^5.0.0",
     "webpack": "^5.88.0",
     "webpack-cli": "^5.1.0",
-    "webpack-dev-server": "^5.2.4"
+    "webpack-dev-server": "^6.0.0"
   },
   "overrides": {
     "ws": "^8.18.0",
