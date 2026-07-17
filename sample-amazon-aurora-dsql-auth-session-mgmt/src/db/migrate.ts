@@ -185,7 +185,9 @@ export async function runMigrations(
     if (waitForAsyncJobs && asyncJobId) {
       const waitClient = await pool.connect();
       try {
-        await waitClient.query('SELECT sys.wait_for_job($1)', [asyncJobId]);
+        // DSQL changed sys.wait_for_job from a function to a procedure,
+        // so it must be invoked with CALL, not SELECT.
+        await waitClient.query('CALL sys.wait_for_job($1)', [asyncJobId]);
       } finally {
         waitClient.release();
       }
