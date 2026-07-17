@@ -167,6 +167,8 @@ This sample focuses on demonstrating Aurora DSQL patterns. Before running in pro
 
   Then change `connection.ts` to connect as `app_runtime` instead of `admin`, and attach an IAM task-role policy that grants only `dsql:DbConnect` (not `dsql:DbConnectAdmin`). Keep `admin` for one-off setup steps such as creating the role itself or running migrations. This follows Aurora DSQL's [Database roles and IAM authentication](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-database-roles.html) guidance.
 
+  **When running as `app_runtime` (or any non-admin role), set `SKIP_MIGRATIONS=true`** so the app doesn't try to `CREATE TABLE` on startup. Aurora DSQL doesn't allow schema-level `GRANT`, so a non-admin role has no path to create tables. Run migrations once as `admin` (the default), then start the runtime process with `SKIP_MIGRATIONS=true npm start`.
+
   To roll the role back, revoke its table privileges and the IAM mapping before dropping it. Otherwise `DROP ROLE` fails with `2BP01 cannot be dropped because some objects depend on it` (the table grants and the IAM mapping are independent dependencies, both must be removed):
 
   ```sql
