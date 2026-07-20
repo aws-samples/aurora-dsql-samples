@@ -59,10 +59,15 @@ async function main(): Promise<void> {
   const pool = getPool();
 
   // Step 3 — Run database migrations (creating tables and indexes).
-  // Each DDL statement runs in its own transaction as required by DSQL.
-  console.log('Running database migrations (creating tables and indexes)...');
-  await runMigrations(pool);
-  console.log('Database migrations complete.');
+  // Skip when SKIP_MIGRATIONS=true, e.g. when running as a least-privilege
+  // runtime role that lacks CREATE on schema public.
+  if (process.env.SKIP_MIGRATIONS === 'true') {
+    console.log('SKIP_MIGRATIONS=true, skipping database migrations.');
+  } else {
+    console.log('Running database migrations (creating tables and indexes)...');
+    await runMigrations(pool);
+    console.log('Database migrations complete.');
+  }
 
   // Step 4 — Create all application dependencies.
   const userRepository = createUserRepository(pool);
