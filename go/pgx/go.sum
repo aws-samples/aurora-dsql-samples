@@ -1,11 +1,11 @@
-github.com/aws/aws-sdk-go-v2 v1.43.1 h1:t6AQIB1uQ7HJA+0CDRWjOYG5MfwnOyyDsN4vRDHcwIY=
-github.com/aws/aws-sdk-go-v2 v1.43.1/go.mod h1:WEzLKBh/mEjXvx1FtQMWgSxMSTVqxQzjkRtk5fa3wkg=
+github.com/aws/aws-sdk-go-v2 v1.43.2 h1:cl+IXwWb3qazClUcm08tGSsB6OiuV83JVJO9B0jQcPc=
+github.com/aws/aws-sdk-go-v2 v1.43.2/go.mod h1:WEzLKBh/mEjXvx1FtQMWgSxMSTVqxQzjkRtk5fa3wkg=
 github.com/aws/aws-sdk-go-v2/config v1.32.32 h1:CcYdrcIjulT7xbTSqeEInh/PqUWv10LMznfdbNRwHBM=
 github.com/aws/aws-sdk-go-v2/config v1.32.32/go.mod h1:Rk+LRPrR2oLWLOqUbhNOKYOJ8chU2aZ/R+Sdi/Bc/+4=
 github.com/aws/aws-sdk-go-v2/credentials v1.19.31 h1:olhkNt+ZMx+X40XxeyrflmdBx145TP+3DqaS4s8GsbI=
 github.com/aws/aws-sdk-go-v2/credentials v1.19.31/go.mod h1:twHrsQY+gUmkTOsDqYwBBrdP41FvzO86qjiRbj7GXcw=
-github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.1.31 h1:7WNkwx0aTFTXpzdqgUF13he/54iHpFLLlnInUiJUfpQ=
-github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.1.31/go.mod h1:0QpA2XYZV14dEaSIhQDdhSfe5tRdGWkx5W+/YWSf7qE=
+github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.1.33 h1:RYKC5l1JCUHethFvPH78fEbS8a7E2kn/yMQjGTYfXeA=
+github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.1.33/go.mod h1:L7uT1BiCHL7yBfi7cKkvdNgHtc2nPcWzotVQTDftvoQ=
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.32 h1:zheY8iDNNzOHGS2aBJ5GWjeRbhsGuSg4+s20NZ0AywQ=
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.32/go.mod h1:bkw+ZoqafHSo/3lQBm+xzWf4kh79hqP9M2kPtmOFZIY=
 github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.32 h1:PqiNS1QVFVctiMX30IwaY6pM3cUUfZFe+HPKmlZVY4I=
