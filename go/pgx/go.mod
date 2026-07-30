@@ -4,13 +4,13 @@ go 1.25.0
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.32
-	github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.1.31
+	github.com/aws/aws-sdk-go-v2/feature/dsql/auth v1.1.33
 	github.com/awslabs/aurora-dsql-connectors/go/pgx v0.4.0
 	github.com/jackc/pgx/v5 v5.10.0
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.43.1 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.43.2 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.31 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.32 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.32 // indirect
