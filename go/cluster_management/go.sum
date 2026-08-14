@@ -12,8 +12,8 @@ github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.36 h1:A4N2f4YPcST0v+dWtX
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.36/go.mod h1:B/Qr859uxWUEfZeGotK5KAEoof4Q9YWgNtPSwV6jcyk=
 github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.37 h1:oyd3ke4V9AhKcRR7rRgxk1VyI+DjK2CBQtbxh3OkdaA=
 github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.37/go.mod h1:aA9D7SqfG9IC1b7FLD7Iyc8Q4JN0a8gHhNjN4zPlIaI=
-github.com/aws/aws-sdk-go-v2/service/dsql v1.16.5 h1:kUTtPDRJksDOD0XDnNdmdbsUxbU8I8CKed9y/kpdFs4=
-github.com/aws/aws-sdk-go-v2/service/dsql v1.16.5/go.mod h1:LfmIePd6EawVCVWFQfid8aIfvL7/7elqCz13lJD0cLo=
+github.com/aws/aws-sdk-go-v2/service/dsql v1.16.6 h1:M3Z+j5PuHVpT8UtoUFCQyQLYQ/5guWy4bxGwty4ZjGU=
+github.com/aws/aws-sdk-go-v2/service/dsql v1.16.6/go.mod h1:Mujt1VSRUMyRxI2Af5EkFB7OQxWr/L23/4g0NPkkknA=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.16 h1:iE4NGbvqUZnHDqddQAauZzCILYtFjOHwRM5MOOKLB5A=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.16/go.mod h1:VsjEgrP+ibcou8TlWA4tYaB+0OojuhirsmCe+U60hTA=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.36 h1:fx2ujmozWn+C/GtfXfz5k6Ckzza40ElOpIW7d92fLWQ=
