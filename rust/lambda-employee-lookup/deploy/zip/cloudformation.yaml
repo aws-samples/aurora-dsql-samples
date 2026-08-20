@@ -6,14 +6,14 @@ Description: >
 # USAGE:
 #   1. Upload the zip to S3:
 #      aws s3 cp target/lambda/dsql-employee-lookup/bootstrap.zip \
-#        s3://dsql-employee-lookup-artifacts-<ACCOUNT_ID>/function.zip
+#        s3://<YOUR_ARTIFACTS_BUCKET>/function.zip
 #
 #   2. Deploy:
 #      aws cloudformation deploy \
 #        --template-file cloudformation.yaml \
 #        --stack-name dsql-employee-lookup \
 #        --capabilities CAPABILITY_NAMED_IAM \
-#        --parameter-overrides ArtifactsBucket=dsql-employee-lookup-artifacts-<ACCOUNT_ID>
+#        --parameter-overrides ArtifactsBucket=<YOUR_ARTIFACTS_BUCKET>
 
 Parameters:
   ArtifactsBucket:
