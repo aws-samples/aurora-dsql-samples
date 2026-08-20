@@ -95,7 +95,7 @@ resource "aws_apigatewayv2_route" "lookup" {
 
 resource "aws_cloudwatch_log_group" "api_logs" {
   name              = "/aws/apigateway/${var.function_name}-api"
-  retention_in_days = 14
+  retention_in_days = 365
 }
 
 resource "aws_apigatewayv2_stage" "default" {
