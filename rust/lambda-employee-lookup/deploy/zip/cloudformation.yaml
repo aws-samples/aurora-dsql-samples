@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  DSQL Employee Lookup - Lambda zip + Aurora DSQL + API Gateway.
+  Pre-requisite: Upload bootstrap.zip to an S3 bucket before deploying.
+
+# USAGE:
+#   1. Upload the zip to S3:
+#      aws s3 cp target/lambda/dsql-employee-lookup/bootstrap.zip \
+#        s3://dsql-employee-lookup-artifacts-<ACCOUNT_ID>/function.zip
+#
+#   2. Deploy:
+#      aws cloudformation deploy \
+#        --template-file cloudformation.yaml \
+#        --stack-name dsql-employee-lookup \
+#        --capabilities CAPABILITY_NAMED_IAM \
+#        --parameter-overrides ArtifactsBucket=dsql-employee-lookup-artifacts-<ACCOUNT_ID>
+
+Parameters:
+  ArtifactsBucket:
+    Type: String
+    Description: S3 bucket containing function.zip
+  ArtifactKey:
+    Type: String
+    Default: function.zip
+    Description: S3 key for the Lambda zip package
+
+Resources:
+  # --- Aurora DSQL ---
+  DsqlCluster:
+    Type: AWS::DSQL::Cluster
+    Properties:
+      DeletionProtectionEnabled: false
+      Tags:
+        - Key: Project
+          Value: dsql-employee-lookup
+
+  # --- IAM Role ---
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: dsql-employee-lookup-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DsqlAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: dsql:DbConnectAdmin
+                Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}'
+
+  # --- Lambda (Zip) ---
+  EmployeeLookupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: dsql-employee-lookup
+      Runtime: provided.al2023
+      Handler: bootstrap
+      Architectures: [arm64]
+      Code:
+        S3Bucket: !Ref ArtifactsBucket
+        S3Key: !Ref ArtifactKey
+      Role: !GetAtt LambdaRole.Arn
+      Timeout: 30
+      MemorySize: 128
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
+          DSQL_USER: admin
+          RUST_LOG: info
+
+  # --- API Gateway HTTP API ---
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: dsql-employee-api
+      ProtocolType: HTTP
+
+  LambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt EmployeeLookupFunction.Arn
+      PayloadFormatVersion: '2.0'
+
+  LookupRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /lookup
+      Target: !Sub 'integrations/${LambdaIntegration}'
+
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: '$default'
+      AutoDeploy: true
+
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref EmployeeLookupFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*'
+
+Outputs:
+  ApiEndpoint:
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/lookup'
+  DsqlEndpoint:
+    Value: !GetAtt DsqlCluster.Endpoint
+  DsqlClusterId:
+    Value: !Ref DsqlCluster
