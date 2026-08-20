@@ -1,0 +1,130 @@
+# =============================================================================
+# DSQL Employee Lookup - Terraform (Zip Deployment)
+# =============================================================================
+# Pre-requisite: Build the zip with cargo-lambda first.
+#
+# USAGE:
+#   terraform init
+#   terraform apply -var="zip_path=../../target/lambda/dsql-employee-lookup/bootstrap.zip"
+# =============================================================================
+
+terraform {
+  required_version = ">= 1.5"
+  required_providers {
+    aws = { source = "hashicorp/aws", version = "~> 5.0" }
+  }
+}
+
+provider "aws" { region = var.region }
+
+variable "region"        { default = "us-east-1" }
+variable "zip_path"      { type = string description = "Path to bootstrap.zip" }
+variable "function_name" { default = "dsql-employee-lookup" }
+
+data "aws_caller_identity" "current" {}
+
+# --- Aurora DSQL ---
+resource "aws_dsql_cluster" "main" {
+  deletion_protection_enabled = false
+  tags = { Project = "dsql-employee-lookup" }
+}
+
+# --- IAM Role ---
+resource "aws_iam_role" "lambda" {
+  name = "${var.function_name}-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{ Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" }, Action = "sts:AssumeRole" }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "basic" {
+  role       = aws_iam_role.lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "dsql" {
+  name = "dsql-connect"
+  role = aws_iam_role.lambda.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{ Effect = "Allow", Action = "dsql:DbConnectAdmin", Resource = "arn:aws:dsql:${var.region}:${data.aws_caller_identity.current.account_id}:cluster/${aws_dsql_cluster.main.id}" }]
+  })
+}
+
+# --- Lambda (Zip) ---
+resource "aws_lambda_function" "main" {
+  function_name    = var.function_name
+  runtime          = "provided.al2023"
+  handler          = "bootstrap"
+  architectures    = ["arm64"]
+  filename         = var.zip_path
+  source_code_hash = filebase64sha256(var.zip_path)
+  role             = aws_iam_role.lambda.arn
+  timeout          = 30
+  memory_size      = 128
+  environment {
+    variables = {
+      DSQL_ENDPOINT = aws_dsql_cluster.main.endpoint
+      DSQL_USER     = "admin"
+      RUST_LOG      = "info"
+    }
+  }
+  depends_on = [aws_iam_role_policy_attachment.basic, aws_iam_role_policy.dsql]
+}
+
+# --- API Gateway ---
+resource "aws_apigatewayv2_api" "main" {
+  name          = "${var.function_name}-api"
+  protocol_type = "HTTP"
+}
+
+resource "aws_apigatewayv2_integration" "lambda" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.main.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "lookup" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /lookup"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "AWS_IAM"
+}
+
+resource "aws_cloudwatch_log_group" "api_logs" {
+  name              = "/aws/apigateway/${var.function_name}-api"
+  retention_in_days = 365
+}
+
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.main.id
+  name        = "$default"
+  auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_logs.arn
+    format = jsonencode({
+      requestId      = "$context.requestId"
+      ip             = "$context.identity.sourceIp"
+      requestTime    = "$context.requestTime"
+      httpMethod     = "$context.httpMethod"
+      routeKey       = "$context.routeKey"
+      status         = "$context.status"
+      responseLength = "$context.responseLength"
+    })
+  }
+}
+
+resource "aws_lambda_permission" "apigw" {
+  function_name = aws_lambda_function.main.function_name
+  action        = "lambda:InvokeFunction"
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*"
+}
+
+# --- Outputs ---
+output "api_endpoint"    { value = "${aws_apigatewayv2_api.main.api_endpoint}/lookup" }
+output "dsql_endpoint"   { value = aws_dsql_cluster.main.endpoint }
+output "dsql_cluster_id" { value = aws_dsql_cluster.main.id }
