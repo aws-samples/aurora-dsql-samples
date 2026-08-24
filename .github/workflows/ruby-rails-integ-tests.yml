@@ -49,7 +49,7 @@ jobs:
         CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         REGION: ${{ needs.create-cluster.outputs.region }}
         CLUSTER_USER: admin
-        RAILS_ENV: development
+        RAILS_ENV: test
       run: |
         bundle install
         mkdir -p ~/.postgresql
