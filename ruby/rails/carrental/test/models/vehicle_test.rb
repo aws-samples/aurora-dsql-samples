@@ -21,6 +21,16 @@ class VehicleTest < ActiveSupport::TestCase
     vehicle.destroy!
   end
 
+  test "upsert updates non-primary-key columns" do
+    vehicle = Vehicle.create!(build_vehicle)
+
+    Vehicle.upsert_all([vehicle.attributes.merge("mileage" => 42)])
+
+    assert_equal 42, vehicle.reload.mileage
+  ensure
+    vehicle&.destroy!
+  end
+
   test "requires make and model" do
     vehicle = Vehicle.new(build_vehicle(make: nil, model: nil))
     assert_not vehicle.valid?
