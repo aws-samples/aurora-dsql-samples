@@ -121,9 +121,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-dsql"
-version = "1.65.0"
+version = "1.66.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66360c5fae86eab6cd2b74d6594f967d9564a1a9fc0fa5c392a3115f9fdf80d7"
+checksum = "6a5f730c58aab985cb99545819224223d95383865369d84302c3f0ee0386744c"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
