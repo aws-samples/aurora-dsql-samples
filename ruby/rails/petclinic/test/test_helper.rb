@@ -7,8 +7,7 @@ module ActiveSupport
     # Run tests in parallel with specified workers
     parallelize(workers: :number_of_processors)
 
-    # Aurora DSQL does not support SAVEPOINT, which Rails uses for
-    # transactional tests. Disable them so each test manages its own data.
+    # Manage test data explicitly for Aurora DSQL integration tests.
     self.use_transactional_tests = false
   end
 end
