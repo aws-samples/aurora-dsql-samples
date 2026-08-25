@@ -32,6 +32,22 @@ require "active_record/connection_adapters/postgresql/schema_statements"
 module ActiveRecord::ConnectionAdapters::PostgreSQL::SchemaStatements
   # DSQL does not support setting min_messages in the connection parameters
   def client_min_messages=(level); end
+
+  def primary_keys(table_name)
+    query_values(<<~SQL, "SCHEMA")
+      SELECT a.attname
+        FROM (
+               SELECT conrelid, conkey, generate_subscripts(conkey, 1) idx
+                 FROM pg_constraint
+                WHERE conrelid = #{quote(quote_table_name(table_name))}::regclass
+                  AND contype = 'p'
+             ) c
+        JOIN pg_attribute a
+          ON a.attrelid = c.conrelid
+         AND a.attnum = c.conkey[c.idx]
+       ORDER BY c.idx
+    SQL
+  end
 end
 
 class ActiveRecord::ConnectionAdapters::PostgreSQLAdapter
