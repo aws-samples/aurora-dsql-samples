@@ -45,7 +45,7 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: dsql:DbConnectAdmin
+                Action: dsql:DbConnect
                 Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}'
 
   # --- Lambda (Container Image) ---
@@ -63,7 +63,7 @@ Resources:
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
-          DSQL_USER: admin
+          DSQL_USER: app_readonly
           RUST_LOG: info
 
   # --- API Gateway HTTP API ---

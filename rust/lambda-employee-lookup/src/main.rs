@@ -7,12 +7,12 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::{Executor, PgPool, Row};
 use std::env;
 use std::sync::OnceLock;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 // Global connection pool — initialized once, reused across Lambda invocations
 static POOL: OnceLock<PgPool> = OnceLock::new();
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize)]
 struct LookupRequest {
     #[serde(default)]
     name: Option<String>,
@@ -40,7 +40,7 @@ struct Employee {
 /// - after_connect: sets the search_path on each new connection
 async fn init_pool() -> Result<PgPool> {
     let endpoint = env::var("DSQL_ENDPOINT").expect("DSQL_ENDPOINT required");
-    let user = env::var("DSQL_USER").unwrap_or_else(|_| "admin".into());
+    let user = env::var("DSQL_USER").unwrap_or_else(|_| "app_readonly".into());
 
     let conn_str = format!("postgres://{}@{}/postgres", user, endpoint);
     let config = DsqlConnectOptions::from_connection_string(&conn_str)?;
@@ -51,7 +51,7 @@ async fn init_pool() -> Result<PgPool> {
             .max_connections(5)
             .after_connect(|conn, _meta| {
                 Box::pin(async move {
-                    conn.execute("SET search_path = 'public'").await?;
+                    conn.execute("SET search_path = 'app'").await?;
                     Ok(())
                 })
             }),
@@ -71,23 +71,23 @@ async fn get_pool() -> Result<&'static PgPool> {
     Ok(POOL.get_or_init(|| pool))
 }
 
-/// Query employees from the database
+/// Query employees from the database with pagination
 async fn query_employees(pool: &PgPool, name_filter: &str) -> Result<Vec<Employee>> {
     let rows = if name_filter.is_empty() {
-        info!("Fetching all employees");
+        info!("Fetching employees (limited to 50)");
         sqlx::query(
             "SELECT id::text, name, email, department, title, \
-             hire_date::text FROM employees ORDER BY name",
+             hire_date::text FROM employees ORDER BY name LIMIT 50",
         )
         .fetch_all(pool)
         .await?
     } else {
-        info!(name = %name_filter, "Searching employees");
-        let pattern = format!("%{name_filter}%");
+        info!(name = %name_filter, "Searching employees by prefix");
+        let pattern = format!("{}%", name_filter);
         sqlx::query(
             "SELECT id::text, name, email, department, title, \
              hire_date::text FROM employees \
-             WHERE LOWER(name) LIKE LOWER($1) ORDER BY name",
+             WHERE LOWER(name) LIKE LOWER($1) ORDER BY name LIMIT 50",
         )
         .bind(&pattern)
         .fetch_all(pool)
@@ -113,11 +113,35 @@ async fn handler(event: Request) -> Result<Response<Body>, Error> {
         Error::from(e.to_string())
     })?;
 
-    // Parse the JSON body into our query struct
+    // Parse the JSON body, returning 400 on malformed input
     let query: LookupRequest = match event.body() {
-        Body::Text(t) => serde_json::from_str(t).unwrap_or_default(),
-        Body::Binary(b) => serde_json::from_slice(b).unwrap_or_default(),
-        Body::Empty => LookupRequest::default(),
+        Body::Text(t) => match serde_json::from_str(t) {
+            Ok(q) => q,
+            Err(e) => {
+                warn!("Invalid JSON body: {e}");
+                return Ok(Response::builder()
+                    .status(400)
+                    .header("Content-Type", "application/json")
+                    .body(Body::Text(serde_json::to_string(&json!({
+                        "error": "Invalid request body",
+                        "detail": e.to_string()
+                    }))?))?)
+            }
+        },
+        Body::Binary(b) => match serde_json::from_slice(b) {
+            Ok(q) => q,
+            Err(e) => {
+                warn!("Invalid binary body: {e}");
+                return Ok(Response::builder()
+                    .status(400)
+                    .header("Content-Type", "application/json")
+                    .body(Body::Text(serde_json::to_string(&json!({
+                        "error": "Invalid request body",
+                        "detail": e.to_string()
+                    }))?))?)
+            }
+        },
+        Body::Empty => LookupRequest { name: None },
     };
 
     let filter = query.name.unwrap_or_default();

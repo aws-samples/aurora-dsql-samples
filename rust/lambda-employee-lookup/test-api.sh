@@ -58,9 +58,16 @@ echo ""
 
 # Test 5: Invalid JSON (should return 400)
 echo ">>> Test 5: Invalid JSON body (expect 400)"
-curl -s -X POST $API_URL \
+HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST $API_URL \
   -H 'Content-Type: application/json' \
-  -d 'not valid json' | jq .
+  -d 'not valid json')
+echo "    HTTP Status: $HTTP_STATUS"
+if [ "$HTTP_STATUS" == "400" ]; then
+  echo "    ✅ Correctly returned 400"
+else
+  echo "    ❌ Expected 400, got $HTTP_STATUS"
+fi
+cat /tmp/response.json | jq .
 echo ""
 
 echo "============================================"

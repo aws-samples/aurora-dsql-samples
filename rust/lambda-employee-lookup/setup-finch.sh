@@ -136,7 +136,7 @@ cat > /tmp/dsql-policy.json << EOF
   "Version": "2012-10-17",
   "Statement": [{
     "Effect": "Allow",
-    "Action": "dsql:DbConnectAdmin",
+    "Action": "dsql:DbConnect",
     "Resource": "arn:aws:dsql:${REGION}:${ACCOUNT_ID}:cluster/${CLUSTER_ID}"
   }]
 }
@@ -165,7 +165,7 @@ aws lambda create-function \
   --architectures arm64 \
   --timeout 30 \
   --memory-size 128 \
-  --environment "Variables={DSQL_ENDPOINT=$CLUSTER_ENDPOINT,DSQL_USER=admin,RUST_LOG=info}" \
+  --environment "Variables={DSQL_ENDPOINT=$CLUSTER_ENDPOINT,DSQL_USER=app_readonly,RUST_LOG=info}" \
   --region $REGION \
   --output text --query 'FunctionArn'
 

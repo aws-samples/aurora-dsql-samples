@@ -2,6 +2,7 @@
 name = "dsql-employee-lookup"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.94.1"
 
 [dependencies]
 lambda_http = "0.13"

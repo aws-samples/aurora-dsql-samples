@@ -48,7 +48,7 @@ resource "aws_iam_role_policy" "dsql" {
   role = aws_iam_role.lambda.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{ Effect = "Allow", Action = "dsql:DbConnectAdmin", Resource = "arn:aws:dsql:${var.region}:${data.aws_caller_identity.current.account_id}:cluster/${aws_dsql_cluster.main.id}" }]
+    Statement = [{ Effect = "Allow", Action = "dsql:DbConnect", Resource = "arn:aws:dsql:${var.region}:${data.aws_caller_identity.current.account_id}:cluster/${aws_dsql_cluster.main.id}" }]
   })
 }
 
@@ -64,7 +64,7 @@ resource "aws_lambda_function" "main" {
   environment {
     variables = {
       DSQL_ENDPOINT = aws_dsql_cluster.main.endpoint
-      DSQL_USER     = "admin"
+      DSQL_USER     = "app_readonly"
       RUST_LOG      = "info"
     }
   }
@@ -88,7 +88,6 @@ resource "aws_apigatewayv2_route" "lookup" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "POST /lookup"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
-  authorization_type = "AWS_IAM"
 }
 
 resource "aws_cloudwatch_log_group" "api_logs" {

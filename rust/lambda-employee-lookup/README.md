@@ -17,7 +17,7 @@ The Lambda function exposes a `POST /lookup` endpoint via API Gateway that queri
 ### Prerequisites
 
 - You must have an AWS account, and have your default credentials and AWS Region configured as described in [Globally configuring AWS SDKs and tools](https://docs.aws.amazon.com/sdkref/latest/refdocs/creds-config-files.html).
-- You must have [Rust & Cargo](https://rustup.rs/) installed (1.84 or later).
+- You must have [Rust & Cargo](https://rustup.rs/) installed (1.94.1 or later).
 - You must have [cargo-lambda](https://www.cargo-lambda.info/) installed.
 - You must have [Docker](https://docs.docker.com/get-docker/) or [Finch](https://runfinch.com/) installed and running (for building on macOS).
 - You must have [jq](https://jqlang.github.io/jq/) installed.
