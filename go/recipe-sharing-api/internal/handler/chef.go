@@ -124,6 +124,12 @@ func (h *ChefHandler) Delete(c *gin.Context) {
 
 	if err := h.Store.DeleteChef(c.Request.Context(), id); err != nil {
 		log.Printf("ERROR delete chef %s: %v", id, err)
+		if store.IsForeignKeyViolation(err) {
+			c.JSON(http.StatusConflict, model.ErrorResponse{
+				Error: model.ErrorDetail{Code: "CONFLICT", Message: "chef is still referenced by recipes or ratings"},
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse{
 			Error: model.ErrorDetail{Code: "INTERNAL_ERROR", Message: "failed to delete chef"},
 		})

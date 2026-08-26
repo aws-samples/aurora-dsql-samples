@@ -64,41 +64,30 @@ When using Drizzle ORM with Aurora DSQL:
 
 1. **Use UUID for IDs** — Aurora DSQL supports [sequences and identity columns](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html) (with `CACHE` specified), but UUIDs with `gen_random_uuid()` are the [recommended default](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns-working-with.html) for primary keys because they distribute writes evenly across the distributed system:
 
-   ```typescript
-   import { pgTable, uuid } from "drizzle-orm/pg-core";
-   import { sql } from "drizzle-orm";
+    ```typescript
+    import { pgTable, uuid } from "drizzle-orm/pg-core";
+    import { sql } from "drizzle-orm";
 
-   export const owner = pgTable("owner", {
-       id: uuid().primaryKey().default(sql`gen_random_uuid()`),
-   });
-   ```
+    export const owner = pgTable("owner", {
+        id: uuid()
+            .primaryKey()
+            .default(sql`gen_random_uuid()`),
+    });
+    ```
 
-2. **Application-layer referential integrity** — This sample uses Drizzle's `relations()` API for relationship handling:
+2. **Custom migration runner** — Drizzle's built-in `migrate()` creates its tracking table using `SERIAL`, which is not available in Aurora DSQL. This sample includes a custom migration runner (`src/migrate.ts`) that uses UUID primary keys instead:
 
-   ```typescript
-   import { relations } from "drizzle-orm";
+    ```typescript
+    import { applyMigrations } from "./migrate";
 
-   export const petRelations = relations(pet, ({ one }) => ({
-       owner: one(owner, {
-           fields: [pet.ownerId],
-           references: [owner.id],
-       }),
-   }));
-   ```
+    await applyMigrations(pool, "./drizzle");
+    ```
 
-3. **Custom migration runner** — Drizzle's built-in `migrate()` creates its tracking table using `SERIAL`, which is not available in Aurora DSQL. This sample includes a custom migration runner (`src/migrate.ts`) that uses UUID primary keys instead:
+3. **Generate migrations offline** — Use `drizzle-kit generate` to create SQL migration files from your schema (no database connection required):
 
-   ```typescript
-   import { applyMigrations } from "./migrate";
-
-   await applyMigrations(pool, "./drizzle");
-   ```
-
-4. **Generate migrations offline** — Use `drizzle-kit generate` to create SQL migration files from your schema (no database connection required):
-
-   ```
-   npm run migrate:generate
-   ```
+    ```
+    npm run migrate:generate
+    ```
 
 ## Tests
 

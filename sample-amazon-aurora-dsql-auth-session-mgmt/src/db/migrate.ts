@@ -13,7 +13,7 @@
 //
 // `CREATE INDEX ASYNC` returns synchronously while the index continues
 // building in the background. We capture the returned `job_id` and wait on
-// `sys.wait_for_job($1)` so the application doesn't start serving traffic
+// `CALL sys.wait_for_job($1)` so the application doesn't start serving traffic
 // against a sequential scan. Skip the wait by passing `{ waitForAsyncJobs:
 // false }` if you want migrations to be non-blocking.
 //
@@ -93,16 +93,14 @@ const DDL_STATEMENTS: DDLStatement[] = [
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ,
-  client_metadata TEXT
+  client_metadata TEXT,
+  CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id)
+    REFERENCES users(id) ON DELETE RESTRICT ON UPDATE RESTRICT
 )`,
     isAsync: false,
   },
 
   // 3. Async index on sessions.user_id for fast lookups by user.
-  //
-  // `CREATE INDEX ASYNC` returns immediately with a `job_id`. We wait on
-  // `sys.wait_for_job` below so the application doesn't start serving
-  // traffic against a sequential scan.
   {
     sql: `CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_user_id ON sessions (user_id)`,
     isAsync: true,
@@ -156,37 +154,25 @@ export async function runMigrations(
       await client.query('COMMIT');
 
       if (stmt.isAsync) {
-        // CREATE INDEX ASYNC returns a single row with the job_id of the
-        // background build. Pull it out so we can wait on it below.
-        const row = result.rows[0];
-        const jobId =
-          row && typeof row.job_id === 'string' ? row.job_id : undefined;
-        if (jobId) {
+        const jobId = result.rows[0]?.job_id;
+        if (typeof jobId === 'string') {
           asyncJobId = jobId;
         }
       }
     } catch (error) {
-      // Best-effort rollback. If ROLLBACK itself throws (e.g. dead
-      // connection), preserve the *original* error — the SQLSTATE from the
-      // failed DDL is more useful for debugging than the rollback failure.
       try {
         await client.query('ROLLBACK');
       } catch {
-        // swallow — re-throwing the original error below is more useful
+        // Preserve the original error.
       }
       throw error;
     } finally {
       client.release();
     }
 
-    // If the previous statement scheduled an async job, wait on it now —
-    // outside of the transaction that scheduled it. `sys.wait_for_job`
-    // blocks until the index finishes building.
     if (waitForAsyncJobs && asyncJobId) {
       const waitClient = await pool.connect();
       try {
-        // sys.wait_for_job is a procedure, not a function in DSQL, so it
-        // must be invoked with CALL, not SELECT.
         await waitClient.query('CALL sys.wait_for_job($1)', [asyncJobId]);
       } finally {
         waitClient.release();

@@ -2,10 +2,9 @@
  * Drizzle ORM schema for the veterinary domain model.
  *
  * Aurora DSQL supports sequences and identity columns (with CACHE specified),
- * but the SERIAL pseudo-type is not available. Foreign key constraints are
- * not enforced.
- * UUIDs with gen_random_uuid() are the recommended primary key type, and
- * relationships are managed at the application level using Drizzle relations.
+ * but the SERIAL pseudo-type is not available. This sample defines foreign
+ * keys in the initial table DDL and uses RESTRICT to avoid cascading writes.
+ * UUIDs with gen_random_uuid() are the recommended primary key type.
  */
 import { relations, sql } from "drizzle-orm";
 import { pgTable, uuid, varchar, date, primaryKey } from "drizzle-orm/pg-core";
@@ -25,7 +24,10 @@ export const pet = pgTable("pet", {
         .default(sql`gen_random_uuid()`),
     name: varchar({ length: 30 }).notNull(),
     birthDate: date({ mode: "date" }).notNull(),
-    ownerId: uuid("owner_id"),
+    ownerId: uuid("owner_id").references(() => owner.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+    }),
 });
 
 export const specialty = pgTable("specialty", {
@@ -42,13 +44,23 @@ export const vet = pgTable("vet", {
 export const specialtyToVet = pgTable(
     "_SpecialtyToVet",
     {
-        specialtyName: varchar("A", { length: 80 }).notNull(),
-        vetId: uuid("B").notNull(),
+        specialtyName: varchar("A", { length: 80 })
+            .notNull()
+            .references(() => specialty.name, {
+                onDelete: "restrict",
+                onUpdate: "restrict",
+            }),
+        vetId: uuid("B")
+            .notNull()
+            .references(() => vet.id, {
+                onDelete: "restrict",
+                onUpdate: "restrict",
+            }),
     },
     (t) => [primaryKey({ columns: [t.specialtyName, t.vetId] })],
 );
 
-// Application-level relations (no FK constraints in DSQL)
+// ORM relation metadata complements the database constraints above.
 
 export const ownerRelations = relations(owner, ({ many }) => ({
     pets: many(pet),

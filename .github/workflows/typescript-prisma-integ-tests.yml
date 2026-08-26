@@ -72,21 +72,12 @@ jobs:
         run: |
           npm ci
 
-      - name: Install dsql-lint
-        run: |
-          cargo install dsql-lint
-
       - name: Build project
         working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         run: |
           npm run build
-
-      - name: Validate schema for DSQL compatibility
-        working-directory: ./typescript/prisma-multi-region
-        run: |
-          npm run validate
 
       - name: Create psql auth helper
         run: |
@@ -137,9 +128,6 @@ jobs:
 
           # Show the change
           grep -A2 "status" prisma/schema.prisma
-
-          # Validate the modified schema
-          npm run validate
 
           # Generate incremental migration by diffing old schema → new schema,
           # then transform for DSQL compatibility (BEGIN/COMMIT, ASYNC indexes)

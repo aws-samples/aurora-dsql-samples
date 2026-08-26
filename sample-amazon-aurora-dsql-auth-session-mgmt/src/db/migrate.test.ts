@@ -68,22 +68,17 @@ describe('runMigrations', () => {
 
     await runMigrations(pool);
 
-    // 3 DDL transactions (users table, sessions table, user_id index) plus
-    // a 4th client for the post-DDL `sys.wait_for_job` call after the
-    // async index. The token_hash UNIQUE constraint already creates a
-    // backing index, so we deliberately do NOT add a second.
+    // 3 DDL transactions and one async-job wait.
     expect(clients).toHaveLength(4);
 
-    // First three clients ran BEGIN → DDL → COMMIT.
-    for (const client of clients.slice(0, 3)) {
+    // The table and index clients ran BEGIN → DDL → COMMIT.
+    for (const client of [clients[0], clients[1], clients[2]]) {
       expect(client.queries[0]).toBe('BEGIN');
       expect(client.queries[2]).toBe('COMMIT');
       expect(client.queries).toHaveLength(3);
     }
 
-    // The 4th client ran the wait_for_job for the async index.
-    expect(clients[3].queries).toHaveLength(1);
-    expect(clients[3].queries[0]).toBe('SELECT sys.wait_for_job($1)');
+    expect(clients[3].queries).toEqual(['CALL sys.wait_for_job($1)']);
   });
 
   it('creates the users table first', async () => {
@@ -112,6 +107,8 @@ describe('runMigrations', () => {
     expect(ddl).toContain('expires_at TIMESTAMPTZ NOT NULL');
     expect(ddl).toContain('revoked_at TIMESTAMPTZ');
     expect(ddl).toContain('client_metadata TEXT');
+    expect(ddl).toContain('FOREIGN KEY (user_id)');
+    expect(ddl).toContain('REFERENCES users(id)');
   });
 
   it('creates the user_id index third', async () => {
@@ -129,7 +126,9 @@ describe('runMigrations', () => {
 
     await runMigrations(pool);
 
-    const allDdl = clients.slice(0, 3).map((c) => c.queries[1]).join('\n');
+    const allDdl = [clients[0], clients[1], clients[2]]
+      .map((c) => c.queries[1])
+      .join('\n');
     expect(allDdl).not.toContain('idx_sessions_token_hash');
     expect(allDdl).not.toMatch(/CREATE INDEX[^\n]*ON sessions \(token_hash\)/);
   });
@@ -139,21 +138,17 @@ describe('runMigrations', () => {
 
     await runMigrations(pool);
 
-    // The 4th client (after the 3 DDL clients) ran SELECT sys.wait_for_job($1).
-    // Assert on the params too so a regression that passes undefined for $1
-    // would fail the test.
     expect(clients[3].query).toHaveBeenCalledWith(
-      'SELECT sys.wait_for_job($1)',
+      'CALL sys.wait_for_job($1)',
       ['fake-job-id'],
     );
   });
 
-  it('skips wait_for_job when waitForAsyncJobs is false', async () => {
+  it('skips the index wait when waitForAsyncJobs is false', async () => {
     const { pool, clients } = createMockPool();
 
     await runMigrations(pool, { waitForAsyncJobs: false });
 
-    // Only the 3 DDL clients — no wait_for_job client.
     expect(clients).toHaveLength(3);
   });
 

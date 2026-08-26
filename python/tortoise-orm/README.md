@@ -5,7 +5,6 @@ This sample demonstrates how to build an async Python application using [Tortois
 ## What it demonstrates
 
 - Tortoise ORM models with UUID primary keys for Aurora DSQL's distributed architecture
-- Application-level relationships using UUID columns (Aurora DSQL does not enforce foreign key constraints)
 - IAM authentication via boto3's DSQL client (no static passwords)
 - asyncpg connection pool patching for Aurora DSQL compatibility
 - Optimistic concurrency control (OCC) retry logic with exponential backoff and jitter

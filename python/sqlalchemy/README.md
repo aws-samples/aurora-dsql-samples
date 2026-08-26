@@ -45,7 +45,6 @@ pip install -r requirements.txt
 The example demonstrates the following operations:
 * Connecting to Aurora DSQL using SQLAlchemy with IAM authentication
 * Creating tables using SQLAlchemy's `Base.metadata.create_all()`
-* Defining ORM models with UUID primary keys and application-level relationships
 * Inserting and querying data with relationship loading (joinedload)
 
 The example is designed to work with both admin and non-admin users:
@@ -118,28 +117,6 @@ id: Mapped[UUID] = mapped_column(
     Uuid, primary_key=True, server_default=text("gen_random_uuid()")
 )
 ```
-
-### Relationships with application-layer referential integrity
-
-This sample uses application-layer referential integrity. Define relationships using `relationship()` with explicit `primaryjoin` and `foreign()` annotations instead of `ForeignKey()`:
-
-```python
-from sqlalchemy.orm import relationship, foreign
-
-class Owner(Base):
-    __tablename__ = "owner"
-    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, server_default=text("gen_random_uuid()"))
-
-class Pet(Base):
-    __tablename__ = "pet"
-    owner_id: Mapped[Optional[UUID]] = mapped_column(Uuid, nullable=True)
-
-# Define after both classes exist
-Owner.pets = relationship(Pet, primaryjoin=Owner.id == foreign(Pet.owner_id), back_populates="owner")
-Pet.owner = relationship(Owner, primaryjoin=foreign(Pet.owner_id) == Owner.id, back_populates="pets")
-```
-
-The `foreign()` annotation tells SQLAlchemy which column is the "foreign" side of the join, replacing the role that `ForeignKey()` normally plays.
 
 For the full list of Aurora DSQL SQL compatibility details, see the [PostgreSQL compatibility reference](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility.html).
 

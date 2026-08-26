@@ -32,6 +32,25 @@ class ReservationTest < ActiveSupport::TestCase
     reservation.destroy!
   end
 
+  test "database rejects a reservation with missing parents" do
+    error = assert_raises(ActiveRecord::InvalidForeignKey) do
+      Reservation.insert_all!([
+        {
+          id: SecureRandom.uuid,
+          customer_id: SecureRandom.uuid,
+          vehicle_id: SecureRandom.uuid,
+          start_date: Date.today,
+          end_date: Date.today + 1,
+          status: "pending",
+          created_at: Time.current,
+          updated_at: Time.current
+        }
+      ])
+    end
+
+    assert_match(/foreign key/i, error.message)
+  end
+
   test "requires start_date and end_date" do
     reservation = Reservation.new(
       vehicle: @vehicle, customer: @customer,
