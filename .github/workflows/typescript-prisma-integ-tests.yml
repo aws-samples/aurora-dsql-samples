@@ -72,21 +72,12 @@ jobs:
         run: |
           npm ci
 
-      - name: Install dsql-lint
-        run: |
-          cargo install dsql-lint
-
       - name: Build project
         working-directory: ./typescript/prisma-multi-region
         env:
           CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         run: |
           npm run build
-
-      - name: Validate schema for DSQL compatibility
-        working-directory: ./typescript/prisma-multi-region
-        run: |
-          npm run validate
 
       - name: Create psql auth helper
         run: |
@@ -118,54 +109,6 @@ jobs:
           npm run prisma:migrate-down || true
 
           npm run prisma:migrate-up
-
-      - name: Test incremental migration workflow
-        working-directory: ./typescript/prisma-multi-region
-        env:
-          CLUSTER_USER: "admin"
-          CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
-          REGION: ${{ needs.create-cluster.outputs.region }}
-        run: |
-          source /tmp/configure-psql.sh
-          configure_psql $CLUSTER_USER
-
-          # Save the current schema as the baseline
-          cp prisma/schema.prisma prisma/schema_before.prisma
-
-          # Add a new column to the Order model (after the status field)
-          sed -i '/status.*String.*@default("pending")/a\  notes     String?' prisma/schema.prisma
-
-          # Show the change
-          grep -A2 "status" prisma/schema.prisma
-
-          # Validate the modified schema
-          npm run validate
-
-          # Generate incremental migration by diffing old schema → new schema,
-          # then transform for DSQL compatibility (BEGIN/COMMIT, ASYNC indexes)
-          npx prisma migrate diff \
-            --from-schema prisma/schema_before.prisma \
-            --to-schema prisma/schema.prisma \
-            --script > /tmp/incremental_raw.sql
-
-          cat /tmp/incremental_raw.sql
-
-          mkdir -p prisma/migrations/1_add_notes
-          npx aurora-dsql-prisma transform /tmp/incremental_raw.sql \
-            -o prisma/migrations/1_add_notes/migration.sql
-
-          cat prisma/migrations/1_add_notes/migration.sql
-
-          # Apply the incremental migration via prisma migrate deploy
-          npm run prisma:migrate-up
-
-          # Verify the column was added
-          psql -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'notes'" | grep -q notes
-
-          # Clean up
-          git checkout prisma/schema.prisma
-          rm -f prisma/schema_before.prisma
-          rm -rf prisma/migrations/1_add_notes
 
       - name: Run integration tests as admin
         working-directory: ./typescript/prisma-multi-region

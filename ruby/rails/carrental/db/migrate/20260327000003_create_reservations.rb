@@ -11,6 +11,13 @@ class CreateReservations < ActiveRecord::Migration[7.2]
       t.decimal :total_price, precision: 10, scale: 2
 
       t.timestamps
+
+      t.foreign_key :customers, column: :customer_id,
+        name: :reservations_customer_id_fkey,
+        on_delete: :restrict, on_update: :restrict
+      t.foreign_key :vehicles, column: :vehicle_id,
+        name: :reservations_vehicle_id_fkey,
+        on_delete: :restrict, on_update: :restrict
     end
   end
 end
