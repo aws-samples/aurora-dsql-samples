@@ -1,137 +1,52 @@
-# Aurora DSQL with Drizzle ORM
+# Veterinary app (Drizzle + Aurora DSQL)
 
-This sample demonstrates using [Drizzle ORM](https://orm.drizzle.team/) with [Amazon Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html).
+A small veterinary clinic schema demonstrating [@aws/aurora-dsql-drizzle](https://github.com/awslabs/aurora-dsql-orms/tree/main/node/drizzle): IAM-authenticated connections, DSQL-ready migrations, and relational queries.
 
-## Prerequisites
+## Layout
 
-- AWS account with default credentials configured ([setup guide](https://docs.aws.amazon.com/credref/latest/refdocs/creds-config-files.html))
-- [Node.js 20+](https://nodejs.org)
-- An Aurora DSQL cluster ([getting started guide](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html))
+- `src/schema.ts` — Drizzle tables. UUID primary keys, and relationships declared at the ORM level with `relations()` rather than `references()`, so the generated SQL carries no foreign-key constraints
+- `drizzle/` — the committed migration, generated with `drizzle-kit` and rewritten for DSQL (`CREATE INDEX ASYNC`, `USING btree` removed)
+- `src/dsql-client.ts` — builds the `drizzle()` database
+- `src/migrate.ts` — applies migrations via the adapter's `migrate()`
+- `src/example.ts` — populates and verifies data
 
-## Quick Start
+## Run
 
-### Install dependencies
+```bash
+export CLUSTER_ENDPOINT=<your-cluster-id>.dsql.<region>.on.aws
+export CLUSTER_USER=myuser   # required; the database role to connect as
 
-```
 npm install
+npm run db:migrate   # applies drizzle/ with the adapter's migrate()
+npm run sample       # populate + verify
+npm test             # integration tests (needs the cluster)
 ```
 
-### Set environment variables
+Credentials come from the default AWS credential chain, and need `dsql:DbConnect` for the role named in `CLUSTER_USER`.
 
-```
-export CLUSTER_USER="admin"
-export CLUSTER_ENDPOINT="your-cluster.dsql.us-east-1.on.aws"
-```
+### Setting up the database role
 
-### Build and run the sample
-
-```
-npm run build
-npm run sample
-```
-
-## About the Sample
-
-The sample uses the [Aurora DSQL Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node) for automatic IAM authentication and connection pooling. It demonstrates:
-
-- Connecting to Aurora DSQL using Drizzle ORM with IAM authentication
-- Applying database migrations using a custom DSQL-compatible migration runner
-- CRUD operations using Drizzle's type-safe query builder
-- Managing relationships (owners, pets, veterinarians, specialties)
-
-The sample works with both admin and non-admin users:
-
-- **Admin user**: Uses the `public` schema
-- **Non-admin user**: Uses the `myschema` schema
-
-### Usage
-
-```typescript
-import { createDsqlClient } from "./dsql-client";
-
-const { db, pool } = createDsqlClient();
-
-// Use Drizzle as normal
-const owners = await db.query.owner.findMany();
-
-// Clean up
-await pool.end();
-```
-
-## Drizzle ORM with Aurora DSQL
-
-When using Drizzle ORM with Aurora DSQL:
-
-1. **Use UUID for IDs** — Aurora DSQL supports [sequences and identity columns](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html) (with `CACHE` specified), but UUIDs with `gen_random_uuid()` are the [recommended default](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns-working-with.html) for primary keys because they distribute writes evenly across the distributed system:
-
-   ```typescript
-   import { pgTable, uuid } from "drizzle-orm/pg-core";
-   import { sql } from "drizzle-orm";
-
-   export const owner = pgTable("owner", {
-       id: uuid().primaryKey().default(sql`gen_random_uuid()`),
-   });
-   ```
-
-2. **Application-layer referential integrity** — This sample uses Drizzle's `relations()` API for relationship handling:
-
-   ```typescript
-   import { relations } from "drizzle-orm";
-
-   export const petRelations = relations(pet, ({ one }) => ({
-       owner: one(owner, {
-           fields: [pet.ownerId],
-           references: [owner.id],
-       }),
-   }));
-   ```
-
-3. **Custom migration runner** — Drizzle's built-in `migrate()` creates its tracking table using `SERIAL`, which is not available in Aurora DSQL. This sample includes a custom migration runner (`src/migrate.ts`) that uses UUID primary keys instead:
-
-   ```typescript
-   import { applyMigrations } from "./migrate";
-
-   await applyMigrations(pool, "./drizzle");
-   ```
-
-4. **Generate migrations offline** — Use `drizzle-kit generate` to create SQL migration files from your schema (no database connection required):
-
-   ```
-   npm run migrate:generate
-   ```
-
-## Tests
-
-Run the integration tests (requires a DSQL cluster):
-
-```
-npm test
-```
-
-## Cleanup
-
-To remove the database tables, connect to your cluster and run:
+Connect as `admin` once to create an application role scoped to just this app's schema, plus the schema `migrate()` tracks applied statements in. See [Using database roles and IAM authentication](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/using-database-and-iam-roles.html):
 
 ```sql
-DROP TABLE IF EXISTS "__drizzle_migrations";
-DROP TABLE IF EXISTS "_SpecialtyToVet";
-DROP TABLE IF EXISTS "pet";
-DROP TABLE IF EXISTS "owner";
-DROP TABLE IF EXISTS "specialty";
-DROP TABLE IF EXISTS "vet";
+CREATE SCHEMA myschema;
+CREATE SCHEMA drizzle;   -- migrate()'s tracking schema
+CREATE ROLE myuser WITH LOGIN;
+AWS IAM GRANT myuser TO 'arn:aws:iam::<account-id>:role/<your-iam-role>';
+GRANT USAGE, CREATE ON SCHEMA myschema TO myuser;
+GRANT USAGE, CREATE ON SCHEMA drizzle TO myuser;
 ```
 
-## Additional Resources
+`CLUSTER_USER=myuser` makes the app connect with `search_path=myschema`. There is no default, so the app never lands on `admin` and the shared `public` schema by omission.
 
-- [Amazon Aurora DSQL Documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/what-is-aurora-dsql.html)
-- [Sequences and identity columns in Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html)
-- [Migrating from PostgreSQL to Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-migration-guide.html)
-- [Aurora DSQL Node.js Connector](https://github.com/awslabs/aurora-dsql-connectors/tree/main/node)
-- [Drizzle ORM Documentation](https://orm.drizzle.team/docs/overview)
-- [Drizzle ORM PostgreSQL Guide](https://orm.drizzle.team/docs/get-started-postgresql)
+Run `db:migrate` and the app as the same `CLUSTER_USER`, and don't change it afterwards. The schema is derived from it, while `migrate()` tracks applied statements globally — so migrating as `admin` puts the tables in `public`, and a later run as `myuser` finds every statement already recorded and leaves `myschema` empty. One role also keeps the grants above sufficient: `myuser` owns the tables it creates, so nothing needs granting after a migration.
 
----
+## Regenerating the migration
 
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+After changing `src/schema.ts`:
 
-SPDX-License-Identifier: MIT-0
+```bash
+npm run db:generate   # aurora-dsql-drizzle generate: drizzle-kit generate + dsql-lint --fix
+```
+
+This is the adapter's own CLI wrapping both steps, so plain `drizzle-kit generate` isn't needed — the second step is what rewrites the generated SQL for DSQL. Review and commit the result.

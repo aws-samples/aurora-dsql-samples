@@ -49,7 +49,11 @@ jobs:
         CLUSTER_USER: 'admin'
       run: |
         npm ci
-        npm run test
+        npm run build
+        npm run db:migrate
+        npm run test -- --testPathPatterns=dsql-client
+        npm run test -- --testPathPatterns=migrator
+        npm run sample
 
   delete-cluster:
     if: always() && needs.create-cluster.result == 'success'
