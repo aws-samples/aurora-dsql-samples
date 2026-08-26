@@ -90,7 +90,7 @@ updates:
       interval: "daily"
     open-pull-requests-limit: 5
   - package-ecosystem: "npm"
-    directory: "/typescript/prisma"
+    directory: "/typescript/prisma-multi-region"
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
