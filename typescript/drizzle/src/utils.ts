@@ -1,14 +1,10 @@
 /**
- * Get the value of the provided environment variable name, or throw if it
- * doesn't exist.
- *
- * @param name The name of the environment variable to retrieve.
- * @return The environment variable value.
+ * Get the value of the provided environment variable, or throw if it is unset.
  */
 export function getRequiredEnv(name: string): string {
-    const value = process.env[name];
-    if (!value) {
-        throw new Error(`Missing required environment variable ${name}`);
-    }
-    return value;
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable ${name}`);
+  }
+  return value;
 }

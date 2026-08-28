@@ -1,193 +1,124 @@
 import assert from "node:assert";
-import { eq, asc } from "drizzle-orm";
-import { owner, pet, specialty, vet, specialtyToVet } from "./schema";
-import { DsqlDatabase } from "./dsql-client";
+import { VeterinaryService } from "./veterinary-service";
 
 const PET_1_BIRTH_DATE = new Date("2006-10-25");
 const PET_2_BIRTH_DATE = new Date("2021-07-23");
 
-export async function runVeterinaryExample(db: DsqlDatabase) {
-    const ids = await populateDb(db);
-    await verifyPets(db);
-    await verifyOwners(db);
-    await verifyVets(db);
-    await cleanup(db, ids);
+export async function runVeterinaryExample(service: VeterinaryService) {
+  await populateDb(service);
+
+  await verifyPet(service);
+  await verifyOwners(service);
+  await verifyVets(service);
 }
 
-async function populateDb(db: DsqlDatabase) {
-    console.log("Creating owners...");
-    const [john] = await db
-        .insert(owner)
-        .values({ name: "John Doe", city: "New York" })
-        .returning();
-    const [mary] = await db
-        .insert(owner)
-        .values({
-            name: "Mary Major",
-            city: "Anytown",
-            telephone: "555-555-0123",
-        })
-        .returning();
-    console.log(`Created owner: ${john!.name} (ID: ${john!.id})`);
-    console.log(`Created owner: ${mary!.name} (ID: ${mary!.id})`);
+async function populateDb(service: VeterinaryService) {
+  console.log("Creating owners...");
+  const john = await service.createOwner("John Doe", "New York");
+  const mary = await service.createOwner(
+    "Mary Major",
+    "Anytown",
+    "555-555-0123",
+  );
+  console.log(`Created owner: ${john.name} (ID: ${john.id})`);
+  console.log(`Created owner: ${mary.name} (ID: ${mary.id})`);
 
-    console.log("Creating pets...");
-    const [pet1] = await db
-        .insert(pet)
-        .values({
-            name: "Pet1",
-            birthDate: PET_1_BIRTH_DATE,
-            ownerId: john!.id,
-        })
-        .returning();
-    const [pet2] = await db
-        .insert(pet)
-        .values({
-            name: "Pet2",
-            birthDate: PET_2_BIRTH_DATE,
-            ownerId: john!.id,
-        })
-        .returning();
-    console.log(`Created pet: ${pet1!.name} (Owner: ${john!.name})`);
-    console.log(`Created pet: ${pet2!.name} (Owner: ${john!.name})`);
+  console.log("Creating pets...");
+  const pet1 = await service.createPet("Pet1", PET_1_BIRTH_DATE, john.id);
+  const pet2 = await service.createPet("Pet2", PET_2_BIRTH_DATE, john.id);
+  console.log(`Created pet: ${pet1.name} (Owner: ${john.name})`);
+  console.log(`Created pet: ${pet2.name} (Owner: ${john.name})`);
 
-    console.log("Creating veterinary specialties...");
-    await db
-        .insert(specialty)
-        .values([{ name: "Exotic" }, { name: "Dogs" }, { name: "Cats" }]);
-    console.log("Created specialties: Exotic, Dogs, Cats");
+  console.log("Creating veterinary specialties...");
+  const exotic = await service.createSpecialty("Exotic");
+  const dogs = await service.createSpecialty("Dogs");
+  const cats = await service.createSpecialty("Cats");
+  console.log(
+    `Created specialties: ${[exotic, dogs, cats].map((s) => s.name).join(", ")}`,
+  );
 
-    console.log("Creating veterinarians...");
-    const [akua] = await db
-        .insert(vet)
-        .values({ name: "Akua Mansa" })
-        .returning();
-    const [carlos] = await db
-        .insert(vet)
-        .values({ name: "Carlos Salazar" })
-        .returning();
-
-    await db.insert(specialtyToVet).values([
-        { specialtyName: "Exotic", vetId: akua!.id },
-        { specialtyName: "Cats", vetId: carlos!.id },
-        { specialtyName: "Dogs", vetId: carlos!.id },
-    ]);
-    console.log(`Created vet: ${akua!.name} (Specialty: Exotic)`);
-    console.log(`Created vet: ${carlos!.name} (Specialties: Cats, Dogs)`);
-
-    return {
-        ownerIds: [john!.id, mary!.id],
-        petIds: [pet1!.id, pet2!.id],
-        vetIds: [akua!.id, carlos!.id],
-    };
+  console.log("Creating veterinarians...");
+  const akua = await service.createVet("Akua Mansa", [exotic.name]);
+  const carlos = await service.createVet("Carlos Salazar", [
+    cats.name,
+    dogs.name,
+  ]);
+  console.log(`Created vet: ${akua.name} (Specialty: ${exotic.name})`);
+  console.log(
+    `Created vet: ${carlos.name} (Specialties: ${cats.name}, ${dogs.name})`,
+  );
 }
 
-async function verifyPets(db: DsqlDatabase) {
-    console.log("Querying pet information...");
+async function verifyPet(service: VeterinaryService) {
+  console.log("Querying pet information...");
 
-    const pet1 = await db.query.pet.findFirst({
-        where: eq(pet.name, "Pet1"),
-        with: { owner: true },
-    });
-    assert(pet1, "Pet1 not found");
-    assert.equal(pet1.name, "Pet1");
-    assert.equal(
-        pet1.birthDate.toISOString().slice(0, 10),
-        PET_1_BIRTH_DATE.toISOString().slice(0, 10),
-    );
-    assert.equal(pet1.owner?.name, "John Doe");
+  const pet1 = await service.getPetWithOwner("Pet1");
+  assert(pet1, "Pet1 not found");
+  assert(pet1.name === "Pet1", `Pet ${pet1.name} != Pet1`);
+  assert(
+    pet1.birthDate.getTime() === PET_1_BIRTH_DATE.getTime(),
+    `Pet1 birth ${pet1.birthDate} != ${PET_1_BIRTH_DATE}`,
+  );
+  assert(
+    pet1.owner?.name === "John Doe",
+    `Pet1 owner ${pet1.owner?.name} != John Doe`,
+  );
 
-    const pet2 = await db.query.pet.findFirst({
-        where: eq(pet.name, "Pet2"),
-        with: { owner: true },
-    });
-    assert(pet2, "Pet2 not found");
-    assert.equal(pet2.name, "Pet2");
-    assert.equal(
-        pet2.birthDate.toISOString().slice(0, 10),
-        PET_2_BIRTH_DATE.toISOString().slice(0, 10),
-    );
-    assert.equal(pet2.owner?.name, "John Doe");
+  const pet2 = await service.getPetWithOwner("Pet2");
+  assert(pet2, "Pet2 not found");
+  assert(pet2.name === "Pet2", `Pet ${pet2.name} != Pet2`);
+  assert(
+    pet2.birthDate.getTime() === PET_2_BIRTH_DATE.getTime(),
+    `Pet2 birth ${pet2.birthDate} != ${PET_2_BIRTH_DATE}`,
+  );
 }
 
-async function verifyOwners(db: DsqlDatabase) {
-    console.log("Querying owner information...");
+async function verifyOwners(service: VeterinaryService) {
+  console.log("Querying owner information...");
 
-    const john = await db.query.owner.findFirst({
-        where: eq(owner.name, "John Doe"),
-        with: { pets: true },
-    });
-    assert(john, "John Doe not found");
-    assert.equal(john.city, "New York");
-    assert.equal(john.telephone, null);
-    assert.equal(john.pets.length, 2);
+  const john = await service.getOwnerWithPets("John Doe");
+  assert(john, "John Doe not found");
+  assert(john.city === "New York", `John city ${john.city} != New York`);
+  assert(john.telephone === null, `John telephone ${john.telephone}`);
+  assert(john.pets.length === 2, `John pets ${john.pets.length} != 2`);
 
-    const mary = await db.query.owner.findFirst({
-        where: eq(owner.name, "Mary Major"),
-        with: { pets: true },
-    });
-    assert(mary, "Mary Major not found");
-    assert.equal(mary.city, "Anytown");
-    assert.equal(mary.telephone, "555-555-0123");
-    assert.equal(mary.pets.length, 0);
+  const mary = await service.getOwnerWithPets("Mary Major");
+  assert(mary, "Mary Major not found");
+  assert(mary.city === "Anytown", `Mary city ${mary.city} != Anytown`);
+  assert(
+    mary.telephone === "555-555-0123",
+    `Mary telephone ${mary.telephone} != 555-555-0123`,
+  );
+  assert(mary.pets.length === 0, `Mary pets ${mary.pets.length} != 0`);
 }
 
-async function verifyVets(db: DsqlDatabase) {
-    console.log("Querying veterinarians with specialties...");
+async function verifyVets(service: VeterinaryService) {
+  console.log("Querying veterinarians with specialties...");
 
-    const akua = await db.query.vet.findFirst({
-        where: eq(vet.name, "Akua Mansa"),
-        with: {
-            specialties: {
-                with: { specialty: true },
-                orderBy: [asc(specialtyToVet.specialtyName)],
-            },
-        },
-    });
-    assert(akua, "Akua Mansa not found");
-    const akuaSpecialties = akua.specialties.map((s) => s.specialty.name);
-    assert.equal(akuaSpecialties.length, 1);
-    assert.equal(akuaSpecialties[0], "Exotic");
+  const akua = await service.getVetWithSpecialties("Akua Mansa");
+  assert(akua, "Akua Mansa not found");
+  const akuaSpecialties = akua.specialties.map((s) => s.specialty.name).sort();
+  assert(akuaSpecialties.length === 1, `Akua specialties ${akuaSpecialties}`);
+  assert(
+    akuaSpecialties[0] === "Exotic",
+    `Akua specialty ${akuaSpecialties[0]}`,
+  );
 
-    const carlos = await db.query.vet.findFirst({
-        where: eq(vet.name, "Carlos Salazar"),
-        with: {
-            specialties: {
-                with: { specialty: true },
-                orderBy: [asc(specialtyToVet.specialtyName)],
-            },
-        },
-    });
-    assert(carlos, "Carlos Salazar not found");
-    const carlosSpecialties = carlos.specialties.map((s) => s.specialty.name);
-    assert.equal(carlosSpecialties.length, 2);
-    assert.equal(carlosSpecialties[0], "Cats");
-    assert.equal(carlosSpecialties[1], "Dogs");
-}
-
-async function cleanup(
-    db: DsqlDatabase,
-    ids: {
-        ownerIds: string[];
-        petIds: string[];
-        vetIds: string[];
-    },
-) {
-    console.log("Cleaning up...");
-    for (const id of ids.vetIds) {
-        await db.delete(specialtyToVet).where(eq(specialtyToVet.vetId, id));
-    }
-    for (const id of ids.petIds) {
-        await db.delete(pet).where(eq(pet.id, id));
-    }
-    for (const id of ids.ownerIds) {
-        await db.delete(owner).where(eq(owner.id, id));
-    }
-    for (const name of ["Exotic", "Dogs", "Cats"]) {
-        await db.delete(specialty).where(eq(specialty.name, name));
-    }
-    for (const id of ids.vetIds) {
-        await db.delete(vet).where(eq(vet.id, id));
-    }
-    console.log("Cleanup complete.");
+  const carlos = await service.getVetWithSpecialties("Carlos Salazar");
+  assert(carlos, "Carlos Salazar not found");
+  const carlosSpecialties = carlos.specialties
+    .map((s) => s.specialty.name)
+    .sort();
+  assert(
+    carlosSpecialties.length === 2,
+    `Carlos specialties ${carlosSpecialties}`,
+  );
+  assert(
+    carlosSpecialties[0] === "Cats",
+    `Carlos specialty ${carlosSpecialties[0]}`,
+  );
+  assert(
+    carlosSpecialties[1] === "Dogs",
+    `Carlos specialty ${carlosSpecialties[1]}`,
+  );
 }
