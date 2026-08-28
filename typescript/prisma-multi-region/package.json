@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
-    "@aws-sdk/dsql-signer": "^3.1006.0",
+    "@aws-sdk/dsql-signer": "^3.1117.0",
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@types/pg": "^8.18.0",
