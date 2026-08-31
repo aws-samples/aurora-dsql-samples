@@ -247,7 +247,7 @@ aws logs tail /aws/apigateway/recipe-share-stack-access-logs --region <region> -
 aws cloudformation delete-stack --stack-name recipe-share-stack --region <region>
 
 # Delete the S3 deployment bucket
-aws s3 rb s3://recipe-share-stack-deploy-<account-id>-<region> --force --region <region>
+aws s3 rb s3://amzn-s3-demo-recipe-share-stack-deploy-<account-id>-<region> --force --region <region>
 
 # Delete the Amazon Aurora DSQL cluster
 aws dsql delete-cluster --identifier <cluster-id> --region <region>

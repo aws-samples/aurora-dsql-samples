@@ -99,7 +99,7 @@ fi
 DSQL_ENDPOINT="${DSQL_CLUSTER_ID}.dsql.${REGION}.on.aws"
 
 # Derived names
-S3_BUCKET="${STACK_NAME}-deploy-${ACCOUNT}-${REGION}"
+S3_BUCKET="amzn-s3-demo-${STACK_NAME}-deploy-${ACCOUNT}-${REGION}"
 S3_KEY="lambda/bootstrap.zip"
 BINARY_NAME="bootstrap"
 ZIP_NAME="bootstrap.zip"
