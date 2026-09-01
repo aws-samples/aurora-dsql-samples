@@ -125,7 +125,7 @@ async fn handler(event: Request) -> Result<Response<Body>, Error> {
                     .body(Body::Text(serde_json::to_string(&json!({
                         "error": "Invalid request body",
                         "detail": e.to_string()
-                    }))?))?)
+                    }))?))?);
             }
         },
         Body::Binary(b) => match serde_json::from_slice(b) {
@@ -138,7 +138,7 @@ async fn handler(event: Request) -> Result<Response<Body>, Error> {
                     .body(Body::Text(serde_json::to_string(&json!({
                         "error": "Invalid request body",
                         "detail": e.to_string()
-                    }))?))?)
+                    }))?))?);
             }
         },
         Body::Empty => LookupRequest { name: None },
@@ -162,7 +162,9 @@ async fn handler(event: Request) -> Result<Response<Body>, Error> {
             Ok(Response::builder()
                 .status(500)
                 .header("Content-Type", "application/json")
-                .body(Body::Text(serde_json::to_string(&json!({"error": e.to_string()}))?))?)
+                .body(Body::Text(serde_json::to_string(
+                    &json!({"error": e.to_string()}),
+                )?))?)
         }
     }
 }
