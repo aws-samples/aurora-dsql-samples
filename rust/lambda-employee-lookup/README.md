@@ -43,7 +43,7 @@ Connect to your Aurora DSQL cluster via the Query Editor in the AWS Console or v
 TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
   --hostname $DSQL_ENDPOINT --region $AWS_REGION)
 
-PGPASSWORD=[REDACTED_PASSWORD] psql \
+PGPASSWORD=$TOKEN psql \
   "host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require" \
   -f seed.sql
 ```
