@@ -34,7 +34,7 @@
     "@aws/aurora-dsql-prisma-tools": "^0.1.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.4.0",
+    "@types/node": "^26.4.0",
     "jest": "^30.5.0",
     "prettier": "^3.9.6",
     "prisma": "^7.10.0",
