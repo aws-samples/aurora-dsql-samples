@@ -8,9 +8,6 @@
 #
 # Relationships:
 #   - A customer can have many reservations (one-to-many)
-#
-# Note: Foreign key constraints are not supported by Aurora DSQL.
-# Referential integrity is enforced at the application layer.
 class Customer < ApplicationRecord
   # Explicitly set primary key for Aurora DSQL compatibility.
   self.primary_key = "id"
@@ -18,7 +15,7 @@ class Customer < ApplicationRecord
   # ---------------------------------------------------------------------------
   # Associations
   # ---------------------------------------------------------------------------
-  has_many :reservations, dependent: :restrict_with_error
+  has_many :reservations
 
   # ---------------------------------------------------------------------------
   # Validations

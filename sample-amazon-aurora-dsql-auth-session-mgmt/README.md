@@ -1,6 +1,6 @@
 # User Authentication Service with Session Management on Aurora DSQL
 
-A user authentication service with session management built on Amazon Aurora DSQL. Demonstrates DSQL-specific patterns including strong consistency, IAM authentication, OCC retry, and application-level referential integrity.
+A user authentication service with session management built on Amazon Aurora DSQL. Demonstrates DSQL-specific patterns including strong consistency, IAM authentication, and OCC retry.
 
 ## Tech Stack
 
@@ -135,7 +135,6 @@ SELECT id, user_id, created_at, expires_at, revoked_at FROM sessions;
 
 ## DSQL-Specific Patterns
 
-- No foreign keys: referential integrity enforced in application code
 - `CREATE INDEX ASYNC` (not `CREATE INDEX`)
 - OCC retry with exponential backoff (SQLSTATE 40001)
 - IAM-based database authentication (no static passwords)

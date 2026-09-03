@@ -85,11 +85,11 @@ async function sequelizeExample() {
 
 
   const queryInterface = sequelize.getQueryInterface();
-  await queryInterface.dropTable('owner', { cascade: true, force: true });
-  await queryInterface.dropTable('pet', { cascade: true, force: true });
   await queryInterface.dropTable('vetSpecialties', { cascade: true, force: true });
+  await queryInterface.dropTable('pet', { cascade: true, force: true });
   await queryInterface.dropTable('vet', { cascade: true, force: true });
   await queryInterface.dropTable('specialty', { cascade: true, force: true });
+  await queryInterface.dropTable('owner', { cascade: true, force: true });
 
   // Create tables in DB - workaround for Sequelize.sync()
   await queryInterface.createTable('owner', {
@@ -103,7 +103,13 @@ async function sequelizeExample() {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
     name: { type: DataTypes.STRING(30), allowNull: false },
     birthDate: { type: DataTypes.DATEONLY, allowNull: false },
-    ownerId: { type: DataTypes.UUID, allowNull: true }
+    ownerId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: 'owner', key: 'id' },
+      onDelete: 'RESTRICT',
+      onUpdate: 'RESTRICT'
+    }
   });
 
   await queryInterface.createTable('specialty', {
@@ -117,8 +123,20 @@ async function sequelizeExample() {
 
   await queryInterface.createTable('vetSpecialties', {
     id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
-    vetId: { type: DataTypes.UUID, allowNull: true },
-    specialtyId: { type: DataTypes.STRING(80), allowNull: true }
+    vetId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: 'vet', key: 'id' },
+      onDelete: 'RESTRICT',
+      onUpdate: 'RESTRICT'
+    },
+    specialtyId: {
+      type: DataTypes.STRING(80),
+      allowNull: true,
+      references: { model: 'specialty', key: 'name' },
+      onDelete: 'RESTRICT',
+      onUpdate: 'RESTRICT'
+    }
   });
 
   // Initialize Sequelize models in memory
@@ -152,11 +170,10 @@ async function sequelizeExample() {
   }, { sequelize, tableName: 'vet', });
 
 
-  // Create relationships, note that constraints must be false.
-  Pet.belongsTo(Owner, { foreignKey: 'ownerId', constraints: false });
-  Owner.hasMany(Pet, { foreignKey: 'ownerId', constraints: false });
-  Vet.belongsToMany(Specialty, { through: VetSpecialties, foreignKey: 'vetId', otherKey: 'specialtyId', constraints: false });
-  Specialty.belongsToMany(Vet, { through: VetSpecialties, foreignKey: 'specialtyId', otherKey: 'vetId', constraints: false, as: 'Specialties' });
+  Pet.belongsTo(Owner, { foreignKey: 'ownerId', onDelete: 'RESTRICT', onUpdate: 'RESTRICT' });
+  Owner.hasMany(Pet, { foreignKey: 'ownerId', onDelete: 'RESTRICT', onUpdate: 'RESTRICT' });
+  Vet.belongsToMany(Specialty, { through: VetSpecialties, foreignKey: 'vetId', otherKey: 'specialtyId', onDelete: 'RESTRICT', onUpdate: 'RESTRICT' });
+  Specialty.belongsToMany(Vet, { through: VetSpecialties, foreignKey: 'specialtyId', otherKey: 'vetId', onDelete: 'RESTRICT', onUpdate: 'RESTRICT', as: 'Specialties' });
 
   // Create two Owners and two pets, inserting to DB
   const john = await Owner.create({ name: "John Doe", city: "Anytown" });

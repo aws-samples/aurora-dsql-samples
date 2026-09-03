@@ -63,11 +63,10 @@ class CustomersController < ApplicationController
   # Removes a customer from the system.
   # Prevents deletion if the customer has any associated reservations.
   def destroy
-    if @customer.destroy
-      redirect_to customers_path, notice: "Customer was successfully deleted.", status: :see_other
-    else
-      redirect_to @customer, alert: "Cannot delete customer: #{@customer.errors.full_messages.join(', ')}"
-    end
+    @customer.destroy!
+    redirect_to customers_path, notice: "Customer was successfully deleted.", status: :see_other
+  rescue ActiveRecord::InvalidForeignKey
+    redirect_to @customer, alert: "Cannot delete customer with reservations."
   end
 
   private

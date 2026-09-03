@@ -18,9 +18,6 @@
  *     ranges per resource," the app does a SELECT-based check inside the
  *     transaction, plus a UNIQUE index on the exact window triple so
  *     identical-window double-bookings are caught at the database layer.
- *   - Application-layer referential integrity — the Aurora DSQL
- *     migration guide recommends enforcing relationships in the app
- *     layer. This sample stores `booked_by` as a plain string.
  *   - Each DDL statement is its own implicit transaction in Aurora DSQL
  *     — each `sql.unsafe(...)` call below is issued separately. Do NOT
  *     combine multiple DDL statements in a single call.

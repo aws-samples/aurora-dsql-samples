@@ -4,7 +4,6 @@ import {
   PoolLike,
   ClientLike,
 } from './sessionRepository';
-import { InvalidSessionError } from '../utils/errors';
 
 // ---------------------------------------------------------------------------
 // Helpers — lightweight mock pool and client
@@ -14,8 +13,7 @@ import { InvalidSessionError } from '../utils/errors';
  * Creates a mock client that records queries and returns configurable results.
  *
  * The `queryResponses` map allows different SQL patterns to return different
- * results, which is essential for testing the referential integrity check
- * (SELECT on users) followed by the INSERT on sessions.
+ * results.
  */
 function createMockClient(options?: {
   queryResponses?: Map<string, { rows: Record<string, unknown>[]; rowCount?: number }>;
@@ -81,9 +79,6 @@ describe('sessionRepository', () => {
 
     it('inserts a session when the referenced user exists', async () => {
       const responses = new Map<string, { rows: Record<string, unknown>[]; rowCount?: number }>();
-      // User existence check returns a row
-      responses.set('SELECT id FROM users', { rows: [{ id: 'user-uuid-1' }] });
-      // INSERT succeeds
       responses.set('INSERT INTO sessions', { rows: [], rowCount: 1 });
 
       const client = createMockClient({ queryResponses: responses });
@@ -93,9 +88,8 @@ describe('sessionRepository', () => {
       await expect(repo.create(validSession)).resolves.toBeUndefined();
     });
 
-    it('verifies user_id exists before inserting (application-level referential integrity)', async () => {
+    it('relies on the foreign key without querying the users table first', async () => {
       const responses = new Map<string, { rows: Record<string, unknown>[]; rowCount?: number }>();
-      responses.set('SELECT id FROM users', { rows: [{ id: 'user-uuid-1' }] });
       responses.set('INSERT INTO sessions', { rows: [], rowCount: 1 });
 
       const client = createMockClient({ queryResponses: responses });
@@ -104,32 +98,31 @@ describe('sessionRepository', () => {
 
       await repo.create(validSession);
 
-      // The user check query should appear before the INSERT
-      const userCheckIdx = client.queries.findIndex((q) =>
-        q.sql.includes('SELECT id FROM users'),
-      );
-      const insertIdx = client.queries.findIndex((q) =>
-        q.sql.includes('INSERT INTO sessions'),
-      );
-      expect(userCheckIdx).toBeGreaterThan(-1);
-      expect(insertIdx).toBeGreaterThan(userCheckIdx);
+      expect(
+        client.queries.some((query) => query.sql.includes('SELECT id FROM users')),
+      ).toBe(false);
+      expect(
+        client.queries.some((query) => query.sql.includes('INSERT INTO sessions')),
+      ).toBe(true);
     });
 
-    it('throws InvalidSessionError when user_id does not exist', async () => {
-      // User existence check returns no rows
-      const responses = new Map<string, { rows: Record<string, unknown>[]; rowCount?: number }>();
-      responses.set('SELECT id FROM users', { rows: [] });
-
-      const client = createMockClient({ queryResponses: responses });
+    it('propagates foreign key violations from the database', async () => {
+      const foreignKeyError = new Error('foreign key violation');
+      const client = createMockClient({
+        onQuery(sql) {
+          if (sql.includes('INSERT INTO sessions')) {
+            throw foreignKeyError;
+          }
+        },
+      });
       const pool = createMockPool(client);
       const repo = createSessionRepository(pool);
 
-      await expect(repo.create(validSession)).rejects.toThrow(InvalidSessionError);
+      await expect(repo.create(validSession)).rejects.toBe(foreignKeyError);
     });
 
     it('uses parameterized queries for the INSERT', async () => {
       const responses = new Map<string, { rows: Record<string, unknown>[]; rowCount?: number }>();
-      responses.set('SELECT id FROM users', { rows: [{ id: 'user-uuid-1' }] });
       responses.set('INSERT INTO sessions', { rows: [], rowCount: 1 });
 
       const client = createMockClient({ queryResponses: responses });
@@ -153,7 +146,6 @@ describe('sessionRepository', () => {
 
     it('wraps the operation in a transaction (BEGIN / COMMIT)', async () => {
       const responses = new Map<string, { rows: Record<string, unknown>[]; rowCount?: number }>();
-      responses.set('SELECT id FROM users', { rows: [{ id: 'user-uuid-1' }] });
       responses.set('INSERT INTO sessions', { rows: [], rowCount: 1 });
 
       const client = createMockClient({ queryResponses: responses });
@@ -168,10 +160,13 @@ describe('sessionRepository', () => {
     });
 
     it('rolls back the transaction on error', async () => {
-      const responses = new Map<string, { rows: Record<string, unknown>[]; rowCount?: number }>();
-      responses.set('SELECT id FROM users', { rows: [] }); // triggers InvalidSessionError
-
-      const client = createMockClient({ queryResponses: responses });
+      const client = createMockClient({
+        onQuery(sql) {
+          if (sql.includes('INSERT INTO sessions')) {
+            throw new Error('foreign key violation');
+          }
+        },
+      });
       const pool = createMockPool(client);
       const repo = createSessionRepository(pool);
 
@@ -183,7 +178,6 @@ describe('sessionRepository', () => {
 
     it('releases the client back to the pool on success', async () => {
       const responses = new Map<string, { rows: Record<string, unknown>[]; rowCount?: number }>();
-      responses.set('SELECT id FROM users', { rows: [{ id: 'user-uuid-1' }] });
       responses.set('INSERT INTO sessions', { rows: [], rowCount: 1 });
 
       const client = createMockClient({ queryResponses: responses });
@@ -196,10 +190,13 @@ describe('sessionRepository', () => {
     });
 
     it('releases the client back to the pool on error', async () => {
-      const responses = new Map<string, { rows: Record<string, unknown>[]; rowCount?: number }>();
-      responses.set('SELECT id FROM users', { rows: [] });
-
-      const client = createMockClient({ queryResponses: responses });
+      const client = createMockClient({
+        onQuery(sql) {
+          if (sql.includes('INSERT INTO sessions')) {
+            throw new Error('foreign key violation');
+          }
+        },
+      });
       const pool = createMockPool(client);
       const repo = createSessionRepository(pool);
 

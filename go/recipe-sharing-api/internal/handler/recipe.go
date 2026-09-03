@@ -74,7 +74,7 @@ func (h *RecipeHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, model.SuccessResponse{Data: recipe})
 }
 
-// Create adds a new recipe after verifying the referenced chef exists.
+// Create adds a new recipe.
 func (h *RecipeHandler) Create(c *gin.Context) {
 	var input model.CreateRecipeInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -98,25 +98,15 @@ func (h *RecipeHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Enforce referential integrity: verify the chef exists.
-	chef, err := h.Store.GetChef(c.Request.Context(), input.ChefID)
-	if err != nil {
-		log.Printf("ERROR failed to verify chef: %v", err)
-		c.JSON(http.StatusInternalServerError, model.ErrorResponse{
-			Error: model.ErrorDetail{Code: "INTERNAL_ERROR", Message: "failed to verify chef"},
-		})
-		return
-	}
-	if chef == nil {
-		c.JSON(http.StatusBadRequest, model.ErrorResponse{
-			Error: model.ErrorDetail{Code: "VALIDATION_ERROR", Message: "chef_id references a chef that does not exist"},
-		})
-		return
-	}
-
 	recipe, err := h.Store.CreateRecipe(c.Request.Context(), input)
 	if err != nil {
 		log.Printf("ERROR failed to create recipe: %v", err)
+		if store.IsForeignKeyViolation(err) {
+			c.JSON(http.StatusConflict, model.ErrorResponse{
+				Error: model.ErrorDetail{Code: "CONFLICT", Message: "chef no longer exists"},
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse{
 			Error: model.ErrorDetail{Code: "INTERNAL_ERROR", Message: "failed to create recipe"},
 		})
@@ -187,6 +177,12 @@ func (h *RecipeHandler) Delete(c *gin.Context) {
 
 	if err := h.Store.DeleteRecipe(c.Request.Context(), id); err != nil {
 		log.Printf("ERROR failed to delete recipe: %v", err)
+		if store.IsForeignKeyViolation(err) {
+			c.JSON(http.StatusConflict, model.ErrorResponse{
+				Error: model.ErrorDetail{Code: "CONFLICT", Message: "recipe is still referenced by ratings"},
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse{
 			Error: model.ErrorDetail{Code: "INTERNAL_ERROR", Message: "failed to delete recipe"},
 		})

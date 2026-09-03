@@ -51,9 +51,7 @@ func (h *RatingHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, model.ListResponse{Data: ratings, Count: len(ratings)})
 }
 
-// Create adds a new rating to a recipe after verifying both the recipe and
-// the rating chef exist. This enforces referential integrity at the
-// application layer since Amazon Aurora DSQL does not support foreign keys.
+// Create adds a new rating to a recipe.
 func (h *RatingHandler) Create(c *gin.Context) {
 	recipeID := c.Param("id")
 
@@ -65,41 +63,15 @@ func (h *RatingHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Enforce referential integrity: verify the recipe exists.
-	recipe, err := h.Store.GetRecipe(c.Request.Context(), recipeID)
-	if err != nil {
-		log.Printf("ERROR failed to verify recipe: %v", err)
-		c.JSON(http.StatusInternalServerError, model.ErrorResponse{
-			Error: model.ErrorDetail{Code: "INTERNAL_ERROR", Message: "failed to verify recipe"},
-		})
-		return
-	}
-	if recipe == nil {
-		c.JSON(http.StatusNotFound, model.ErrorResponse{
-			Error: model.ErrorDetail{Code: "NOT_FOUND", Message: "recipe not found"},
-		})
-		return
-	}
-
-	// Enforce referential integrity: verify the chef exists.
-	chef, err := h.Store.GetChef(c.Request.Context(), input.ChefID)
-	if err != nil {
-		log.Printf("ERROR failed to verify chef: %v", err)
-		c.JSON(http.StatusInternalServerError, model.ErrorResponse{
-			Error: model.ErrorDetail{Code: "INTERNAL_ERROR", Message: "failed to verify chef"},
-		})
-		return
-	}
-	if chef == nil {
-		c.JSON(http.StatusBadRequest, model.ErrorResponse{
-			Error: model.ErrorDetail{Code: "VALIDATION_ERROR", Message: "chef_id references a chef that does not exist"},
-		})
-		return
-	}
-
 	rating, err := h.Store.CreateRating(c.Request.Context(), recipeID, input)
 	if err != nil {
 		log.Printf("ERROR failed to create rating: %v", err)
+		if store.IsForeignKeyViolation(err) {
+			c.JSON(http.StatusConflict, model.ErrorResponse{
+				Error: model.ErrorDetail{Code: "CONFLICT", Message: "recipe or chef no longer exists"},
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, model.ErrorResponse{
 			Error: model.ErrorDetail{Code: "INTERNAL_ERROR", Message: "failed to create rating"},
 		})

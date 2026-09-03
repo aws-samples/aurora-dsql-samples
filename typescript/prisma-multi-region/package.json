@@ -17,9 +17,7 @@
     "prisma:migrate-down": "npx prisma db execute --file prisma/migrations/0_init/down.sql",
     "test:failover": "ts-node src/test-failover.ts",
     "pretest": "npm run prisma:generate",
-    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
-    "validate": "aurora-dsql-prisma validate prisma/schema.prisma",
-    "dsql-migrate": "aurora-dsql-prisma migrate"
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
   },
   "dependencies": {
     "@aws/aurora-dsql-node-postgres-connector": "^0.1.9",
@@ -31,7 +29,6 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
-    "@aws/aurora-dsql-prisma-tools": "^0.1.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.4.0",
