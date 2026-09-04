@@ -31,7 +31,7 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
-    "@aws/aurora-dsql-prisma-tools": "^0.1.0",
+    "@aws/aurora-dsql-prisma-tools": "^0.1.2",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.4.0",
