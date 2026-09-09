@@ -37,6 +37,10 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 | Typescript  |             [TypeORM](typescript/type-orm)              |
 |    Deno     |        [postgres-js](deno/postgres-js/)              |
 
+For new Flyway schema migrations, prefer a compatible released version of the official
+[`org.flywaydb:flyway-database-dsql`](https://github.com/flyway/flyway-community-db-support/tree/main/flyway-database-dsql)
+community module. Existing users of the AWS adapter can follow its
+[migration guidance](https://github.com/awslabs/aurora-dsql-tools/tree/main/flyway).
 
 |  Language   |                 Cluster Management                  |
 |:-----------:|:---------------------------------------------------:|
