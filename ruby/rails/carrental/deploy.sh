@@ -260,7 +260,12 @@ info "Building Docker image from project root: ${PROJECT_ROOT}"
 info "(CloudFormation is still provisioning NAT Gateway, ALB, etc. in parallel)"
 echo ""
 
-docker build -t "car-rental-ecr-repo:${IMAGE_TAG}" "$PROJECT_ROOT"
+# Build for linux/amd64 to match the Fargate task definition's default
+# CPU architecture (X86_64). Without this, building on an arm64 host
+# (e.g. Apple Silicon) produces an arm64 image that fails to start on
+# x86_64 Fargate ("exec format error"), causing the ECS service to never
+# stabilize.
+docker build --platform linux/amd64 -t "car-rental-ecr-repo:${IMAGE_TAG}" "$PROJECT_ROOT"
 
 ok "Docker image built: car-rental-ecr-repo:${IMAGE_TAG}"
 echo ""

@@ -82,7 +82,8 @@ ENV RAILS_ENV="production" \
     BUNDLE_WITHOUT="development:test" \
     RAILS_LOG_TO_STDOUT="1" \
     RAILS_SERVE_STATIC_FILES="1" \
-    SSL_CERT_FILE="/usr/local/share/amazon-root-ca.pem"
+    SSL_CERT_FILE="/usr/local/share/amazon-root-ca.pem" \
+    PGSSLROOTCERT="/usr/local/share/amazon-root-ca.pem"
 
 # Entrypoint handles database preparation and process execution
 ENTRYPOINT ["./bin/docker-entrypoint"]
