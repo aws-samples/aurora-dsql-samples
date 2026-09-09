@@ -1,6 +1,6 @@
 import { AuroraDSQLClient } from "@aws/aurora-dsql-node-postgres-connector";
 import * as pg from 'pg';
-import { Sequelize, DataTypes, Model } from 'sequelize';
+import { Sequelize, DataTypes, Model, Transaction } from 'sequelize';
 
 const ADMIN = "admin";
 const NON_ADMIN_SCHEMA = "myschema";
@@ -239,29 +239,51 @@ async function sequelizeExample() {
   await sequelize.close();
 }
 
-async function executeSqlStatementWithRetry(instance: Sequelize, sqlStatement: string, maxRetries: number = 0): Promise<any> {
-  let retries = 0;
-  while (retries <= maxRetries) {
+type SequelizeError = Error & {
+  code?: string;
+  original?: { code?: string };
+  parent?: { code?: string };
+};
+
+function getSqlState(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) {
+    return undefined;
+  }
+
+  const sequelizeError = error as SequelizeError;
+  return sequelizeError.original?.code ?? sequelizeError.parent?.code ?? sequelizeError.code;
+}
+
+export async function executeTransactionWithRetry<T>(
+  instance: Sequelize,
+  operation: (transaction: Transaction) => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
     try {
-      const result = await instance.transaction(async (transaction) => {
-        return await instance.query(sqlStatement, {
-          transaction
-        });
-      });
-      return result;
+      return await instance.transaction(operation);
     } catch (error) {
-      const err = error as Error;
-      if (retries === maxRetries) {
-        throw new Error(`Maximum retries (${maxRetries}) reached. Last error: ${err.message}`);
+      if (getSqlState(error) !== '40001' || attempt >= maxRetries) {
+        throw error;
       }
-      if (err.message.includes('OC001') || err.message.includes('OC000')) {
-        console.log(`Error occurred when executing statement ${sqlStatement}, executing retry`);
-        retries += 1;
-      } else {
-        throw err;
-      }
+
+      const backoffMs = Math.min(100 * 2 ** attempt, 2000) + Math.random() * 100;
+      console.log('Retrying transaction after SQLSTATE 40001');
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
   }
+}
+
+async function executeSqlStatementWithRetry(
+  instance: Sequelize,
+  sqlStatement: string,
+  maxRetries: number = 3
+): Promise<unknown> {
+  return executeTransactionWithRetry(
+    instance,
+    (transaction) => instance.query(sqlStatement, { transaction }),
+    maxRetries
+  );
 }
 
 async function retryExample() {
@@ -272,7 +294,7 @@ async function retryExample() {
   await executeSqlStatementWithRetry(sequelize, "CREATE TABLE IF NOT EXISTS abc (id UUID NOT NULL);")
   await executeSqlStatementWithRetry(sequelize, "DROP TABLE IF EXISTS abc;")
 
-  // Run statement that will fail, it will not be retried as the error is not OC001 or OC000
+  // Run statement that will fail, it will not be retried as the error is not SQLSTATE 40001
   try {
     await executeSqlStatementWithRetry(sequelize, "DROP TABLE abc;")
   } catch (err: any) {
