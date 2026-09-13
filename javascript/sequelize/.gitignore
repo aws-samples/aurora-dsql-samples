@@ -1,0 +1,13 @@
+/node_modules
+/build
+/dist
+/coverage
+
+# Environment / secrets
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
