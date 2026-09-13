@@ -1,0 +1,37 @@
+{
+  "name": "sequelize-hotel-dsql",
+  "version": "1.0.0",
+  "description": "Hotel reservation system using Sequelize ORM with Amazon Aurora DSQL",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/app.js",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --runInBand --detectOpenHandles --forceExit test/test_example.test.js",
+    "test:integration": "node --experimental-vm-modules node_modules/.bin/jest --runInBand --detectOpenHandles --forceExit test/integration.test.js",
+    "test:connection": "node src/test_connection.js",
+    "cleanup": "node src/cleanup.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@aws-sdk/credential-providers": "^3.1054.0",
+    "@aws-sdk/dsql-signer": "^3.1054.0",
+    "@aws/aurora-dsql-node-postgres-connector": "^0.1.9",
+    "pg": "^8.21.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.8"
+  },
+  "devDependencies": {
+    "jest": "^30.0.0"
+  },
+  "keywords": [
+    "aurora-dsql",
+    "sequelize",
+    "postgresql",
+    "iam-authentication",
+    "occ"
+  ],
+  "author": "",
+  "license": "MIT-0"
+}
