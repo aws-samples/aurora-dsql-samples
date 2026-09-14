@@ -40,7 +40,7 @@
     "prisma": "^7.10.0",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.0",
-    "typescript": "^5.8.3"
+    "typescript": "^7.0.2"
   },
   "overrides": {
     "lodash": "^4.17.23",
