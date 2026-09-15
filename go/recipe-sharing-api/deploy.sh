@@ -142,12 +142,12 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-# Verify Go version is 1.24 or later.
+# Verify Go version is 1.26 or later (matches the go directive in go.mod).
 GO_VERSION=$(go version | sed 's/.*go\([0-9]*\.[0-9]*\).*/\1/')
 GO_MAJOR=$(echo "$GO_VERSION" | cut -d. -f1)
 GO_MINOR=$(echo "$GO_VERSION" | cut -d. -f2)
-if [[ "$GO_MAJOR" -lt 1 ]] || { [[ "$GO_MAJOR" -eq 1 ]] && [[ "$GO_MINOR" -lt 24 ]]; }; then
-  err "Go 1.24 or later is required (found go${GO_VERSION})"
+if [[ "$GO_MAJOR" -lt 1 ]] || { [[ "$GO_MAJOR" -eq 1 ]] && [[ "$GO_MINOR" -lt 26 ]]; }; then
+  err "Go 1.26 or later is required (found go${GO_VERSION})"
   exit 1
 fi
 
