@@ -93,6 +93,21 @@ describe("DSQL Drizzle client", () => {
     await db.delete(owner).where(eq(owner.id, createdOwner!.id));
   });
 
+  test("native foreign keys reject orphan rows", async () => {
+    let thrown: unknown;
+    try {
+      await db.insert(pet).values({
+        name: "Orphan",
+        birthDate: new Date("2020-01-15"),
+        ownerId: "00000000-0000-4000-8000-000000000000",
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(dsqlErrorCode(thrown)).toBe("23503");
+  });
+
   test("UUID generation works", async () => {
     const [created] = await db
       .insert(owner)
