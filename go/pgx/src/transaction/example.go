@@ -13,7 +13,7 @@
 //   - Using occretry for OCC conflict handling
 //
 // DSQL transaction limits:
-//   - Maximum 3,000 rows modified per transaction
+//   - Maximum 3,000 row modifications per transaction
 //   - Maximum 10 MiB data size per transaction
 //   - Maximum 5 minute transaction duration
 //
