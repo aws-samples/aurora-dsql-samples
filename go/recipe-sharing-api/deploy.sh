@@ -142,14 +142,10 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-# Verify Go version is 1.26 or later (matches the go directive in go.mod).
-GO_VERSION=$(go version | sed 's/.*go\([0-9]*\.[0-9]*\).*/\1/')
-GO_MAJOR=$(echo "$GO_VERSION" | cut -d. -f1)
-GO_MINOR=$(echo "$GO_VERSION" | cut -d. -f2)
-if [[ "$GO_MAJOR" -lt 1 ]] || { [[ "$GO_MAJOR" -eq 1 ]] && [[ "$GO_MINOR" -lt 26 ]]; }; then
-  err "Go 1.26 or later is required (found go${GO_VERSION})"
-  exit 1
-fi
+# The minimum Go version is declared by the `go` directive in go.mod and is
+# enforced by the Go toolchain itself (including the patch version, in every
+# GOTOOLCHAIN mode), so we don't re-check it here.
+GO_VERSION=$(go version | sed 's/.*go\([0-9][0-9.]*\).*/\1/')
 
 # Verify AWS credentials are valid.
 if ! aws sts get-caller-identity --region "$REGION" &>/dev/null; then
