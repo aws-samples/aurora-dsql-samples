@@ -1,0 +1,16 @@
+name: Manual CI
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: aws-samples/aurora-dsql-samples/.github/workflows/ci-gate.yml@main
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: read
+      statuses: write

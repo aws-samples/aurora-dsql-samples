@@ -38,18 +38,14 @@ To send us a pull request, please:
 
 ### CI and Integration Tests
 
-This repository runs integration tests against a live Aurora DSQL cluster using AWS credentials stored as repository secrets. For security reasons, workflows triggered from forks cannot access these secrets, so **integration tests do not run automatically on fork PRs**. Secret scanning and dependency review checks do run on fork PRs.
+This repository runs integration tests against a live Aurora DSQL cluster using AWS credentials stored as repository secrets. Pull requests from branches in this repository run the full test suite automatically. Pull requests from forks run secret scanning and dependency review automatically, but do not receive AWS credentials.
 
-**If you have write access to this repository**, create a feature branch directly in this repository and open a PR from that branch. This allows all CI workflows — including integration tests — to run with the required secrets.
-
-```bash
-git checkout -b feature/<short-description>
-# make your changes
-git push origin feature/<short-description>
-# open a PR from feature/<short-description> → main
-```
-
-**If you are an external contributor**, open a PR from your fork as normal and open an issue to discuss any significant work first. A maintainer will review your code and push it to a feature branch in this repository to run the full integration test suite before merging.
+After reviewing the exact pull request commit, a maintainer can run the
+**Trusted PR Integration** workflow with the pull request number and its full
+head SHA from the `main` workflow ref. Approving the `pr-integration`
+environment runs the existing CI against that commit with the credentials
+required for live Aurora DSQL tests. This workflow approval is separate from
+approving the pull request review.
 
 GitHub provides additional document on [forking a repository](https://help.github.com/articles/fork-a-repo/) and
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).

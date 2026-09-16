@@ -1,0 +1,123 @@
+name: Trusted PR Integration Runner
+
+permissions: {}
+
+on:
+  workflow_run:
+    workflows: ["Trusted PR Integration"]
+    types: [completed]
+
+jobs:
+  load:
+    name: Load approved PR commit
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'workflow_dispatch' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pull-requests: read
+    outputs:
+      base-sha: ${{ steps.validate.outputs.base-sha }}
+      head-sha: ${{ steps.validate.outputs.head-sha }}
+      pull-request-number: ${{ steps.validate.outputs.pull-request-number }}
+    steps:
+      - name: Download approved request
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: trusted-pr-request
+          path: request
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - uses: actions/github-script@v8
+        id: validate
+        with:
+          script: |
+            const request = JSON.parse(
+              require('fs').readFileSync(
+                'request/trusted-pr-request.json',
+                'utf8'
+              )
+            );
+            const pullNumber = Number(request.pullNumber);
+            const expectedHead = String(request.headSha || '').toLowerCase();
+            const expectedBase = String(request.baseSha || '').toLowerCase();
+            if (!Number.isInteger(pullNumber) || pullNumber < 1 ||
+                !/^[0-9a-f]{40}$/.test(expectedHead) ||
+                !/^[0-9a-f]{40}$/.test(expectedBase)) {
+              core.setFailed('Approved request is invalid');
+              return;
+            }
+            core.setOutput('base-sha', expectedBase);
+            core.setOutput('head-sha', expectedHead);
+            core.setOutput('pull-request-number', String(pullNumber));
+
+            const response = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+            const pr = response.data;
+            if (pr.state !== 'open' ||
+                pr.base.repo.full_name !== `${context.repo.owner}/${context.repo.repo}` ||
+                pr.base.ref !== 'main' ||
+                pr.base.sha !== expectedBase ||
+                pr.head.sha !== expectedHead) {
+              core.setFailed(
+                `Pull request revision changed; expected ${expectedBase}...${expectedHead}`
+              );
+              return;
+            }
+
+  integration:
+    needs: load
+    uses: aws-samples/aurora-dsql-samples/.github/workflows/ci-gate.yml@main
+    with:
+      checkout-ref: ${{ needs.load.outputs.head-sha }}
+      base-ref: ${{ needs.load.outputs.base-sha }}
+      pull-request-number: ${{ fromJSON(needs.load.outputs.pull-request-number) }}
+      run-integration: true
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: read
+      statuses: write
+
+  report:
+    name: Report trusted integration result
+    if: always() && needs.load.outputs.head-sha != ''
+    needs: [load, integration]
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - uses: actions/github-script@v8
+        env:
+          HEAD_SHA: ${{ needs.load.outputs.head-sha }}
+          LOAD_RESULT: ${{ needs.load.result }}
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
+        with:
+          script: |
+            const passed =
+              process.env.LOAD_RESULT === 'success' &&
+              process.env.INTEGRATION_RESULT === 'success';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: process.env.HEAD_SHA,
+              state: passed ? 'success' : 'failure',
+              context: 'dsql-integration',
+              description: passed
+                ? 'Trusted DSQL integration tests passed'
+                : 'Trusted DSQL integration tests failed',
+              target_url:
+                `https://github.com/${context.repo.owner}/${context.repo.repo}` +
+                `/actions/runs/${context.runId}`,
+            });
+            if (!passed) {
+              core.setFailed(`Integration workflow ${process.env.INTEGRATION_RESULT}`);
+            }

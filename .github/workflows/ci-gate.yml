@@ -3,11 +3,34 @@
 # the single required status check in GitHub branch protection.
 name: CI Gate
 
-permissions: {}
+permissions:
+  contents: read
+  pull-requests: read
 
 on:
   pull_request:
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "Exact commit to test; defaults to the triggering ref"
+        required: false
+        type: string
+        default: ""
+      base-ref:
+        description: "Exact base commit for pull request comparisons"
+        required: false
+        type: string
+        default: ""
+      pull-request-number:
+        description: "Pull request used for changed-path detection"
+        required: false
+        type: number
+        default: 0
+      run-integration:
+        description: "Allow jobs that use AWS credentials"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   changes:
@@ -47,9 +70,17 @@ jobs:
       typescript-prisma: ${{ steps.detect.outputs.typescript-prisma }}
       typescript-sequelize: ${{ steps.detect.outputs.typescript-sequelize }}
       typescript-type-orm: ${{ steps.detect.outputs.typescript-type-orm }}
+      checkout-ref: ${{ steps.detect.outputs.checkout-ref }}
+      base-ref: ${{ steps.detect.outputs.base-ref }}
+      run-integration: ${{ steps.detect.outputs.run-integration }}
     steps:
       - uses: actions/github-script@v8
         id: detect
+        env:
+          CHECKOUT_REF: ${{ inputs.checkout-ref }}
+          BASE_REF: ${{ inputs.base-ref }}
+          PULL_REQUEST_NUMBER: ${{ inputs.pull-request-number }}
+          RUN_INTEGRATION: ${{ inputs.run-integration }}
         with:
           script: |
             const config = {
@@ -61,7 +92,7 @@ jobs:
               'dotnet-ef-core': ['dotnet/ef-core/'],
               'dotnet-npgsql': ['dotnet/npgsql/'],
               'go-cm': ['go/cluster_management/'],
-              'go-pgx': ['go/dsql-pgx-connector/'],
+              'go-pgx': ['go/pgx/'],
               'go-recipe-api': ['go/recipe-sharing-api/'],
               'java-cm': ['java/cluster_management/'],
               'java-pgjdbc': ['java/pgjdbc/'],
@@ -89,13 +120,32 @@ jobs:
               'typescript-type-orm': ['typescript/type-orm/'],
             };
             const runAllPaths = [
+              '.github/workflows/',
               '.github/workflows/ci-gate.yml',
               '.github/workflows/dsql-cluster-cleanup.yml',
               '.github/workflows/dsql-cluster-create.yml',
               '.github/workflows/dsql-cluster-delete.yml',
+              '.github/workflows/trusted-pr-integration.yml',
             ];
 
-            const pr = context.payload.pull_request;
+            let pr = context.payload.pull_request;
+            const pullNumber = Number(process.env.PULL_REQUEST_NUMBER);
+            if (!pr && pullNumber) {
+              const response = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pullNumber,
+              });
+              pr = response.data;
+            }
+
+            const sameRepository = !pr ||
+              pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
+            const runIntegration =
+              process.env.RUN_INTEGRATION === 'true' || sameRepository;
+            core.setOutput('checkout-ref',
+              process.env.CHECKOUT_REF || pr?.head.sha || context.sha);
+            core.setOutput('run-integration', String(runIntegration));
 
             // Manual dispatch: run all CI
             if (!pr) {
@@ -103,19 +153,38 @@ jobs:
               return;
             }
 
-            let files = [];
-            const paginator = github.paginate.iterator(github.rest.pulls.listFiles, {
+            const expectedHead = process.env.CHECKOUT_REF || pr.head.sha;
+            const expectedBase = process.env.BASE_REF || pr.base.sha;
+            core.setOutput('base-ref', expectedBase);
+
+            const currentResponse = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: pr.number,
-              per_page: 100,
             });
-            for await (const resp of paginator) {
-              files.push(...resp.data.map(f => f.filename));
+            const current = currentResponse.data;
+            if (current.state !== 'open' ||
+                current.head.sha !== expectedHead ||
+                current.base.sha !== expectedBase) {
+              core.setFailed(
+                `Pull request revision changed; expected ${expectedBase}...${expectedHead}`
+              );
+              return;
             }
 
-            // If API truncated results, run everything to be safe
-            let runAll = files.length < pr.changed_files;
+            const comparison = await github.rest.repos.compareCommitsWithBasehead({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              basehead: `${expectedBase}...${expectedHead}`,
+              per_page: 100,
+            });
+            const changed = comparison.data.files || [];
+            const files = changed.flatMap(f =>
+              f.previous_filename ? [f.filename, f.previous_filename] : [f.filename]
+            );
+
+            // The compare API returns at most 300 files. Run everything if truncated.
+            let runAll = changed.length < current.changed_files;
 
             if (!runAll) {
               runAll = files.some(f => runAllPaths.some(p => f === p || f.startsWith(p)));
@@ -127,280 +196,356 @@ jobs:
             }
 
   gitleaks:
+    needs: changes
     uses: ./.github/workflows/gitleaks-scan.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
 
   deps-review:
+    needs: changes
     uses: ./.github/workflows/deps-review.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
+      base-ref: ${{ needs.changes.outputs.base-ref }}
+      pull-request-number: ${{ inputs.pull-request-number || github.event.pull_request.number || 0 }}
 
   cpp-cm:
     needs: changes
-    if: needs.changes.outputs.cpp-cm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.cpp-cm == 'true'
     uses: ./.github/workflows/cpp-cm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   cpp-libpq:
     needs: changes
-    if: needs.changes.outputs.cpp-libpq == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.cpp-libpq == 'true'
     uses: ./.github/workflows/cpp-libpq-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   deno-booking-api:
     needs: changes
-    if: needs.changes.outputs.deno-booking-api == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.deno-booking-api == 'true'
     uses: ./.github/workflows/deno-booking-api-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   deno-postgresjs:
     needs: changes
-    if: needs.changes.outputs.deno-postgresjs == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.deno-postgresjs == 'true'
     uses: ./.github/workflows/deno-postgresjs-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   dotnet-cm:
     needs: changes
-    if: needs.changes.outputs.dotnet-cm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.dotnet-cm == 'true'
     uses: ./.github/workflows/dotnet-cm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   dotnet-ef-core:
     needs: changes
-    if: needs.changes.outputs.dotnet-ef-core == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.dotnet-ef-core == 'true'
     uses: ./.github/workflows/dotnet-ef-core-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   dotnet-npgsql:
     needs: changes
-    if: needs.changes.outputs.dotnet-npgsql == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.dotnet-npgsql == 'true'
     uses: ./.github/workflows/dotnet-npgsql-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   go-cm:
     needs: changes
-    if: needs.changes.outputs.go-cm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.go-cm == 'true'
     uses: ./.github/workflows/go-cm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   go-pgx:
     needs: changes
-    if: needs.changes.outputs.go-pgx == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.go-pgx == 'true'
     uses: ./.github/workflows/go-pgx-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   go-recipe-api:
     needs: changes
-    if: needs.changes.outputs.go-recipe-api == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.go-recipe-api == 'true'
     uses: ./.github/workflows/go-recipe-api-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   java-cm:
     needs: changes
-    if: needs.changes.outputs.java-cm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.java-cm == 'true'
     uses: ./.github/workflows/java-cm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   java-pgjdbc:
     needs: changes
-    if: needs.changes.outputs.java-pgjdbc == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.java-pgjdbc == 'true'
     uses: ./.github/workflows/java-pgjdbc-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   java-spring-boot:
     needs: changes
-    if: needs.changes.outputs.java-spring-boot == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.java-spring-boot == 'true'
     uses: ./.github/workflows/java-spring-boot-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   javascript-cm:
     needs: changes
-    if: needs.changes.outputs.javascript-cm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.javascript-cm == 'true'
     uses: ./.github/workflows/javascript-cm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   javascript-node-postgres:
     needs: changes
-    if: needs.changes.outputs.javascript-node-postgres == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.javascript-node-postgres == 'true'
     uses: ./.github/workflows/javascript-node-postgres-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   javascript-postgresjs:
     needs: changes
-    if: needs.changes.outputs.javascript-postgresjs == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.javascript-postgresjs == 'true'
     uses: ./.github/workflows/javascript-postgresjs-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   lambda-nodejs:
     needs: changes
-    if: needs.changes.outputs.lambda-nodejs == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.lambda-nodejs == 'true'
     uses: ./.github/workflows/lambda-nodejs-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   python-asyncpg:
     needs: changes
-    if: needs.changes.outputs.python-asyncpg == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.python-asyncpg == 'true'
     uses: ./.github/workflows/python-asyncpg-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   python-cm:
     needs: changes
-    if: needs.changes.outputs.python-cm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.python-cm == 'true'
     uses: ./.github/workflows/python-cm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   python-psycopg2:
     needs: changes
-    if: needs.changes.outputs.python-psycopg2 == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.python-psycopg2 == 'true'
     uses: ./.github/workflows/python-psycopg2-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   python-psycopg3:
     needs: changes
-    if: needs.changes.outputs.python-psycopg3 == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.python-psycopg3 == 'true'
     uses: ./.github/workflows/python-psycopg3-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   python-sqlalchemy:
     needs: changes
-    if: needs.changes.outputs.python-sqlalchemy == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.python-sqlalchemy == 'true'
     uses: ./.github/workflows/python-sqlalchemy-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   python-tortoise-orm:
     needs: changes
-    if: needs.changes.outputs.python-tortoise-orm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.python-tortoise-orm == 'true'
     uses: ./.github/workflows/python-tortoise-orm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   ruby-cm:
     needs: changes
-    if: needs.changes.outputs.ruby-cm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.ruby-cm == 'true'
     uses: ./.github/workflows/ruby-cm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   ruby-pg:
     needs: changes
-    if: needs.changes.outputs.ruby-pg == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.ruby-pg == 'true'
     uses: ./.github/workflows/ruby-pg-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   ruby-rails:
     needs: changes
-    if: needs.changes.outputs.ruby-rails == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.ruby-rails == 'true'
     uses: ./.github/workflows/ruby-rails-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   ruby-rails-carrental:
     needs: changes
-    if: needs.changes.outputs.ruby-rails-carrental == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.ruby-rails-carrental == 'true'
     uses: ./.github/workflows/ruby-rails-carrental-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   rust-cm:
     needs: changes
-    if: needs.changes.outputs.rust-cm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.rust-cm == 'true'
     uses: ./.github/workflows/rust-cm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   rust-sqlx:
     needs: changes
-    if: needs.changes.outputs.rust-sqlx == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.rust-sqlx == 'true'
     uses: ./.github/workflows/rust-sqlx-integ-test.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   typescript-drizzle:
     needs: changes
-    if: needs.changes.outputs.typescript-drizzle == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.typescript-drizzle == 'true'
     uses: ./.github/workflows/typescript-drizzle-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   typescript-prisma:
     needs: changes
-    if: needs.changes.outputs.typescript-prisma == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.typescript-prisma == 'true'
     uses: ./.github/workflows/typescript-prisma-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   typescript-sequelize:
     needs: changes
-    if: needs.changes.outputs.typescript-sequelize == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.typescript-sequelize == 'true'
     uses: ./.github/workflows/typescript-sequelize-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   typescript-type-orm:
     needs: changes
-    if: needs.changes.outputs.typescript-type-orm == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.typescript-type-orm == 'true'
     uses: ./.github/workflows/typescript-type-orm-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
   php-pdo-pgsql:
     needs: changes
-    if: needs.changes.outputs.php-pdo-pgsql == 'true'
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.php-pdo-pgsql == 'true'
     uses: ./.github/workflows/php-pdo-pgsql-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     secrets: inherit
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
@@ -409,6 +554,7 @@ jobs:
     name: gate
     runs-on: ubuntu-latest
     needs:
+      - changes
       - gitleaks
       - deps-review
       - cpp-cm
@@ -455,4 +601,42 @@ jobs:
               if (result.result === 'failure' || result.result === 'cancelled') {
                 core.setFailed(`Job ${job} ${result.result}`);
               }
+            }
+
+  integration-status:
+    name: Report DSQL integration result
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    needs: [changes, gate]
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - uses: actions/github-script@v8
+        env:
+          GATE_RESULT: ${{ needs.gate.result }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_INTEGRATION: ${{ needs.changes.outputs.run-integration }}
+        with:
+          script: |
+            const passed =
+              process.env.RUN_INTEGRATION === 'true' &&
+              process.env.GATE_RESULT === 'success';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: process.env.HEAD_SHA,
+              state: passed ? 'success' : 'failure',
+              context: 'dsql-integration',
+              description: passed
+                ? 'DSQL integration tests passed'
+                : 'DSQL integration tests failed',
+              target_url:
+                `https://github.com/${context.repo.owner}/${context.repo.repo}` +
+                `/actions/runs/${context.runId}`,
+            });
+            if (!passed) {
+              core.setFailed(`CI gate ${process.env.GATE_RESULT}`);
             }

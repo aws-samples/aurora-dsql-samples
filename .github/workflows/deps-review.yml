@@ -3,15 +3,42 @@ name: 'Dependency Review'
 permissions: {}
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "Exact commit to test; defaults to the triggering ref"
+        required: false
+        type: string
+        default: ""
+      base-ref:
+        description: "Exact base commit for dependency comparison"
+        required: false
+        type: string
+        default: ""
+      pull-request-number:
+        description: "Pull request being reviewed"
+        required: false
+        type: number
+        default: 0
 
 jobs:
   dependency-review:
+    if: github.event_name != 'workflow_dispatch' || inputs.pull-request-number != 0
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout Repository'
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout-ref }}
       - name: 'Dependency Review'
+        if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: moderate
+      - name: 'Dependency Review'
+        if: github.event_name != 'pull_request'
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: moderate
+          base-ref: ${{ inputs.base-ref }}
+          head-ref: ${{ inputs.checkout-ref }}
