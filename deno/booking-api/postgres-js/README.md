@@ -203,8 +203,6 @@ rest 409/503) and the overlapping-but-distinct case.
 | Decision | Rationale |
 |----------|-----------|
 | **UUID primary keys via `gen_random_uuid()`** | UUIDs spread writes across storage nodes, which benefits distributed workloads. Aurora DSQL also supports `CREATE SEQUENCE` and `GENERATED AS IDENTITY` if you prefer compact integer keys — see the [Sequences and identity columns](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/sequences-identity-columns.html) guide for caching guidance |
-| **Application-layer referential integrity** | For referential integrity patterns, Aurora DSQL's [migration guide](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility-migration-guide.html) recommends enforcing relationships in the application layer. This sample stores `booked_by` as a plain string rather than a foreign key; a production app would validate against a `users` table in the same transaction |
-
 ---
 
 ## Prerequisites

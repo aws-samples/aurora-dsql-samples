@@ -63,11 +63,10 @@ class VehiclesController < ApplicationController
   # Removes a vehicle from the fleet.
   # Prevents deletion if the vehicle has any associated reservations.
   def destroy
-    if @vehicle.destroy
-      redirect_to vehicles_path, notice: "Vehicle was successfully deleted.", status: :see_other
-    else
-      redirect_to @vehicle, alert: "Cannot delete vehicle: #{@vehicle.errors.full_messages.join(', ')}"
-    end
+    @vehicle.destroy!
+    redirect_to vehicles_path, notice: "Vehicle was successfully deleted.", status: :see_other
+  rescue ActiveRecord::InvalidForeignKey
+    redirect_to @vehicle, alert: "Cannot delete vehicle with reservations."
   end
 
   private

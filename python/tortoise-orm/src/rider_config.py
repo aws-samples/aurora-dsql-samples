@@ -153,7 +153,11 @@ async def create_schema():
             status VARCHAR(20) DEFAULT 'requested',
             fare_amount DECIMAL(10,2),
             requested_at TIMESTAMPTZ DEFAULT NOW(),
-            completed_at TIMESTAMPTZ
+            completed_at TIMESTAMPTZ,
+            CONSTRAINT ride_rider_id_fkey FOREIGN KEY (rider_id)
+                REFERENCES rider(id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+            CONSTRAINT ride_driver_id_fkey FOREIGN KEY (driver_id)
+                REFERENCES driver(id) ON DELETE RESTRICT ON UPDATE RESTRICT
         )""",
         """CREATE TABLE IF NOT EXISTS payment (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -163,7 +167,11 @@ async def create_schema():
             payment_method VARCHAR(30) NOT NULL,
             status VARCHAR(20) DEFAULT 'pending',
             processed_at TIMESTAMPTZ,
-            created_at TIMESTAMPTZ DEFAULT NOW()
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            CONSTRAINT payment_ride_id_fkey FOREIGN KEY (ride_id)
+                REFERENCES ride(id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+            CONSTRAINT payment_rider_id_fkey FOREIGN KEY (rider_id)
+                REFERENCES rider(id) ON DELETE RESTRICT ON UPDATE RESTRICT
         )""",
     ]
 

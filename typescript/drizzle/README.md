@@ -4,7 +4,7 @@ A small veterinary clinic schema demonstrating [@aws/aurora-dsql-drizzle](https:
 
 ## Layout
 
-- `src/schema.ts` — Drizzle tables. UUID primary keys, and relationships declared at the ORM level with `relations()` rather than `references()`, so the generated SQL carries no foreign-key constraints
+- `src/schema.ts` — Drizzle tables with UUID primary keys, foreign keys, and relational query metadata
 - `drizzle/` — the committed migration, generated with `drizzle-kit` and rewritten for DSQL (`CREATE INDEX ASYNC`, `USING btree` removed)
 - `src/dsql-client.ts` — builds the `drizzle()` database
 - `src/migrate.ts` — applies migrations via the adapter's `migrate()`

@@ -8,9 +8,6 @@
 #
 # Relationships:
 #   - A vehicle can have many reservations (one-to-many)
-#
-# Note: Foreign key constraints are not supported by Aurora DSQL.
-# Referential integrity is enforced at the application layer.
 class Vehicle < ApplicationRecord
   # Explicitly set primary key for Aurora DSQL compatibility.
   # DSQL's primary key index includes all columns; this ensures
@@ -20,7 +17,7 @@ class Vehicle < ApplicationRecord
   # ---------------------------------------------------------------------------
   # Associations
   # ---------------------------------------------------------------------------
-  has_many :reservations, dependent: :restrict_with_error
+  has_many :reservations
 
   # ---------------------------------------------------------------------------
   # Validations

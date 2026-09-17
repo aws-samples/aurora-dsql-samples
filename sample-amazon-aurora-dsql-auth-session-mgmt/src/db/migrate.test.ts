@@ -82,8 +82,7 @@ describe('runMigrations', () => {
     }
 
     // The 4th client ran the wait_for_job for the async index.
-    expect(clients[3].queries).toHaveLength(1);
-    expect(clients[3].queries[0]).toBe('SELECT sys.wait_for_job($1)');
+    expect(clients[3].queries).toEqual(['CALL sys.wait_for_job($1)']);
   });
 
   it('creates the users table first', async () => {
@@ -112,6 +111,8 @@ describe('runMigrations', () => {
     expect(ddl).toContain('expires_at TIMESTAMPTZ NOT NULL');
     expect(ddl).toContain('revoked_at TIMESTAMPTZ');
     expect(ddl).toContain('client_metadata TEXT');
+    expect(ddl).toContain('FOREIGN KEY (user_id)');
+    expect(ddl).toContain('REFERENCES users(id)');
   });
 
   it('creates the user_id index third', async () => {
@@ -139,11 +140,11 @@ describe('runMigrations', () => {
 
     await runMigrations(pool);
 
-    // The 4th client (after the 3 DDL clients) ran SELECT sys.wait_for_job($1).
+    // The 4th client (after the 3 DDL clients) ran CALL sys.wait_for_job($1).
     // Assert on the params too so a regression that passes undefined for $1
     // would fail the test.
     expect(clients[3].query).toHaveBeenCalledWith(
-      'SELECT sys.wait_for_job($1)',
+      'CALL sys.wait_for_job($1)',
       ['fake-job-id'],
     );
   });
