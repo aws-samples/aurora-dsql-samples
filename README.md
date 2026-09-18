@@ -22,6 +22,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 | JavaScript  |          [AWS Lambda + node-postgres](lambda/)          |
 | JavaScript  | [node-postgres (standalone)](javascript/node-postgres/) |
 | JavaScript  |         [Postgres.js](javascript/postgres-js/)          |
+| JavaScript  |          [Sequelize](javascript/sequelize/)             |
 |   Python    |                [asyncpg](python/asyncpg)                |
 |   Python    |                [Jupyter](python/jupyter)                |
 |   Python    |               [psycopg](python/psycopg/)                |
