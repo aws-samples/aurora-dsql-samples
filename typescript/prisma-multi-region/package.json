@@ -36,7 +36,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^26.5.1",
     "jest": "^30.5.1",
-    "prettier": "^3.9.6",
+    "prettier": "^3.9.8",
     "prisma": "^7.10.0",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.0",
