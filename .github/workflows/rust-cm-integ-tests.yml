@@ -3,8 +3,13 @@ name: Rust SDK cluster management integration tests
 permissions: {}
 
 on:
-  workflow_call: {}
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "Exact commit to test; defaults to the triggering ref"
+        required: false
+        type: string
+        default: ""
   push:
     branches: [ main ]
 
@@ -17,7 +22,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.checkout-ref }}
 
       - name: Set up Rust
         run: rustup update
@@ -38,7 +43,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.checkout-ref }}
 
       - name: Set up Rust
         run: rustup update

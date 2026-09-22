@@ -3,7 +3,13 @@ name: Gitleaks scan
 permissions: {}
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "Exact commit to test; defaults to the triggering ref"
+        required: false
+        type: string
+        default: ""
   push:
     branches: [ main ]
 
@@ -14,9 +20,18 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
+      with:
+        ref: ${{ inputs.checkout-ref }}
 
     - name: gitleaks
+      if: github.event_name != 'workflow_dispatch'
       uses: gitleaks/gitleaks-action@v1.6.0
       env:
         # GitHub Token automatically created on run
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: gitleaks
+      if: github.event_name == 'workflow_dispatch'
+      uses: docker://zricethezav/gitleaks:v7.4.0
+      with:
+        args: --path=/github/workspace --verbose --redact

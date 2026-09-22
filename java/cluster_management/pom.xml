@@ -12,7 +12,7 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <mainClass>org.example.Example</mainClass>
-        <project.build.awssdk.version>2.54.13</project.build.awssdk.version>
+        <project.build.awssdk.version>2.55.1</project.build.awssdk.version>
     </properties>
 
     <dependencies>
@@ -69,7 +69,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>3.6.3</version>
+                <version>3.6.4</version>
                 <configuration>
                     <mainClass>${mainClass}</mainClass>
                     <arguments>
