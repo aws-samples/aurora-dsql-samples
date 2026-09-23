@@ -1,5 +1,6 @@
-from tortoise import fields, models
 import uuid
+
+from tortoise import fields, models
 
 
 class Rider(models.Model):
@@ -40,8 +41,17 @@ class Driver(models.Model):
 class Ride(models.Model):
     """A ride connecting a rider to a driver."""
     id = fields.UUIDField(primary_key=True, default=uuid.uuid4)
-    rider_id = fields.UUIDField()
-    driver_id = fields.UUIDField(null=True)
+    rider = fields.ForeignKeyField(
+        "rideshare.Rider",
+        related_name="rides",
+        on_delete=fields.RESTRICT,
+    )
+    driver = fields.ForeignKeyField(
+        "rideshare.Driver",
+        related_name="rides",
+        on_delete=fields.RESTRICT,
+        null=True,
+    )
     pickup_location = fields.CharField(max_length=200)
     dropoff_location = fields.CharField(max_length=200)
     status = fields.CharField(
@@ -62,8 +72,16 @@ class Ride(models.Model):
 class Payment(models.Model):
     """A payment for a completed ride."""
     id = fields.UUIDField(primary_key=True, default=uuid.uuid4)
-    ride_id = fields.UUIDField()
-    rider_id = fields.UUIDField()
+    ride = fields.ForeignKeyField(
+        "rideshare.Ride",
+        related_name="payments",
+        on_delete=fields.RESTRICT,
+    )
+    rider = fields.ForeignKeyField(
+        "rideshare.Rider",
+        related_name="payments",
+        on_delete=fields.RESTRICT,
+    )
     amount = fields.DecimalField(max_digits=10, decimal_places=2)
     payment_method = fields.CharField(max_length=30)  # credit_card, debit_card, wallet
     status = fields.CharField(

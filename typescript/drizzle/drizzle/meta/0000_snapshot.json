@@ -89,7 +89,17 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "pet_owner_id_owner_id_fk": {
+          "name": "pet_owner_id_owner_id_fk",
+          "tableFrom": "pet",
+          "tableTo": "owner",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -133,7 +143,26 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "specialty_to_vet_specialty_name_specialty_name_fk": {
+          "name": "specialty_to_vet_specialty_name_specialty_name_fk",
+          "tableFrom": "specialty_to_vet",
+          "tableTo": "specialty",
+          "columnsFrom": ["specialty_name"],
+          "columnsTo": ["name"],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "specialty_to_vet_vet_id_vet_id_fk": {
+          "name": "specialty_to_vet_vet_id_vet_id_fk",
+          "tableFrom": "specialty_to_vet",
+          "tableTo": "vet",
+          "columnsFrom": ["vet_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
       "compositePrimaryKeys": {
         "specialty_to_vet_specialty_name_vet_id_pk": {
           "name": "specialty_to_vet_specialty_name_vet_id_pk",

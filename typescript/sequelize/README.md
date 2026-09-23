@@ -171,15 +171,6 @@ Use UUID primary keys with Aurora DSQL:
 id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 }
 ```
 
-### Relationships
-
-When defining relationships, set `constraints: false`. This uses application-layer referential integrity, with ORM-level relationships retained for queries.
-
-```ts
-Pet.belongsTo(Owner, { foreignKey: 'ownerId', constraints: false });
-Owner.hasMany(Pet, { foreignKey: 'ownerId', constraints: false });
-```
-
 ### Data types
 
 **ENUM**: Use `DataTypes.STRING` with validation in `Model.init()`:
