@@ -32,12 +32,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       with:
         ref: ${{ inputs.checkout-ref }}
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v6
+      uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
       with:
         java-version: '17'
         distribution: 'corretto'
@@ -45,7 +45,7 @@ jobs:
         cache: gradle
 
     - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v6
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
       with:
         role-to-assume: ${{ secrets.JAVA_IAM_ROLE }}
         aws-region: ${{ needs.create-cluster.outputs.region }}
