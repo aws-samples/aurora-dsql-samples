@@ -25,7 +25,8 @@ jobs:
 
     - name: gitleaks
       if: github.event_name != 'workflow_dispatch'
-      uses: gitleaks/gitleaks-action@v1.6.0
+      # Keep the approved MIT-licensed release until an organization-managed license is configured.
+      uses: gitleaks/gitleaks-action@518e4898c0cd1cc5d9aab6627a2eabd46e81d8da # v1.6.0
       env:
         # GitHub Token automatically created on run
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
