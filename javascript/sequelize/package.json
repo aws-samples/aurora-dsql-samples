@@ -15,8 +15,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@aws-sdk/credential-providers": "^3.1054.0",
-    "@aws-sdk/dsql-signer": "^3.1054.0",
     "@aws/aurora-dsql-node-postgres-connector": "^0.1.9",
     "pg": "^8.21.0",
     "pg-hstore": "^2.3.4",

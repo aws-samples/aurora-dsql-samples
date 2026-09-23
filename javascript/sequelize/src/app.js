@@ -1,9 +1,9 @@
 /*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT-0
  */
 
-import { createSequelizeInstance, createSchema } from './db.js';
+import { createSequelizeInstance, createTables } from './db.js';
 import { defineModels } from './models.js';
 import { withOccRetry } from './retry.js';
 
@@ -184,9 +184,9 @@ async function main() {
   await sequelize.authenticate();
   console.log('  Connection established successfully.');
 
-  // Create schema
-  console.log('\n▶ Creating schema...');
-  await createSchema(sequelize);
+  // Create tables
+  console.log('\n▶ Creating tables...');
+  await createTables(sequelize);
 
   // Define models
   const { Guest, Room, Reservation, Payment } = defineModels(sequelize);
@@ -268,7 +268,15 @@ async function main() {
   console.log('\n✓ Demo completed successfully!');
 }
 
-main().catch((err) => {
-  console.error('Application error:', err);
-  process.exit(1);
-});
+export { main };
+
+// Only run the demo when this file is executed directly (e.g. `node src/app.js`
+// or `npm start`), not when it is imported by a test. import.meta.url matches
+// process.argv[1] only for the entry-point script, so importing this module has
+// no side effects and tests can call main() explicitly.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error('Application error:', err);
+    process.exit(1);
+  });
+}

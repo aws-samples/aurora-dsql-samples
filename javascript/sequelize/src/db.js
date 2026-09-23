@@ -1,6 +1,6 @@
 /*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT-0
  */
 
 import * as pg from 'pg';
@@ -58,8 +58,11 @@ function createSequelizeInstance() {
     dialectOptions: {
       clientMinMessages: 'ignore',
     },
-    // Route all queries to the selected schema (public for admin, custom for non-admin).
-    searchPath: SCHEMA,
+    // NOTE: Do not set Sequelize's `searchPath` option here. It puts Sequelize into
+    // "search_path mode", which disables bind parameters — every INSERT/UPDATE would
+    // inline its values as SQL literals instead of parameterized `$1, $2, …`. Schema
+    // targeting is instead handled per-model via `schema: SCHEMA` in models.js, which
+    // keeps queries schema-qualified (e.g. "hotel"."payment") AND parameterized.
     // Prevent Sequelize from sending unsupported SET commands to Aurora DSQL.
     standardConformingStrings: false,
     keepDefaultTimezone: true,
@@ -75,7 +78,7 @@ function createSequelizeInstance() {
   return sequelize;
 }
 
-async function createSchema(sequelize) {
+async function createTables(sequelize) {
   // Aurora DSQL does not support multiple DDL statements in a single transaction.
   // Execute each CREATE TABLE as an individual raw query. Tables are created in
   // the selected schema by setting the search_path first.
@@ -152,4 +155,4 @@ async function createSchema(sequelize) {
   }
 }
 
-export { createSequelizeInstance, createSchema, SCHEMA, CLUSTER_USER };
+export { createSequelizeInstance, createTables, SCHEMA, CLUSTER_USER };

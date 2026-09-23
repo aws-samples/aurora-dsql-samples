@@ -1,6 +1,6 @@
 /*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT-0
  */
 
 // Integration test for the Sequelize + Aurora DSQL hotel sample.
@@ -29,20 +29,22 @@ const describeLive = HAS_CLUSTER ? describe : describe.skip;
 
 describeLive('integration (live Aurora DSQL)', () => {
   let createSequelizeInstance;
-  let createSchema;
+  let createTables;
   let defineModels;
   let withOccRetry;
+  let main;
   let sequelize;
   let models;
 
   beforeAll(async () => {
-    ({ createSequelizeInstance, createSchema } = await import('../src/db.js'));
+    ({ createSequelizeInstance, createTables } = await import('../src/db.js'));
     ({ defineModels } = await import('../src/models.js'));
     ({ withOccRetry } = await import('../src/retry.js'));
+    ({ main } = await import('../src/app.js'));
 
     sequelize = createSequelizeInstance();
     await sequelize.authenticate();
-    await createSchema(sequelize);
+    await createTables(sequelize);
     models = defineModels(sequelize);
 
     // Start from a clean slate (child -> parent order for FK safety).
@@ -124,4 +126,14 @@ describeLive('integration (live Aurora DSQL)', () => {
     });
     expect(updated.loyaltyTier).toBe('gold');
   });
+
+  // Run the full demo (app.js main()) end to end. main() opens and closes its own
+  // Sequelize connection and clears the tables before seeding, so it is
+  // self-contained. This gives the app.js orchestration real coverage — a crash
+  // anywhere in the reservation/payment/query flow fails this test. Placed last so
+  // it does not interfere with the row-level assertions above; afterAll wipes the
+  // seeded rows afterward.
+  test('main() runs the full demo end to end', async () => {
+    await expect(main()).resolves.toBeUndefined();
+  }, 120000);
 });

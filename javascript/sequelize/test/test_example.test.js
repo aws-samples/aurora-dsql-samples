@@ -1,6 +1,6 @@
 /*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: MIT-0
  */
 
 // Unit tests for the Sequelize + Aurora DSQL hotel sample.
@@ -110,6 +110,39 @@ describe('retry', () => {
       }, 2)
     ).rejects.toThrow(/always conflicts/);
     expect(calls).toBe(3); // 1 initial + 2 retries
+  });
+
+  test('withOccRetry backoff grows exponentially with jitter', async () => {
+    // The retry helper sleeps `backoff + jitter` where backoff = 50·2^attempt and
+    // jitter is in [0, backoff), so each delay falls in [50·2^i, 100·2^i). We spy on
+    // setTimeout to capture each delay and fire the timer immediately (delay 0) so
+    // the test stays fast while still recording the real requested delay values.
+    const delays = [];
+    const realSetTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = (cb, ms) => {
+      delays.push(ms);
+      return realSetTimeout(cb, 0);
+    };
+    try {
+      await expect(
+        withOccRetry(async () => {
+          const err = new Error('conflict');
+          err.code = '40001';
+          throw err;
+        }, 3)
+      ).rejects.toThrow(/conflict/);
+    } finally {
+      globalThis.setTimeout = realSetTimeout;
+    }
+
+    // Sleeps happen after attempts 0, 1, 2; attempt 3 gives up without sleeping.
+    expect(delays).toHaveLength(3);
+    delays.forEach((d, i) => {
+      const lo = BASE_DELAY_MS * 2 ** i; // 50·2^i
+      const hi = 2 * BASE_DELAY_MS * 2 ** i; // 100·2^i (jitter < backoff)
+      expect(d).toBeGreaterThanOrEqual(lo);
+      expect(d).toBeLessThan(hi);
+    });
   });
 });
 
