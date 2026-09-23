@@ -59,6 +59,16 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
+  - package-ecosystem: "npm"
+    directory: "/lambda/sample"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "npm"
+    directory: "/typescript/drizzle"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
   - package-ecosystem: "pip"
     directory: "/python/asyncpg"
     schedule:
@@ -76,6 +86,41 @@ updates:
     open-pull-requests-limit: 5
   - package-ecosystem: "pip"
     directory: "/python/psycopg2"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "pip"
+    directory: "/sample-amazon-aurora-dsql-agent/agent"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "pip"
+    directory: "/sample-amazon-aurora-dsql-agent/gateway"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "pip"
+    directory: "/sample-amazon-aurora-dsql-agent/lambda/grid_tools"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "composer"
+    directory: "/php/pdo-pgsql"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "bundler"
+    directory: "/ruby/ruby-pg"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "bundler"
+    directory: "/ruby/cluster_management"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "bundler"
+    directory: "/ruby/rails/petclinic"
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
