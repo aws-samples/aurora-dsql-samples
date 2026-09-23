@@ -22,7 +22,7 @@
     "drizzle-kit": "^0.31.0",
     "prettier": "4.0.0-alpha.13",
     "ts-jest": "^29.4.1",
-    "tsx": "^4.20.3",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.3"
   },
   "dependencies": {
