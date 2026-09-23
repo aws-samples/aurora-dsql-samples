@@ -34,9 +34,13 @@ CREATE SCHEMA IF NOT EXISTS hotel;
 -- 4. Allow the role to use the schema and create objects in it (the app creates
 --    its tables at runtime). NOTE: granting CREATE means the role OWNS the tables
 --    it creates, which implicitly gives it DDL (DROP/ALTER) on them — broader than
---    the CRUD grant in step 5. For strict least privilege, omit CREATE here,
---    create the tables as admin, and run the app with CLUSTER_USER=admin for the
---    one-time schema setup.
+--    the CRUD grant in step 5. For strict least privilege, omit CREATE here and
+--    have admin create the tables directly in the "hotel" schema via SQL (e.g. run
+--    the CREATE TABLE statements from db.js with psql as admin, schema-qualified as
+--    "hotel"."guest", etc.). Do NOT try to create them by running the app as admin:
+--    the app forces CLUSTER_USER=admin to the "public" schema (see db.js), so it
+--    cannot create the "hotel" tables. With CREATE omitted, the app then runs as
+--    hotel_app with CRUD-only (steps 5-6).
 GRANT USAGE, CREATE ON SCHEMA hotel TO hotel_app;
 
 -- 5. Grant CRUD on all tables that already exist in the schema (none yet on first run,
@@ -45,7 +49,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA hotel TO hotel_app;
 
 -- 6. IMPORTANT: GRANT ... ON ALL TABLES only covers tables that exist at grant time.
 --    This application creates its tables at runtime, so apply the same privileges to
---    any tables created LATER in the schema. Without this, the app hits permission
---    denied on its own tables.
+--    any tables created LATER in the schema. This covers tables admin creates later
+--    in the schema; tables the app creates it already owns.
 ALTER DEFAULT PRIVILEGES IN SCHEMA hotel
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hotel_app;
