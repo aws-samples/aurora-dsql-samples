@@ -181,7 +181,7 @@ Deno.test({
 //
 // This test codifies the behavior. For strict serialization of overlapping
 // writes, use either (a) a coarser grouping key enforced via unique index,
-// or (b) an application-level row lock via `SELECT ... FOR UPDATE` on a
+// or (b) a commit-time OCC conflict point via `SELECT ... FOR UPDATE` on a
 // parent row. See README "Concurrency model — what's serialized and what
 // isn't" for the recommended production patterns.
 // ---------------------------------------------------------------------------
