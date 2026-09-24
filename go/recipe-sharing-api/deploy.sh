@@ -142,10 +142,31 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
-# The minimum Go version is declared by the `go` directive in go.mod and is
-# enforced by the Go toolchain itself (including the patch version, in every
-# GOTOOLCHAIN mode), so we don't re-check it here.
 GO_VERSION=$(go version | sed 's/.*go\([0-9][0-9.]*\).*/\1/')
+
+# The minimum Go version is declared by the `go` directive in go.mod. The Go
+# toolchain enforces it (including the patch version) when it runs, but with
+# GOTOOLCHAIN=local it will not download a newer toolchain, so an older local
+# Go fails the build later. Validate it here so a too-old toolchain fails fast
+# with a clear message instead of surfacing downstream as a proxy error.
+# `go list -m` reads go.mod and triggers the toolchain-version check without
+# needing the network. Let Go do the version comparison rather than parsing
+# versions ourselves.
+GO_MOD_REQUIRED=$(sed -n 's/^go \([0-9][0-9.]*\)$/\1/p' go.mod)
+if ! GO_LIST_ERR=$(go list -m 2>&1 >/dev/null); then
+  # Go reports the version-directive failure as "go.mod requires go >= X"
+  # (GOTOOLCHAIN=local) or, when an automatic toolchain switch is attempted and
+  # fails, "switching to go >= X". Match either and report it clearly.
+  if printf '%s' "$GO_LIST_ERR" | grep -Eq "go\.mod requires go|switching to go >="; then
+    err "This module requires Go ${GO_MOD_REQUIRED:-(see go.mod)} or later, but the active toolchain is go${GO_VERSION}."
+    err "Upgrade Go (https://go.dev/doc/install), or unset GOTOOLCHAIN to let Go fetch the required toolchain automatically."
+    exit 1
+  fi
+  # A non-version failure here (e.g. malformed go.mod) is still worth surfacing.
+  err "Failed to validate the Go module:"
+  printf '%s\n' "$GO_LIST_ERR" >&2
+  exit 1
+fi
 
 # Verify AWS credentials are valid.
 if ! aws sts get-caller-identity --region "$REGION" &>/dev/null; then
