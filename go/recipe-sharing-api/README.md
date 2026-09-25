@@ -188,6 +188,8 @@ The script validates prerequisites, cross-compiles the Go binary for Linux/ARM64
 │   └── router/                  # Gin router setup and route registration
 ├── infrastructure/
 │   └── cloudformation.yml       # AWS CloudFormation template (REST API + Lambda + IAM)
+├── test/
+│   └── integration_test.go      # Integration tests against Aurora DSQL (go test)
 ├── deploy.sh                    # Deployment script
 ├── test-api.sh                  # API smoke test script
 ├── go.mod / go.sum              # Go module dependencies

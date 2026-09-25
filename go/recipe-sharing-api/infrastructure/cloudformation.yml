@@ -107,7 +107,6 @@ Resources:
       Environment:
         Variables:
           DSQL_ENDPOINT: !Ref DSQLClusterEndpoint
-          DB_TYPE: dsql
 
   # -----------------------------------------------------------------------
   # Amazon API Gateway REST API
