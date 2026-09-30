@@ -1,0 +1,104 @@
+name: Trusted PR Integration
+run-name: "Trusted PR #${{ inputs.pull-request-number }} @ ${{ inputs.head-sha }}"
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull-request-number:
+        description: "Open pull request to test"
+        required: true
+        type: number
+      head-sha:
+        description: "Exact current head SHA shown on the pull request"
+        required: true
+        type: string
+
+jobs:
+  authorize:
+    name: Authorize exact PR commit
+    runs-on: ubuntu-latest
+    environment: pr-integration
+    permissions:
+      pull-requests: read
+      statuses: write
+    steps:
+      - uses: actions/github-script@v8
+        id: validate
+        env:
+          PULL_REQUEST_NUMBER: ${{ inputs.pull-request-number }}
+          EXPECTED_HEAD_SHA: ${{ inputs.head-sha }}
+        with:
+          script: |
+            if (context.ref !== 'refs/heads/main') {
+              core.setFailed('Trusted PR Integration must be run from main');
+              return;
+            }
+
+            const pullNumber = Number(process.env.PULL_REQUEST_NUMBER);
+            const expectedHead = process.env.EXPECTED_HEAD_SHA.toLowerCase();
+            if (!Number.isInteger(pullNumber) || pullNumber < 1) {
+              core.setFailed('Pull request number must be a positive integer');
+              return;
+            }
+            if (!/^[0-9a-f]{40}$/.test(expectedHead)) {
+              core.setFailed('Head SHA must be a full 40-character commit SHA');
+              return;
+            }
+
+            const response = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullNumber,
+            });
+            const pr = response.data;
+            if (pr.state !== 'open') {
+              core.setFailed(`Pull request #${pullNumber} is not open`);
+              return;
+            }
+            if (pr.base.repo.full_name !== `${context.repo.owner}/${context.repo.repo}` ||
+                pr.base.ref !== 'main') {
+              core.setFailed(`Pull request #${pullNumber} does not target main`);
+              return;
+            }
+            if (pr.head.sha !== expectedHead) {
+              core.setFailed(
+                `Pull request head changed: expected ${expectedHead}, found ${pr.head.sha}`
+              );
+              return;
+            }
+
+            core.setOutput('head-sha', expectedHead);
+            require('fs').writeFileSync(
+              'trusted-pr-request.json',
+              JSON.stringify({
+                pullNumber,
+                headSha: expectedHead,
+                baseSha: pr.base.sha,
+              })
+            );
+
+      - name: Upload approved request
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: trusted-pr-request
+          path: trusted-pr-request.json
+          retention-days: 1
+
+      - uses: actions/github-script@v8
+        env:
+          HEAD_SHA: ${{ steps.validate.outputs.head-sha }}
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: process.env.HEAD_SHA,
+              state: 'pending',
+              context: 'dsql-integration',
+              description: 'Trusted DSQL integration tests are queued',
+              target_url:
+                `https://github.com/${context.repo.owner}/${context.repo.repo}` +
+                `/actions/runs/${context.runId}`,
+            });
