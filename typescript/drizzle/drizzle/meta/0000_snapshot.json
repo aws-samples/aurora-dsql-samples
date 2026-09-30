@@ -1,5 +1,5 @@
 {
-  "id": "92368577-e6a2-466f-947e-bd7afdbaeded",
+  "id": "85e9000f-2be9-4e7b-90fc-6f3ea7151b44",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -59,8 +59,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "birthDate": {
-          "name": "birthDate",
+        "birth_date": {
+          "name": "birth_date",
           "type": "date",
           "primaryKey": false,
           "notNull": true
@@ -72,7 +72,23 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "pet_owner_id_idx": {
+          "name": "pet_owner_id_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -99,18 +115,18 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public._SpecialtyToVet": {
-      "name": "_SpecialtyToVet",
+    "public.specialty_to_vet": {
+      "name": "specialty_to_vet",
       "schema": "",
       "columns": {
-        "A": {
-          "name": "A",
+        "specialty_name": {
+          "name": "specialty_name",
           "type": "varchar(80)",
           "primaryKey": false,
           "notNull": true
         },
-        "B": {
-          "name": "B",
+        "vet_id": {
+          "name": "vet_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -119,12 +135,9 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "_SpecialtyToVet_A_B_pk": {
-          "name": "_SpecialtyToVet_A_B_pk",
-          "columns": [
-            "A",
-            "B"
-          ]
+        "specialty_to_vet_specialty_name_vet_id_pk": {
+          "name": "specialty_to_vet_specialty_name_vet_id_pk",
+          "columns": ["specialty_name", "vet_id"]
         }
       },
       "uniqueConstraints": {},

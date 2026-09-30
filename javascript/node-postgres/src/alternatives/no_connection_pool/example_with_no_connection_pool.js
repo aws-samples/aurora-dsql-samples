@@ -7,7 +7,6 @@ import assert from "node:assert";
 import { AuroraDSQLClient } from "@aws/aurora-dsql-node-postgres-connector";
 
 const ADMIN = "admin";
-const NON_ADMIN_SCHEMA = "myschema";
 
 async function getConnection(clusterEndpoint, user) {
   const client = new AuroraDSQLClient({
@@ -31,7 +30,7 @@ async function example() {
     client = await getConnection(clusterEndpoint, user);
 
     if (user !== ADMIN) {
-      await client.query("SET search_path=" + NON_ADMIN_SCHEMA);
+      await client.query("SET search_path=myschema");
     }
 
     // Create a new table

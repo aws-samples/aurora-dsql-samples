@@ -3,7 +3,6 @@ import * as pg from 'pg';
 import { Sequelize, DataTypes, Model } from 'sequelize';
 
 const ADMIN = "admin";
-const NON_ADMIN_SCHEMA = "myschema";
 
 async function getSequelizeConnection(): Promise<Sequelize> {
 
@@ -40,7 +39,7 @@ async function getSequelizeConnection(): Promise<Sequelize> {
       afterConnect: async (connection, config) => {
         console.log("Successfully opened connection")
         if (user !== ADMIN) {
-          await (connection as any).query(`SET search_path TO ${NON_ADMIN_SCHEMA}`);
+          await (connection as any).query("SET search_path TO myschema");
         }
       }
     },

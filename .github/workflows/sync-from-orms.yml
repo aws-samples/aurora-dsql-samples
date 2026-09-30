@@ -27,6 +27,36 @@ jobs:
           # with a PackageReference to keep the synced example self-contained.
           sed -i 's|<ProjectReference Include="..\\..\\src\\Amazon.AuroraDsql.EntityFrameworkCore\\Amazon.AuroraDsql.EntityFrameworkCore.csproj" />|<PackageReference Include="Amazon.AuroraDsql.EntityFrameworkCore" Version="1.0.0" />|g' dotnet/ef-core/examples/InventoryApi/InventoryApi.csproj
 
+      - name: Sync Node Drizzle example
+        run: |
+          rsync -av --delete \
+            --exclude='.gitignore' --exclude='package-lock.json' \
+            --exclude='node_modules' --exclude='dist' \
+            /tmp/orms/node/drizzle/examples/veterinary-app/ typescript/drizzle/
+
+          # The adapter is published to npm, so the workspace link has to become
+          # a version range. Read it from the adapter's own manifest so the pin
+          # follows upstream bumps without a manual edit here.
+          V=$(jq -r .version /tmp/orms/node/drizzle/package.json)
+          sed -i "s|\"@aws/aurora-dsql-drizzle\": \"file:../..\"|\"@aws/aurora-dsql-drizzle\": \"^$V\"|" \
+            typescript/drizzle/package.json
+          grep -qF "\"@aws/aurora-dsql-drizzle\": \"^$V\"" typescript/drizzle/package.json
+
+          # Upstream links the adapter by relative path within its own repo.
+          sed -i 's|](\.\./\.\./)|](https://github.com/awslabs/aurora-dsql-orms/tree/main/node/drizzle)|g' \
+            typescript/drizzle/README.md
+
+          # Upstream's lock links the adapter as a local symlink, so it neither
+          # works with `npm ci` here nor carries the adapter's own dependencies.
+          # Regenerate only when the manifest moved, so the 6-hourly sync cannot
+          # quietly drift transitive versions. The lock is removed first because
+          # an incremental resolve keeps pins from the previous lock and can
+          # produce one `npm ci` rejects as out of sync with package.json.
+          if ! git diff --quiet -- typescript/drizzle/package.json; then
+            rm -f typescript/drizzle/package-lock.json
+            (cd typescript/drizzle && npm install --package-lock-only --ignore-scripts)
+          fi
+
       - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v8

@@ -13,15 +13,16 @@
     },
     "dependencies": {
         "@aws/aurora-dsql-node-postgres-connector": "^0.1.9",
-        "pg": "^8.22.0",
+        "pg": "^8.23.0",
         "pg-hstore": "^2.3.4",
-        "pg-native": "^3.8.0",
+        "pg-native": "^3.9.0",
         "sequelize": "^6.37.8"
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",
-        "@types/pg": "^8.20.3",
-        "jest": "^30.4.2",
+        "@types/node": "^26.6.3",
+        "@types/pg": "^8.23.1",
+        "jest": "^30.5.2",
         "typescript": "^7.0.2"
     }
 }

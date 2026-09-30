@@ -4,7 +4,6 @@ import assert from "node:assert";
 const { Client } = pg;
 
 const ADMIN = "admin";
-const NON_ADMIN_SCHEMA = "myschema";
 
 async function getConnection(clusterEndpoint, user, region) {
       const signer = new DsqlSigner({
@@ -52,7 +51,7 @@ async function example() {
     client = await getConnection(clusterEndpoint, user, region);
 
     if (user !== ADMIN) {
-      await client.query("SET search_path=" + NON_ADMIN_SCHEMA)
+      await client.query("SET search_path=myschema")
     }
 
     // Create a new table
