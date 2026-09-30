@@ -21,11 +21,21 @@ async def connect_with_pool(cluster_user, cluster_endpoint):
         "max_size": 5,
     }
 
-    pool = await dsql.create_pool(**pool_params)
+    pool = await dsql.create_pool(retry=True, **pool_params)
     try:
         async with pool.acquire() as conn:
             result = await conn.fetchval("SELECT 1")
             assert result == 1
+
+        async def insert_owner(conn):
+            await conn.execute(
+                "INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)",
+                "John Doe",
+                "Anytown",
+                "555-555-1900",
+            )
+
+        await pool.run_transaction(insert_owner)
     finally:
         await pool.close()
 

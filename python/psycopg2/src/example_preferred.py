@@ -22,6 +22,7 @@ def connect_with_pool_concurrent_connections(cluster_user, cluster_endpoint):
     pool = dsql.AuroraDSQLThreadedConnectionPool(
         minconn=2,
         maxconn=8,
+        retry=True,
         **conn_params,
     )
 
@@ -60,6 +61,15 @@ def connect_with_pool_concurrent_connections(cluster_user, cluster_endpoint):
         for thread_id, exc in exceptions:
             print(f"  Thread {thread_id}: {exc}")
         raise RuntimeError(f"One or more worker threads failed: {exceptions}")
+
+    def insert_owner(conn):
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO owner(name, city, telephone) VALUES(%s, %s, %s)",
+                ("John Doe", "Anytown", "555-555-1900"),
+            )
+
+    pool.run_transaction(insert_owner)
 
 
 def main():

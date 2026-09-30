@@ -9,9 +9,12 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+
+import software.amazon.dsql.jdbc.OCCTransactionRunner;
 
 /**
  * Aurora DSQL example using HikariCP with Aurora DSQL JDBC Connector
@@ -29,9 +32,11 @@ import java.sql.Statement;
 public class ExamplePreferred {
 
     private final HikariDataSource dataSource;
+    private final OCCTransactionRunner transactionRunner;
 
     public ExamplePreferred(String endpoint, String user) {
         this.dataSource = initializeConnectionPool(endpoint, user);
+        this.transactionRunner = OCCTransactionRunner.create(dataSource);
     }
 
     private HikariDataSource initializeConnectionPool(String endpoint, String username) {
@@ -81,37 +86,46 @@ public class ExamplePreferred {
         return this.dataSource.getConnection();
     }
 
-    private void executeExample(Connection conn, int connectionNumber) throws SQLException {
+    private void executeExample(int connectionNumber) throws SQLException {
         // Create a new table named owner
-        Statement create = conn.createStatement();
-        create.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS owner(
-                id uuid NOT NULL DEFAULT gen_random_uuid(),
-                name varchar(30) NOT NULL,
-                city varchar(80) NOT NULL,
-                telephone varchar(20) DEFAULT NULL,
-                PRIMARY KEY (id))""");
-        create.close();
+        transactionRunner.runVoid(conn -> {
+            try (Statement create = conn.createStatement()) {
+                create.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS owner(
+                        id uuid NOT NULL DEFAULT gen_random_uuid(),
+                        name varchar(30) NOT NULL,
+                        city varchar(80) NOT NULL,
+                        telephone varchar(20) DEFAULT NULL,
+                        PRIMARY KEY (id))""");
+            }
+        });
 
         // Insert some data with a unique identifier
         String uniqueName = "John Doe " + System.currentTimeMillis() + "_" + connectionNumber;
-        Statement insert = conn.createStatement();
-        insert.executeUpdate(
-                "INSERT INTO owner (name, city, telephone) VALUES ('" + uniqueName + "', 'Anytown', '555-555-1991')");
-        insert.close();
+        transactionRunner.runVoid(conn -> {
+            try (PreparedStatement insert = conn.prepareStatement(
+                    "INSERT INTO owner (name, city, telephone) VALUES (?, ?, ?)")) {
+                insert.setString(1, uniqueName);
+                insert.setString(2, "Anytown");
+                insert.setString(3, "555-555-1991");
+                insert.executeUpdate();
+            }
+        });
 
         // Read back the data and verify
-        String selectSQL = "SELECT * FROM owner WHERE name = '" + uniqueName + "'";
-        Statement read = conn.createStatement();
-        ResultSet rs = read.executeQuery(selectSQL);
-        while (rs.next()) {
-            assert rs.getString("id") != null;
-            assert rs.getString("name").equals(uniqueName);
-            assert rs.getString("city").equals("Anytown");
-            assert rs.getString("telephone").equals("555-555-1991");
-            System.out.println("Data verified: " + rs.getString("name") + " from " + rs.getString("city"));
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement read = conn.prepareStatement("SELECT * FROM owner WHERE name = ?")) {
+            read.setString(1, uniqueName);
+            try (ResultSet rs = read.executeQuery()) {
+                while (rs.next()) {
+                    assert rs.getString("id") != null;
+                    assert rs.getString("name").equals(uniqueName);
+                    assert rs.getString("city").equals("Anytown");
+                    assert rs.getString("telephone").equals("555-555-1991");
+                    System.out.println("Data verified: " + rs.getString("name") + " from " + rs.getString("city"));
+                }
+            }
         }
-        read.close();
     }
 
     public static void main(String[] args) throws SQLException {
@@ -131,30 +145,26 @@ public class ExamplePreferred {
 
         try {
 
-            // Demonstrate connection pooling with multiple concurrent connections
-            System.out.println("Testing connection pool with multiple connections...");
+            // Demonstrate connection pooling with OCC retry
+            System.out.println("Testing connection pool with OCC retry...");
 
-            try (Connection conn1 = example.getConnection();
-                 Connection conn2 = example.getConnection();
-                 Connection conn3 = example.getConnection()) {
+            System.out.println("Connection 1 obtained from pool");
+            example.executeExample(1);
 
-                System.out.println("Connection 1 obtained from pool");
-                example.executeExample(conn1, 1);
+            System.out.println("Connection 2 obtained from pool");
+            example.executeExample(2);
 
-                System.out.println("Connection 2 obtained from pool");
-                example.executeExample(conn2, 2);
+            System.out.println("Connection 3 obtained from pool");
+            example.executeExample(3);
 
-                System.out.println("Connection 3 obtained from pool");
-                example.executeExample(conn3, 3);
-            }
-
-            try (Connection conn = example.getConnection()) {
-                Statement cleanup = conn.createStatement();
-                int deletedRows = cleanup.executeUpdate("DELETE FROM owner WHERE name LIKE '%John Doe%'");
-                cleanup.close();
-
-                System.out.println("Cleaned up " + deletedRows + " test records");
-            }
+            // Cleanup
+            example.transactionRunner.runVoid(conn -> {
+                try (PreparedStatement cleanup = conn.prepareStatement("DELETE FROM owner WHERE name LIKE ?")) {
+                    cleanup.setString(1, "%John Doe%");
+                    int deletedRows = cleanup.executeUpdate();
+                    System.out.println("Cleaned up " + deletedRows + " test records");
+                }
+            });
 
         } finally {
             // Graceful shutdown

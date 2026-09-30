@@ -21,6 +21,7 @@ def connect_with_pool(cluster_user, cluster_endpoint):
     pool = dsql.AuroraDSQLThreadedConnectionPool(
         minconn=2,
         maxconn=8,
+        retry=True,
         **conn_params,
     )
 
@@ -38,6 +39,15 @@ def connect_with_pool(cluster_user, cluster_endpoint):
         finally:
             # Return connection to pool
             p.putconn(conn)
+
+        def insert_owner(conn):
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO owner(name, city, telephone) VALUES(%s, %s, %s)",
+                    ("John Doe", "Anytown", "555-555-1900"),
+                )
+
+        p.run_transaction(insert_owner)
 
 
 def main():

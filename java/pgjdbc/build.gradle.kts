@@ -20,13 +20,13 @@ repositories {
 }
 
 dependencies {
-    implementation("com.zaxxer:HikariCP:7.0.2")
-    implementation("software.amazon.dsql:aurora-dsql-jdbc-connector:1.4.0")
+    implementation("com.zaxxer:HikariCP:7.1.0")
+    implementation("software.amazon.dsql:aurora-dsql-jdbc-connector:1.5.0")
     // AWS SDK dependencies for SDK-only example (ExampleWithNoConnector)
-    implementation("software.amazon.awssdk:dsql:2.44.10")
-    implementation("org.postgresql:postgresql:42.7.11")
+    implementation("software.amazon.awssdk:dsql:2.55.6")
+    implementation("org.postgresql:postgresql:42.7.13")
 
-    testImplementation(platform("org.junit:junit-bom:6.1.0"))
+    testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

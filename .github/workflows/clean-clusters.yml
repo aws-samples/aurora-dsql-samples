@@ -15,7 +15,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.CPP_IAM_ROLE }}
@@ -31,7 +31,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.DOTNET_IAM_ROLE }}
@@ -47,7 +47,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.GO_IAM_ROLE }}
@@ -63,7 +63,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.JAVA_IAM_ROLE }}
@@ -79,7 +79,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.JAVASCRIPT_IAM_ROLE }}
@@ -95,7 +95,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.LAMBDA_IAM_ROLE }}
@@ -111,7 +111,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.PYTHON_IAM_ROLE }}
@@ -127,7 +127,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.RUBY_IAM_ROLE }}
@@ -143,7 +143,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.RUST_IAM_ROLE }}
@@ -159,7 +159,7 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.TYPESCRIPT_IAM_ROLE }}

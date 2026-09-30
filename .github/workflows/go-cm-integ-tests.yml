@@ -3,7 +3,13 @@ name: Go SDK cluster management integration tests
 permissions: {}
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "Exact commit to test; defaults to the triggering ref"
+        required: false
+        type: string
+        default: ""
   workflow_dispatch:
   push:
     branches: [ "main" ]
@@ -17,12 +23,12 @@ jobs:
       GOPROXY: direct
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
-        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        ref: ${{ inputs.checkout-ref }}
 
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: '1.24'
 

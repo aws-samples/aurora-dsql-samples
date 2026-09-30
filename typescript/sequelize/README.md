@@ -182,21 +182,6 @@ Owner.hasMany(Pet, { foreignKey: 'ownerId', constraints: false });
 
 ### Data types
 
-**JSON/JSONB**: Use `DataTypes.TEXT` with getter/setter in `Model.init()` for serialization:
-
-```ts
-metadata: {
-  type: DataTypes.TEXT,
-  get() {
-    const val = this.getDataValue('metadata');
-    return val ? JSON.parse(val) : null;
-  },
-  set(val: object) {
-    this.setDataValue('metadata', JSON.stringify(val));
-  }
-}
-```
-
 **ENUM**: Use `DataTypes.STRING` with validation in `Model.init()`:
 
 ```ts

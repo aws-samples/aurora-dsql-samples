@@ -10,8 +10,7 @@ import (
 )
 
 // Store defines the database operations for the recipe sharing API.
-// Both the SQLite (local development) and Amazon Aurora DSQL (production)
-// implementations satisfy this interface.
+// The Amazon Aurora DSQL implementation satisfies this interface.
 type Store interface {
 	// InitSchema creates the database tables if they do not already exist.
 	InitSchema(ctx context.Context) error

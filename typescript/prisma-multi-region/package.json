@@ -22,23 +22,23 @@
     "dsql-migrate": "aurora-dsql-prisma migrate"
   },
   "dependencies": {
-    "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
-    "@aws-sdk/dsql-signer": "^3.1006.0",
-    "@prisma/adapter-pg": "^7.4.2",
-    "@prisma/client": "^7.4.2",
-    "@types/pg": "^8.18.0",
-    "express": "^4.21.0",
-    "pg": "^8.20.0"
+    "@aws/aurora-dsql-node-postgres-connector": "^0.1.9",
+    "@aws-sdk/dsql-signer": "^3.1141.0",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@types/pg": "^8.23.1",
+    "express": "^5.2.1",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@aws/aurora-dsql-prisma-tools": "^0.1.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.4.0",
-    "jest": "^30.0.0",
-    "prettier": "^3.8.1",
-    "prisma": "^7.4.2",
-    "ts-jest": "^29.4.1",
+    "@types/node": "^26.6.3",
+    "jest": "^30.5.2",
+    "prettier": "^3.9.9",
+    "prisma": "^7.10.0",
+    "ts-jest": "^29.4.14",
     "ts-node": "^10.9.0",
     "typescript": "^5.8.3"
   },

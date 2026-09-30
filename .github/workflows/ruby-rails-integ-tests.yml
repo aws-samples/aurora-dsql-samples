@@ -3,7 +3,13 @@ name: Ruby Rails integration tests
 permissions: {}
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "Exact commit to test; defaults to the triggering ref"
+        required: false
+        type: string
+        default: ""
   workflow_dispatch:
   push:
     branches: [ main ]
@@ -26,9 +32,9 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
-        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        ref: ${{ inputs.checkout-ref }}
 
     - name: Set up Ruby 3.3
       uses: ruby/setup-ruby@v1
@@ -49,7 +55,7 @@ jobs:
         CLUSTER_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
         REGION: ${{ needs.create-cluster.outputs.region }}
         CLUSTER_USER: admin
-        RAILS_ENV: development
+        RAILS_ENV: test
       run: |
         bundle install
         mkdir -p ~/.postgresql

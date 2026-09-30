@@ -13,6 +13,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |  Language   |                      Client / ORM                       |
 |:-----------:|:-------------------------------------------------------:|
 |     C++     |                   [libpq](cpp/libpq)                    |
+| C# (dotnet) |     [EF Core](dotnet/ef-core/examples/InventoryApi)     |
 | C# (dotnet) |                 [Npgsql](dotnet/npgsql)                 |
 |     Go      |                     [pgx](go/pgx/)                      |
 |    Java     |            [HikariCP + pgJDBC](java/pgjdbc)             |
@@ -21,14 +22,18 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 | JavaScript  |          [AWS Lambda + node-postgres](lambda/)          |
 | JavaScript  | [node-postgres (standalone)](javascript/node-postgres/) |
 | JavaScript  |         [Postgres.js](javascript/postgres-js/)          |
+| JavaScript  |          [Sequelize](javascript/sequelize/)             |
 |   Python    |                [asyncpg](python/asyncpg)                |
 |   Python    |                [Jupyter](python/jupyter)                |
 |   Python    |               [psycopg](python/psycopg/)                |
 |   Python    |              [psycopg2](python/psycopg2/)               |
+|   Python    |             [SQLAlchemy](python/sqlalchemy)             |
+|   Python    |           [Tortoise ORM](python/tortoise-orm)           |
 |    Ruby     |                   [pg](ruby/ruby-pg)                    |
 |    Ruby     |                   [Rails](ruby/rails)                   |
 |    Rust     |                    [sqlx](rust/sqlx)                    |
-| Typescript  |               [Prisma](typescript/prisma)               |
+| Typescript  |              [Drizzle](typescript/drizzle)              |
+| Typescript  |       [Prisma](typescript/prisma-multi-region)          |
 | Typescript  |            [Sequelize](typescript/sequelize)            |
 | Typescript  |             [TypeORM](typescript/type-orm)              |
 |    Deno     |        [postgres-js](deno/postgres-js/)              |

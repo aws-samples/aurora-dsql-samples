@@ -15,6 +15,7 @@ function createPooledConnection(clusterEndpoint, user) {
     max: 10, // Connection pool size
     idle_timeout: 30, // Idle connection timeout in seconds
     connect_timeout: 10, // Connection timeout in seconds
+    retry: true,
   });
 }
 
@@ -43,6 +44,30 @@ async function example() {
     await Promise.all(workers);
 
     console.log("Connection pool with concurrent connections exercised successfully");
+
+    // Create table
+    await sql`CREATE TABLE IF NOT EXISTS owner (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(30) NOT NULL,
+      city VARCHAR(80) NOT NULL,
+      telephone VARCHAR(20)
+    )`;
+
+    // Transactional write
+    await sql.begin(async (tx) => {
+      await tx`INSERT INTO owner(name, city, telephone) VALUES(${"John Doe"}, ${"Anytown"}, ${"555-555-1900"})`;
+    });
+
+    // Verify the write
+    const result = await sql`SELECT name, city FROM owner WHERE name = ${"John Doe"}`;
+    assert.strictEqual(result[0].name, "John Doe");
+    assert.strictEqual(result[0].city, "Anytown");
+    console.log(`Inserted: name=${result[0].name}, city=${result[0].city}`);
+
+    // Clean up
+    await sql`DELETE FROM owner WHERE name = ${"John Doe"}`;
+
+    console.log("Transactional write completed successfully");
   } catch (error) {
     console.error(error);
     throw error;

@@ -3,8 +3,6 @@
 
 import os
 
-from psycopg_pool import AsyncConnectionPool as PsycopgPoolAsync
-
 import aurora_dsql_psycopg as dsql
 
 
@@ -20,20 +18,31 @@ async def connect_with_pool(cluster_user, cluster_endpoint):
         "sslrootcert": ssl_cert_path,
     }
 
-    async with PsycopgPoolAsync(
+    pool = dsql.create_async_pool(
         "",
-        connection_class=dsql.DSQLAsyncConnection,
-        kwargs=conn_params,  # Pass params as kwargs
+        kwargs=conn_params,
         min_size=2,
         max_size=10,
         max_lifetime=3300,
-    ) as pool:
+        retry=True,
+    )
+
+    async with pool:
         async with pool.connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute("SELECT 1")
                 result = await cur.fetchone()
                 print(f"Query result: {result}")
                 assert result[0] == 1
+
+        async def insert_owner(conn):
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "INSERT INTO owner(name, city, telephone) VALUES(%s, %s, %s)",
+                    ("John Doe", "Anytown", "555-555-1900"),
+                )
+
+        await pool.run_transaction(insert_owner)
 
 
 async def main():

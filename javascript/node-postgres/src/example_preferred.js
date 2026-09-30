@@ -15,6 +15,7 @@ function createPool(clusterEndpoint, user) {
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
+    retry: { maxRetries: 5 },
   });
 }
 
@@ -43,6 +44,33 @@ async function example() {
     await Promise.all(workers);
 
     console.log("Connection pool with concurrent connections exercised successfully");
+
+    // Create table
+    await pool.query(`CREATE TABLE IF NOT EXISTS owner (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(30) NOT NULL,
+      city VARCHAR(80) NOT NULL,
+      telephone VARCHAR(20)
+    )`);
+
+    // Transactional write with OCC retry
+    await pool.transaction(async (client) => {
+      await client.query(
+        "INSERT INTO owner(name, city, telephone) VALUES($1, $2, $3)",
+        ["John Doe", "Anytown", "555-555-1900"],
+      );
+    });
+
+    // Verify the write
+    const result = await pool.query("SELECT name, city FROM owner WHERE name = $1", ["John Doe"]);
+    assert.strictEqual(result.rows[0].name, "John Doe");
+    assert.strictEqual(result.rows[0].city, "Anytown");
+    console.log(`Inserted: name=${result.rows[0].name}, city=${result.rows[0].city}`);
+
+    // Clean up
+    await pool.query("DELETE FROM owner WHERE name = $1", ["John Doe"]);
+
+    console.log("Transactional write with OCC retry exercised successfully");
   } catch (error) {
     console.error(error);
     throw error;

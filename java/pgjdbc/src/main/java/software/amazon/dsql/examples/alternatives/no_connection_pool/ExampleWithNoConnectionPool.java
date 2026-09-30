@@ -8,10 +8,14 @@ package software.amazon.dsql.examples.alternatives.no_connection_pool;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+
+import software.amazon.dsql.jdbc.OCCRetry;
+import software.amazon.dsql.jdbc.OCCRetryConfig;
 
 public class ExampleWithNoConnectionPool {
 
@@ -37,43 +41,61 @@ public class ExampleWithNoConnectionPool {
 
         try (Connection conn = ExampleWithNoConnectionPool.getConnection(clusterEndpoint, clusterUser)) {
             if (!clusterUser.equals("admin")) {
-                Statement setSchema = conn.createStatement();
-                setSchema.execute("SET search_path=myschema");
-                setSchema.close();
+                try (Statement setSchema = conn.createStatement()) {
+                    setSchema.execute("SET search_path=myschema");
+                }
             }
+
+            // Use OCC retry with existing connection for write operations
+            OCCRetryConfig retryConfig = OCCRetryConfig.defaults();
+
             // Create a new table named owner
-            Statement create = conn.createStatement();
-            create.executeUpdate("""
-                    CREATE TABLE IF NOT EXISTS owner(
-                    id uuid NOT NULL DEFAULT gen_random_uuid(),
-                    name varchar(30) NOT NULL,
-                    city varchar(80) NOT NULL,
-                    telephone varchar(20) DEFAULT NULL,
-                    PRIMARY KEY (id))""");
-            create.close();
+            OCCRetry.execute(conn, retryConfig, c -> {
+                try (Statement create = c.createStatement()) {
+                    create.executeUpdate("""
+                            CREATE TABLE IF NOT EXISTS owner(
+                            id uuid NOT NULL DEFAULT gen_random_uuid(),
+                            name varchar(30) NOT NULL,
+                            city varchar(80) NOT NULL,
+                            telephone varchar(20) DEFAULT NULL,
+                            PRIMARY KEY (id))""");
+                }
+                return null;
+            });
 
             // Insert some data
-            Statement insert = conn.createStatement();
-            insert.executeUpdate(
-                    "INSERT INTO owner (name, city, telephone) VALUES ('John Doe', 'Anytown', '555-555-1999')");
-            insert.close();
+            OCCRetry.execute(conn, retryConfig, c -> {
+                try (PreparedStatement insert = c.prepareStatement(
+                        "INSERT INTO owner (name, city, telephone) VALUES (?, ?, ?)")) {
+                    insert.setString(1, "John Doe");
+                    insert.setString(2, "Anytown");
+                    insert.setString(3, "555-555-1999");
+                    insert.executeUpdate();
+                }
+                return null;
+            });
 
             // Read back the data and assert they are present
-            String selectSQL = "SELECT * FROM owner";
-            Statement read = conn.createStatement();
-            ResultSet rs = read.executeQuery(selectSQL);
-            while (rs.next()) {
-                assert rs.getString("id") != null;
-                assert rs.getString("name").equals("John Doe");
-                assert rs.getString("city").equals("Anytown");
-                assert rs.getString("telephone").equals("555-555-1999");
+            try (PreparedStatement read = conn.prepareStatement("SELECT * FROM owner WHERE name = ?")) {
+                read.setString(1, "John Doe");
+                try (ResultSet rs = read.executeQuery()) {
+                    while (rs.next()) {
+                        assert rs.getString("id") != null;
+                        assert rs.getString("name").equals("John Doe");
+                        assert rs.getString("city").equals("Anytown");
+                        assert rs.getString("telephone").equals("555-555-1999");
+                    }
+                }
             }
 
             // Delete some data
-            String deleteSql = String.format("DELETE FROM owner where name='John Doe'");
-            Statement delete = conn.createStatement();
-            delete.executeUpdate(deleteSql);
-            delete.close();
+            OCCRetry.execute(conn, retryConfig, c -> {
+                try (PreparedStatement delete = c.prepareStatement("DELETE FROM owner WHERE name = ?")) {
+                    delete.setString(1, "John Doe");
+                    delete.executeUpdate();
+                }
+                return null;
+            });
         }
         System.out.println("Connection exercised successfully");
     }

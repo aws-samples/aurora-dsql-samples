@@ -14,6 +14,7 @@ function getConnection(clusterEndpoint, user) {
   return auroraDSQLPostgres({
     host: clusterEndpoint,
     user: user,
+    retry: true,
     // Other DSQL options:
     // region: 'us-east-1',
     // profile: awsProfile,
@@ -46,9 +47,11 @@ async function example() {
                      telephone VARCHAR(20)
                  )`;
 
-    // Insert some data
-    await client`INSERT INTO ${client(schema)}.owner(name, city, telephone)
-                 VALUES ('John Doe', 'Anytown', '555-555-0150')`;
+    // Transactional write with OCC retry
+    await client.begin(async (tx) => {
+      await tx`INSERT INTO ${tx(schema)}.owner(name, city, telephone)
+               VALUES ('John Doe', 'Anytown', '555-555-0150')`;
+    });
 
     // Check that data is inserted by reading it back
     const result = await client`SELECT id, city

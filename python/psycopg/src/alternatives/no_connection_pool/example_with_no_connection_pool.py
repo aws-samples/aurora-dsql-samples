@@ -59,6 +59,9 @@ def exercise_connection(conn):
             """
     )
 
+    # Clean up any data from previous runs to avoid assertion failures
+    cur.execute("DELETE FROM owner WHERE name = 'John Doe'")
+
     # Insert some rows
     cur.execute(
         "INSERT INTO owner(name, city, telephone) VALUES('John Doe', 'Anytown', '555-555-1999')"
