@@ -43,4 +43,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_27_000003) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
+
+  add_foreign_key "reservations", "customers", column: "customer_id", name: "reservations_customer_id_fkey", on_update: :restrict, on_delete: :restrict
+  add_foreign_key "reservations", "vehicles", column: "vehicle_id", name: "reservations_vehicle_id_fkey", on_update: :restrict, on_delete: :restrict
 end

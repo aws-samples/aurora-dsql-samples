@@ -13,7 +13,7 @@
 //
 // `CREATE INDEX ASYNC` returns synchronously while the index continues
 // building in the background. We capture the returned `job_id` and wait on
-// `sys.wait_for_job($1)` so the application doesn't start serving traffic
+// `CALL sys.wait_for_job($1)` so the application doesn't start serving traffic
 // against a sequential scan. Skip the wait by passing `{ waitForAsyncJobs:
 // false }` if you want migrations to be non-blocking.
 //
@@ -93,7 +93,9 @@ const DDL_STATEMENTS: DDLStatement[] = [
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ,
-  client_metadata TEXT
+  client_metadata TEXT,
+  CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id)
+    REFERENCES users(id) ON DELETE RESTRICT ON UPDATE RESTRICT
 )`,
     isAsync: false,
   },

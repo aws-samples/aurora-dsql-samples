@@ -91,9 +91,24 @@ describe("DSQL Prisma multi-region client", () => {
     });
     expect(fetched?.items).toHaveLength(2);
 
-    // Clean up — delete items first (no FK cascade in DSQL)
+    // This schema chooses RESTRICT, so delete child rows first.
     await client.orderItem.deleteMany({ where: { orderId: order.id } });
     await client.order.delete({ where: { id: order.id } });
+  });
+
+  test("foreign keys reject orphan rows", async () => {
+    const client = await dsql.getClient();
+    const insert = client.$executeRaw`
+      INSERT INTO "order_items" ("id", "order_id", "name", "price")
+      VALUES (
+        gen_random_uuid(),
+        '00000000-0000-4000-8000-000000000000'::uuid,
+        'Orphan',
+        1.0
+      )
+    `;
+
+    await expect(insert).rejects.toThrow(/23503|foreign key/i);
   });
 
   test("UUID generation works", async () => {

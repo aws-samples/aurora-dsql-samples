@@ -79,8 +79,10 @@ func (s *DSQLStore) InitSchema(ctx context.Context) error {
 			cuisine VARCHAR(50) DEFAULT '',
 			status VARCHAR(20) NOT NULL DEFAULT 'draft',
 			created_at TIMESTAMPTZ NOT NULL,
-			updated_at TIMESTAMPTZ NOT NULL
-		)`, schemaName),
+			updated_at TIMESTAMPTZ NOT NULL,
+			CONSTRAINT recipes_chef_id_fkey FOREIGN KEY (chef_id)
+				REFERENCES %s.chefs(id) ON DELETE RESTRICT ON UPDATE RESTRICT
+		)`, schemaName, schemaName),
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.ratings (
 			id TEXT PRIMARY KEY,
 			recipe_id TEXT NOT NULL,
@@ -88,8 +90,12 @@ func (s *DSQLStore) InitSchema(ctx context.Context) error {
 			score INTEGER NOT NULL,
 			comment TEXT DEFAULT '',
 			created_at TIMESTAMPTZ NOT NULL,
-			updated_at TIMESTAMPTZ NOT NULL
-		)`, schemaName),
+			updated_at TIMESTAMPTZ NOT NULL,
+			CONSTRAINT ratings_recipe_id_fkey FOREIGN KEY (recipe_id)
+				REFERENCES %s.recipes(id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+			CONSTRAINT ratings_chef_id_fkey FOREIGN KEY (chef_id)
+				REFERENCES %s.chefs(id) ON DELETE RESTRICT ON UPDATE RESTRICT
+		)`, schemaName, schemaName, schemaName),
 		fmt.Sprintf("CREATE INDEX ASYNC IF NOT EXISTS idx_recipes_chef_id ON %s.recipes(chef_id)", schemaName),
 		fmt.Sprintf("CREATE INDEX ASYNC IF NOT EXISTS idx_ratings_recipe_id ON %s.ratings(recipe_id)", schemaName),
 	}

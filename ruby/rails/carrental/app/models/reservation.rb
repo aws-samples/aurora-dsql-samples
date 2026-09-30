@@ -10,10 +10,6 @@
 # Relationships:
 #   - A reservation belongs to one customer (many-to-one)
 #   - A reservation belongs to one vehicle (many-to-one)
-#
-# Note: Foreign key constraints are not supported by Aurora DSQL.
-# Referential integrity is enforced at the application layer through
-# Active Record associations and validations.
 class Reservation < ApplicationRecord
   # Explicitly set primary key for Aurora DSQL compatibility.
   self.primary_key = "id"

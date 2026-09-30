@@ -122,8 +122,6 @@ The application runs in **private subnets** behind a **NAT Gateway** for outboun
 | `customers` | Customer information with name, email, phone, and driver's license number |
 | `reservations` | Rental reservations linking customers to vehicles with dates, status (`pending`, `active`, `completed`, `cancelled`), and auto-calculated pricing |
 
-> **Note:** This sample uses application-layer referential integrity. Relationships are enforced through Active Record associations and validations.
-
 ---
 
 ## Key Design Decisions for Aurora DSQL
@@ -131,7 +129,6 @@ The application runs in **private subnets** behind a **NAT Gateway** for outboun
 | Decision | Rationale |
 |----------|-----------|
 | **UUID Primary Keys** | UUIDs distribute writes evenly across storage nodes. Generated in Ruby via `SecureRandom.uuid`. |
-| **Application-Layer Referential Integrity** | Relationships are enforced through Active Record `belongs_to`/`has_many` associations and presence validations. |
 | **IAM Token Authentication** | Instead of static passwords, the application generates short-lived IAM authentication tokens on each new database connection via the `aurora-dsql-ruby-pg` gem. |
 | **SQLite3 for Development** | Local development uses SQLite3 so developers don't need a PostgreSQL installation. The DSQL adapter initializer only activates when the PostgreSQL adapter is in use (production). |
 
@@ -481,7 +478,7 @@ car-rental/
 │   ├── puma.rb                 # Puma web server config
 │   └── routes.rb               # Application routes
 ├── db/
-│   ├── migrate/                # UUID-based migrations (no foreign keys)
+│   ├── migrate/                # UUID-based migrations
 │   ├── schema.rb               # Current schema definition
 │   └── seeds.rb                # Sample data (vehicles, customers, reservations)
 ├── infrastructure/

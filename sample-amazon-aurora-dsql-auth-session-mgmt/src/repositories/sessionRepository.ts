@@ -7,17 +7,13 @@
 // the OCC retry utility so transient serialization errors (SQLSTATE 40001)
 // are handled transparently.
 //
-// Because Aurora DSQL does not support foreign keys, this repository enforces
-// referential integrity at the application level — it verifies that the
-// referenced `user_id` exists in the `users` table before inserting a session.
-//
 // The repository accepts a pool-like interface rather than the concrete
 // `AuroraDSQLPool` class, making it straightforward to test with a
 // lightweight mock — no AWS credentials required.
 //
 // Requirements:
 //   9.2 — Sessions table schema
-//   9.3 — Application-level referential integrity (user_id → users.id)
+//   9.3 — Referential integrity (user_id → users.id)
 //   9.4 — Store hashed token, not plaintext
 //  11.5 — OCC retry logic for session write operations
 //  12.1 — No single transaction modifies more than 3,000 rows
@@ -25,7 +21,6 @@
 // ---------------------------------------------------------------------------
 
 import { Session, ClientMetadata } from '../types';
-import { InvalidSessionError } from '../utils/errors';
 import { retryWithBackoff } from '../utils/retryWithBackoff';
 
 // ---------------------------------------------------------------------------
@@ -141,13 +136,9 @@ export function createSessionRepository(pool: PoolLike) {
     /**
      * Insert a new session record into the `sessions` table.
      *
-     * Before inserting, verifies that the referenced `user_id` exists in the
-     * `users` table (application-level referential integrity). Transactional
-     * work routes through `runInTransaction`, which uses
+     * Transactional work routes through `runInTransaction`, which uses
      * `AuroraDSQLPool.transaction` (with built-in OCC retry) in production
      * and a manual BEGIN/COMMIT + `retryWithBackoff` fallback under test.
-     *
-     * @throws {InvalidSessionError} If the `userId` does not exist in the users table.
      */
     async create(session: {
       id: string;
@@ -157,20 +148,6 @@ export function createSessionRepository(pool: PoolLike) {
       clientMetadata: ClientMetadata;
     }): Promise<void> {
       await runInTransaction(pool, async (client) => {
-        // Application-level referential integrity check (Requirement 9.3).
-        // Aurora DSQL does not support foreign keys, so we verify the
-        // referenced user exists before inserting the session.
-        const userCheck = await client.query(
-          'SELECT id FROM users WHERE id = $1',
-          [session.userId],
-        );
-
-        if (userCheck.rows.length === 0) {
-          throw new InvalidSessionError(
-            `User with id ${session.userId} does not exist`,
-          );
-        }
-
         await client.query(
           `INSERT INTO sessions (id, user_id, token_hash, created_at, expires_at, revoked_at, client_metadata)
            VALUES ($1, $2, $3, NOW(), $4, NULL, $5)`,
