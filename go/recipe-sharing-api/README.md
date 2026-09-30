@@ -188,6 +188,8 @@ The script validates prerequisites, cross-compiles the Go binary for Linux/ARM64
 │   └── router/                  # Gin router setup and route registration
 ├── infrastructure/
 │   └── cloudformation.yml       # AWS CloudFormation template (REST API + Lambda + IAM)
+├── test/
+│   └── integration_test.go      # Integration tests against Aurora DSQL (go test)
 ├── deploy.sh                    # Deployment script
 ├── test-api.sh                  # API smoke test script
 ├── go.mod / go.sum              # Go module dependencies
@@ -247,7 +249,7 @@ aws logs tail /aws/apigateway/recipe-share-stack-access-logs --region <region> -
 aws cloudformation delete-stack --stack-name recipe-share-stack --region <region>
 
 # Delete the S3 deployment bucket
-aws s3 rb s3://amzn-s3-demo-recipe-share-stack-deploy-<account-id>-<region> --force --region <region>
+aws s3 rb s3://recipe-share-stack-deploy-<account-id>-<region> --force --region <region>
 
 # Delete the Amazon Aurora DSQL cluster
 aws dsql delete-cluster --identifier <cluster-id> --region <region>
