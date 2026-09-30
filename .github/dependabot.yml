@@ -154,5 +154,6 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 5
+    # Keep the approved MIT-licensed release; see gitleaks-scan.yml.
     ignore:
       - dependency-name: "gitleaks/gitleaks-action"
