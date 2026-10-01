@@ -11,7 +11,7 @@
     "build:compile": "tsc --build",
     "build": "npm-run-all build:compile",
     "clean": "rm -rf build && rm -rf dist",
-    "typeorm": "ts-node ./node_modules/typeorm/cli.js",
+    "typeorm": "node ./node_modules/typeorm/cli.js",
     "start": "node dist/index.js",
     "dev": "npm run clean && npm run build && npm run start",
     "test": "npm run clean && npm run build && node --experimental-vm-modules node_modules/jest/bin/jest.js dist/test"
