@@ -3,6 +3,7 @@
     "target": "ES6",
     "module": "node16",
     "moduleResolution": "node16",
+    "types": ["node", "jest"],
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,

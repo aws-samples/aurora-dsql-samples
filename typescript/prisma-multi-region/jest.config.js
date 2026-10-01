@@ -1,16 +1,19 @@
-const { createDefaultPreset, pathsToModuleNameMapper } = require("ts-jest");
-const { compilerOptions } = require("./tsconfig");
-
-const tsJestTransformCfg = createDefaultPreset().transform;
-
 /** @type {import("jest").Config} **/
 module.exports = {
   testEnvironment: "node",
   testTimeout: 60000,
   transform: {
-    ...tsJestTransformCfg,
+    "^.+\\.tsx?$": [
+      "babel-jest",
+      {
+        presets: [
+          ["@babel/preset-env", { targets: { node: "current" } }],
+          "@babel/preset-typescript",
+        ],
+      },
+    ],
   },
-  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, {
-    prefix: "<rootDir>/",
-  }),
+  moduleNameMapper: {
+    "^@generated/(.*)$": "<rootDir>/generated/$1",
+  },
 };

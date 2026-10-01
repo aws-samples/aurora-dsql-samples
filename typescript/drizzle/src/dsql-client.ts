@@ -4,7 +4,8 @@
  * `drizzle()` from @aws/aurora-dsql-drizzle builds an AuroraDSQLPool (IAM token
  * auth + pooling) under the standard drizzle-orm/node-postgres driver.
  */
-import { drizzle } from "@aws/aurora-dsql-drizzle";
+import { drizzle, type AwsDsqlDatabase } from "@aws/aurora-dsql-drizzle";
+import type { Pool } from "pg";
 import * as schema from "./schema";
 import { getRequiredEnv } from "./utils";
 
@@ -12,9 +13,9 @@ const ADMIN = "admin";
 const ADMIN_SCHEMA = "public";
 const NON_ADMIN_SCHEMA = "myschema";
 
-export type VeterinaryDb = ReturnType<typeof createDsqlDb>;
+export type VeterinaryDb = AwsDsqlDatabase<typeof schema> & { $client: Pool };
 
-export function createDsqlDb() {
+export function createDsqlDb(): VeterinaryDb {
   const host = getRequiredEnv("CLUSTER_ENDPOINT");
   const user = getRequiredEnv("CLUSTER_USER");
   const dbSchema = user === ADMIN ? ADMIN_SCHEMA : NON_ADMIN_SCHEMA;
