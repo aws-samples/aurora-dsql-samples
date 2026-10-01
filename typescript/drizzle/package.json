@@ -19,7 +19,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.3",
     "@types/pg": "^8.15.0",
-    "@babel/core": "^7.28.0",
+    "@babel/core": "^8.0.6",
     "@babel/preset-env": "^7.28.0",
     "@babel/preset-typescript": "^7.27.0",
     "babel-jest": "^30.5.2",
