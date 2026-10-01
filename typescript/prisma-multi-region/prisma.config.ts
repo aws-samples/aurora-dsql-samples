@@ -16,6 +16,13 @@ async function extractRegionFromEndpoint(endpoint: string): Promise<string> {
 }
 
 async function getDatabaseUrl(): Promise<string> {
+  // Schema validation runs `prisma migrate diff --from-empty` and never
+  // connects to a database, so avoid coupling that deterministic check to
+  // live credentials or a temporary cluster.
+  if (process.env.PRISMA_SCHEMA_ONLY === "1") {
+    return "postgresql://admin:offline@localhost:5432/postgres";
+  }
+
   const endpoint = process.env.CLUSTER_ENDPOINT;
   if (!endpoint) {
     throw new Error("CLUSTER_ENDPOINT environment variable is required");

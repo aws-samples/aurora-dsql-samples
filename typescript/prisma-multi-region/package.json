@@ -18,7 +18,7 @@
     "test:failover": "ts-node src/test-failover.ts",
     "pretest": "npm run prisma:generate",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
-    "validate": "aurora-dsql-prisma validate prisma/schema.prisma",
+    "validate": "PRISMA_SCHEMA_ONLY=1 aurora-dsql-prisma validate prisma/schema.prisma",
     "dsql-migrate": "aurora-dsql-prisma migrate"
   },
   "dependencies": {
