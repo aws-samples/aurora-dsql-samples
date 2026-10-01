@@ -21,7 +21,7 @@
     "@types/pg": "^8.15.0",
     "@babel/core": "^7.28.0",
     "@babel/preset-env": "^7.28.0",
-    "@babel/preset-typescript": "^7.27.0",
+    "@babel/preset-typescript": "^8.0.1",
     "babel-jest": "^30.5.2",
     "drizzle-kit": "^0.31.11",
     "jest": "^30.5.2",
