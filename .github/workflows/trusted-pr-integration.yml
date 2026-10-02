@@ -24,7 +24,7 @@ jobs:
       pull-requests: read
       statuses: write
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         id: validate
         env:
           PULL_REQUEST_NUMBER: ${{ inputs.pull-request-number }}
@@ -86,7 +86,7 @@ jobs:
           path: trusted-pr-request.json
           retention-days: 1
 
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           HEAD_SHA: ${{ steps.validate.outputs.head-sha }}
         with:
