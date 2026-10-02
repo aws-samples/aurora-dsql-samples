@@ -10,6 +10,7 @@ package manual_token
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -216,7 +217,7 @@ func NewPool(
 }
 
 // Example demonstrates manual IAM token generation and CRUD operations with Aurora DSQL.
-func Example() error {
+func Example() (returnErr error) {
 	ctx := context.Background()
 
 	// Establish connection pool with manual token generation
@@ -248,37 +249,31 @@ func Example() error {
 		return fmt.Errorf("unable to create table: %w", err)
 	}
 
-	// Insert data (let database generate UUID via gen_random_uuid() default)
-	query := `INSERT INTO owner (name, city, telephone) VALUES ($1, $2, $3)`
-	_, err = pool.Exec(ctx, query, "John Doe", "Anytown", "555-555-0150")
+	// Insert data and retain its generated UUID so this run only reads and
+	// cleans up the row it created.
+	query := `INSERT INTO owner (name, city, telephone) VALUES ($1, $2, $3) RETURNING id`
+	var ownerID string
+	err = pool.QueryRow(ctx, query, "John Doe", "Anytown", "555-555-0150").Scan(&ownerID)
 	if err != nil {
 		return fmt.Errorf("unable to insert data: %w", err)
 	}
+	defer func() {
+		_, cleanupErr := pool.Exec(ctx, `DELETE FROM owner WHERE id = $1`, ownerID)
+		if cleanupErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("unable to clean owner: %w", cleanupErr))
+		}
+	}()
 
 	// Read data
-	query = `SELECT id, name, city, telephone FROM owner where name='John Doe'`
-	rows, err := pool.Query(ctx, query)
+	query = `SELECT id, name, city, telephone FROM owner WHERE id = $1`
+	var owner Owner
+	err = pool.QueryRow(ctx, query, ownerID).Scan(&owner.Id, &owner.Name, &owner.City, &owner.Telephone)
 	if err != nil {
 		return fmt.Errorf("unable to read data: %w", err)
 	}
-	defer rows.Close()
-
-	owners, err := pgx.CollectRows(rows, pgx.RowToStructByName[Owner])
-	if err != nil {
-		return fmt.Errorf("error collecting rows: %w", err)
-	}
-	if len(owners) == 0 {
-		return fmt.Errorf("no data found for John Doe")
-	}
-	if owners[0].Name != "John Doe" || owners[0].City != "Anytown" {
+	if owner.Name != "John Doe" || owner.City != "Anytown" {
 		return fmt.Errorf("unexpected data retrieved: got name=%s, city=%s, expected name=John Doe, city=Anytown",
-			owners[0].Name, owners[0].City)
-	}
-
-	// Delete data
-	_, err = pool.Exec(ctx, `DELETE FROM owner where name='John Doe'`)
-	if err != nil {
-		return fmt.Errorf("unable to clean table: %w", err)
+			owner.Name, owner.City)
 	}
 
 	return nil
