@@ -56,6 +56,7 @@ jobs:
 
       - name: CDK Deploy
         run: |
+          set -o pipefail
           npx cdk deploy --require-approval never --quiet --no-lookups 2>&1 | sed -E 's/[0-9]{12}/XXXXXXXXXXXX/g'
 
   integration-test:
@@ -124,6 +125,7 @@ jobs:
       - name: Clean up CDK deployment
         if: always()  # Run even if previous steps failed
         run: |
+          set -o pipefail
           echo "Cleaning up CDK deployment"
           npm ci
           npx cdk destroy --force --require-approval never --no-lookups  2>&1 | sed -E 's/[0-9]{12}/XXXXXXXXXXXX/g'
