@@ -215,17 +215,28 @@ For the full list of Aurora DSQL SQL compatibility details, see the [PostgreSQL 
 
 ### Locking
 
-Aurora DSQL uses optimistic concurrency control (OCC), meaning transactions proceed without locks and conflicts are detected at commit time. The `SELECT FOR UPDATE` clause modifies this behavior by flagging read rows for concurrency checks, which is useful for managing write skew scenarios.
+Aurora DSQL uses optimistic concurrency control (OCC). `SELECT ... FOR UPDATE` does not take a blocking row lock; rows targeted by the locking clause participate in commit-time conflict checks. A conflicting transaction fails at commit and the whole transaction must be retried. Each targeted row's primary key counts toward the 10 MiB transaction-size limit.
 
-In Sequelize, only `Transaction.LOCK.UPDATE` is supported. The query must include an equality predicate on the primary key. Queries that lock by non-key columns will fail.
+Sequelize `Transaction.LOCK.UPDATE` and `Transaction.LOCK.KEY_SHARE` are supported. `Transaction.LOCK.NO_KEY_UPDATE` and `Transaction.LOCK.SHARE` are not supported. Locking queries may use non-key predicates and may join multiple tables; there is no requirement to use equality predicates on every primary-key column or to query only one table.
 
 ```ts
-// Works: lock by primary key
-await Model.findByPk(id, { lock: Transaction.LOCK.UPDATE, transaction });
+// Non-key predicate
+await Order.findOne({
+  where: { tenantId, status: 'pending' },
+  lock: Transaction.LOCK.UPDATE,
+  transaction,
+});
 
-// Does not work: lock by non-key column
-await Model.findOne({ where: { status: 'pending' }, lock: Transaction.LOCK.UPDATE, transaction });
+// Joined query
+await Order.findOne({
+  include: [{ model: Customer, required: true }],
+  where: { tenantId, status: 'pending' },
+  lock: Transaction.LOCK.UPDATE,
+  transaction,
+});
 ```
+
+Retry the complete transaction with backoff when a commit conflict returns SQLSTATE `40001`. Keep external side effects outside the retried callback or make them idempotent.
 
 For more details on concurrency control in Aurora DSQL, see [Concurrency control in Amazon Aurora DSQL](https://aws.amazon.com/blogs/database/concurrency-control-in-amazon-aurora-dsql/).
 
