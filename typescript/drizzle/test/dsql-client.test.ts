@@ -311,19 +311,27 @@ describe("DSQL Drizzle client", () => {
     expect(result.rows[0]?.["indexname"]).toBe("pet_owner_id_idx");
   });
 
-  describe("VeterinaryService referential checks", () => {
+  describe("VeterinaryService foreign key enforcement", () => {
     let service: VeterinaryService;
 
     beforeAll(() => {
       service = new VeterinaryService(db);
     });
 
-    test("createPet rejects an unknown owner and writes no pet", async () => {
+    test("createPet propagates a foreign key violation for an unknown owner", async () => {
       const missingOwnerId = "00000000-0000-4000-8000-000000000000";
 
-      await expect(
-        service.createPet("Orphan", new Date("2020-01-01"), missingOwnerId),
-      ).rejects.toThrow(`no owner ${missingOwnerId}`);
+      let thrown: unknown;
+      try {
+        await service.createPet(
+          "Orphan",
+          new Date("2020-01-01"),
+          missingOwnerId,
+        );
+      } catch (error) {
+        thrown = error;
+      }
+      expect(dsqlErrorCode(thrown)).toBe("23503");
 
       const found = await db.query.pet.findFirst({
         where: eq(pet.name, "Orphan"),
@@ -331,16 +339,20 @@ describe("DSQL Drizzle client", () => {
       expect(found).toBeUndefined();
     });
 
-    test("createVet rejects an unknown specialty and writes no vet", async () => {
+    test("createVet rolls back on a foreign key violation", async () => {
       // specialty.name is the primary key, so a leaked row would fail every
       // later run on a duplicate key; unique name plus finally-scoped cleanup.
       const name = `Unknown Specialty ${randomUUID()}`;
       const [known] = await db.insert(specialty).values({ name }).returning();
 
       try {
-        await expect(
-          service.createVet("Unknown Vet", [known!.name, "Nonexistent"]),
-        ).rejects.toThrow(/unknown specialties Nonexistent/);
+        let thrown: unknown;
+        try {
+          await service.createVet("Unknown Vet", [known!.name, "Nonexistent"]);
+        } catch (error) {
+          thrown = error;
+        }
+        expect(dsqlErrorCode(thrown)).toBe("23503");
 
         const orphan = await db.query.vet.findFirst({
           where: eq(vet.name, "Unknown Vet"),
@@ -351,10 +363,6 @@ describe("DSQL Drizzle client", () => {
       }
     });
 
-    // The check above throws before any write, so it proves validation, not
-    // rollback. Repeating a name passes validation and then violates the join
-    // table's composite key *after* the vet row is inserted, so only the
-    // transaction can keep the vet from surviving.
     test("createVet rolls back the vet when the join insert fails", async () => {
       const name = `Duplicate Specialty ${randomUUID()}`;
       const [known] = await db.insert(specialty).values({ name }).returning();
