@@ -32,6 +32,6 @@
   "dependencies": {
     "@aws/aurora-dsql-drizzle": "^0.2.0",
     "drizzle-orm": "^0.45.3",
-    "pg": "^8.16.0"
+    "pg": "^8.23.1"
   }
 }
