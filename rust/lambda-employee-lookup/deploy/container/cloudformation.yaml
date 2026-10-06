@@ -88,12 +88,21 @@ Resources:
       RouteKey: POST /lookup
       Target: !Sub 'integrations/${LambdaIntegration}'
 
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apigateway/${AWS::StackName}-api'
+      RetentionInDays: 365
+
   DefaultStage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
       ApiId: !Ref HttpApi
       StageName: '$default'
       AutoDeploy: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiLogGroup.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","responseLength":"$context.responseLength"}'
 
   LambdaPermission:
     Type: AWS::Lambda::Permission

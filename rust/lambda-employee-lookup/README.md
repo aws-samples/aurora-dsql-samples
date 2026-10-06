@@ -34,21 +34,9 @@ export DSQL_ENDPOINT="<your cluster endpoint>"
 # e.g. "us-east-1"
 export AWS_REGION="<your region>"
 ```
-
-### Seed the database
-
-Connect to your Aurora DSQL cluster via the Query Editor in the AWS Console or via `psql`, then run the SQL in `seed.sql`:
-
-```bash
-TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
-  --hostname $DSQL_ENDPOINT --region $AWS_REGION)
-
-PGPASSWORD=$TOKEN psql \
-  "host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require" \
-  -f seed.sql
-```
-
 ### Deploy
+
+> **Note:** This sample deploys an open API endpoint with no authentication or throttling. Use only with demo/sample data. For production use, add `AWS_IAM` authorization to the API Gateway route.
 
 This example supports two deployment approaches: **container image** (recommended) and **zip package**.
 
@@ -74,7 +62,7 @@ chmod +x setup-finch.sh && ./setup-finch.sh
 
 #### Option 2: Zip package
 
-Deploys Lambda as a `.zip` file. Requires `[profile.release]` settings to keep binary under 250MB.
+Deploys Lambda as a `.zip` file. Uses `[profile.release]` settings (strip, LTO, size optimization) for a smaller binary and faster cold starts.
 
 | Tool | File |
 |------|------|
@@ -86,16 +74,38 @@ Deploys Lambda as a `.zip` file. Requires `[profile.release]` settings to keep b
 cd deploy/zip && chmod +x setup.sh && ./setup.sh
 ```
 
-### Test the API
+
+### Seed the database
+
+After deploying, connect to your Aurora DSQL cluster as admin and run `seed.sql`:
 
 ```bash
+TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
+  --hostname $DSQL_ENDPOINT --region $AWS_REGION)
+
+PGPASSWORD=$TOKEN psql \
+  "host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require" \
+  -v ON_ERROR_STOP=1 \
+  -v role_arn='arn:aws:iam::<YOUR_ACCOUNT_ID>:role/dsql-employee-lookup-role' \
+  -f seed.sql
+```
+
+> **Note:** The `CREATE ROLE` statement in `seed.sql` does not support `IF NOT EXISTS` in DSQL. If you re-run the seed script, comment out Step 2 (CREATE ROLE) and Step 3 (AWS IAM GRANT) to avoid errors.
+
+### Test the API
+
+Set `API_URL` to the full endpoint printed by your deploy step:
+
+```bash
+export API_URL="<full URL from deploy output, e.g. https://abc123.execute-api.us-east-1.amazonaws.com/lookup>"
+
 # Search for an employee by name
-curl -X POST https://<API_ENDPOINT>/lookup \
+curl -X POST "$API_URL" \
   -H 'Content-Type: application/json' \
   -d '{"name": "Alice"}'
 
 # List all employees
-curl -X POST https://<API_ENDPOINT>/lookup \
+curl -X POST "$API_URL" \
   -H 'Content-Type: application/json' \
   -d '{}'
 ```

@@ -1,210 +1,237 @@
-//! Unit tests for the Lambda handler.
+//! Unit tests for the DSQL Employee Lookup Lambda handler.
 //!
-//! These tests validate request parsing, error handling, and response formatting
-//! without requiring a live DSQL connection. They use mock HTTP events to exercise
-//! the handler's input validation paths.
+//! These tests import and call real functions from the dsql_employee_lookup
+//! crate: parse_body, build_search_pattern, encode/decode_cursor, and
+//! response builders. No types are redefined locally.
 
-use lambda_http::http::StatusCode;
-use lambda_http::{Body, Request};
-use serde_json::Value;
+use dsql_employee_lookup::{
+    build_search_pattern, decode_cursor, encode_cursor, error_response, parse_body,
+    success_response, Employee,
+};
+use lambda_http::Body;
 
-/// Helper: build a mock API Gateway v2 POST /lookup request with the given body.
-fn mock_request(body: &str) -> Request {
-    let req = lambda_http::http::Request::builder()
-        .method("POST")
-        .uri("/lookup")
-        .header("Content-Type", "application/json")
-        .body(Body::Text(body.to_string()))
-        .expect("failed to build mock request");
-    req
-}
+// =============================================================================
+// parse_body tests
+// =============================================================================
 
-/// Helper: build a mock request with an empty body.
-fn mock_empty_request() -> Request {
-    lambda_http::http::Request::builder()
-        .method("POST")
-        .uri("/lookup")
-        .body(Body::Empty)
-        .expect("failed to build mock request")
-}
-
-/// Helper: build a mock request with a binary body.
-fn mock_binary_request(data: &[u8]) -> Request {
-    lambda_http::http::Request::builder()
-        .method("POST")
-        .uri("/lookup")
-        .header("Content-Type", "application/json")
-        .body(Body::Binary(data.to_vec()))
-        .expect("failed to build mock request")
+#[test]
+fn test_parse_body_valid_json_with_name() {
+    let body = Body::Text(r#"{"name": "Alice"}"#.to_string());
+    let result = parse_body(&body).unwrap();
+    assert_eq!(result.name.as_deref(), Some("Alice"));
+    assert!(result.after.is_none());
+    assert!(result.limit.is_none());
 }
 
 #[test]
-fn test_valid_json_parses_name() {
-    let body = r#"{"name": "Alice"}"#;
-    let req = mock_request(body);
-    match req.body() {
-        Body::Text(t) => {
-            let parsed: serde_json::Result<Value> = serde_json::from_str(t);
-            assert!(parsed.is_ok(), "Valid JSON should parse successfully");
-            let val = parsed.unwrap();
-            assert_eq!(val["name"], "Alice");
-        }
-        _ => panic!("Expected Body::Text"),
-    }
+fn test_parse_body_valid_json_empty_object() {
+    let body = Body::Text("{}".to_string());
+    let result = parse_body(&body).unwrap();
+    assert!(result.name.is_none());
 }
 
 #[test]
-fn test_valid_json_without_name() {
-    let body = r#"{}"#;
-    let req = mock_request(body);
-    match req.body() {
-        Body::Text(t) => {
-            let parsed: serde_json::Result<Value> = serde_json::from_str(t);
-            assert!(parsed.is_ok(), "Empty JSON object should parse");
-            let val = parsed.unwrap();
-            assert!(val.get("name").is_none() || val["name"].is_null());
-        }
-        _ => panic!("Expected Body::Text"),
-    }
+fn test_parse_body_valid_json_with_pagination() {
+    let body = Body::Text(r#"{"name": "Bob", "after": "abc123", "limit": 10}"#.to_string());
+    let result = parse_body(&body).unwrap();
+    assert_eq!(result.name.as_deref(), Some("Bob"));
+    assert_eq!(result.after.as_deref(), Some("abc123"));
+    assert_eq!(result.limit, Some(10));
 }
 
 #[test]
-fn test_invalid_json_is_detected() {
-    let body = "not valid json";
-    let req = mock_request(body);
-    match req.body() {
-        Body::Text(t) => {
-            let parsed: serde_json::Result<Value> = serde_json::from_str(t);
-            assert!(parsed.is_err(), "Invalid JSON should fail to parse");
-        }
-        _ => panic!("Expected Body::Text"),
-    }
+fn test_parse_body_empty_body() {
+    let body = Body::Empty;
+    let result = parse_body(&body).unwrap();
+    assert!(result.name.is_none());
+    assert!(result.after.is_none());
+    assert!(result.limit.is_none());
 }
 
 #[test]
-fn test_empty_body_is_handled() {
-    let req = mock_empty_request();
-    match req.body() {
-        Body::Empty => {
-            // Empty body should be treated as a list-all request (no name filter)
-        }
-        _ => panic!("Expected Body::Empty"),
-    }
+fn test_parse_body_invalid_text() {
+    let body = Body::Text("not valid json".to_string());
+    let result = parse_body(&body);
+    assert!(result.is_err());
+    let (status, err_body) = result.unwrap_err();
+    assert_eq!(status, 400);
+    assert_eq!(err_body["error"], "Invalid request body");
+    assert!(err_body["detail"].is_string());
 }
 
 #[test]
-fn test_binary_body_valid_json() {
-    let data = br#"{"name": "Bob"}"#;
-    let req = mock_binary_request(data);
-    match req.body() {
-        Body::Binary(b) => {
-            let parsed: serde_json::Result<Value> = serde_json::from_slice(b);
-            assert!(parsed.is_ok(), "Valid binary JSON should parse");
-            let val = parsed.unwrap();
-            assert_eq!(val["name"], "Bob");
-        }
-        _ => panic!("Expected Body::Binary"),
-    }
+fn test_parse_body_valid_binary() {
+    let body = Body::Binary(br#"{"name": "Carlos"}"#.to_vec());
+    let result = parse_body(&body).unwrap();
+    assert_eq!(result.name.as_deref(), Some("Carlos"));
 }
 
 #[test]
-fn test_binary_body_invalid_json() {
-    let data = b"not json";
-    let req = mock_binary_request(data);
-    match req.body() {
-        Body::Binary(b) => {
-            let parsed: serde_json::Result<Value> = serde_json::from_slice(b);
-            assert!(parsed.is_err(), "Invalid binary should fail to parse");
-        }
-        _ => panic!("Expected Body::Binary"),
-    }
+fn test_parse_body_invalid_binary() {
+    let body = Body::Binary(b"not json".to_vec());
+    let result = parse_body(&body);
+    assert!(result.is_err());
+    let (status, err_body) = result.unwrap_err();
+    assert_eq!(status, 400);
+    assert_eq!(err_body["error"], "Invalid request body");
+}
+
+// =============================================================================
+// build_search_pattern tests
+// =============================================================================
+
+#[test]
+fn test_pattern_empty_input() {
+    assert_eq!(build_search_pattern(""), "%");
 }
 
 #[test]
-fn test_employee_serialization() {
-    // Verify the Employee struct serializes correctly
-    #[derive(serde::Serialize)]
-    struct Employee {
-        id: String,
-        name: String,
-        email: String,
-        department: String,
-        title: String,
-        hire_date: String,
-    }
+fn test_pattern_normal_name() {
+    assert_eq!(build_search_pattern("Alice"), "Alice%");
+}
 
-    let emp = Employee {
+#[test]
+fn test_pattern_escapes_percent() {
+    assert_eq!(build_search_pattern("%"), "\\%%");
+}
+
+#[test]
+fn test_pattern_escapes_underscore() {
+    assert_eq!(build_search_pattern("_test"), "\\_test%");
+}
+
+#[test]
+fn test_pattern_escapes_backslash() {
+    assert_eq!(build_search_pattern("back\\slash"), "back\\\\slash%");
+}
+
+#[test]
+fn test_pattern_escapes_combined_metacharacters() {
+    assert_eq!(build_search_pattern("%_\\"), "\\%\\_\\\\%");
+}
+
+#[test]
+fn test_pattern_truncates_at_100_chars() {
+    let long_input = "a".repeat(200);
+    let result = build_search_pattern(&long_input);
+    // 100 chars + trailing %
+    assert_eq!(result.len(), 101);
+    assert!(result.starts_with("aaaa"));
+    assert!(result.ends_with('%'));
+}
+
+#[test]
+fn test_pattern_normal_chars_unchanged() {
+    assert_eq!(build_search_pattern("John Doe"), "John Doe%");
+    assert_eq!(build_search_pattern("O'Brien"), "O'Brien%");
+    assert_eq!(build_search_pattern("José García"), "José García%");
+}
+
+// =============================================================================
+// cursor encode/decode tests
+// =============================================================================
+
+#[test]
+fn test_cursor_round_trip() {
+    let cursor = encode_cursor("Alice Johnson", "550e8400-e29b-41d4-a716-446655440000");
+    let (name, id) = decode_cursor(&cursor).unwrap();
+    assert_eq!(name, "Alice Johnson");
+    assert_eq!(id, "550e8400-e29b-41d4-a716-446655440000");
+}
+
+#[test]
+fn test_cursor_round_trip_empty_name() {
+    let cursor = encode_cursor("", "some-id");
+    let (name, id) = decode_cursor(&cursor).unwrap();
+    assert_eq!(name, "");
+    assert_eq!(id, "some-id");
+}
+
+#[test]
+fn test_cursor_round_trip_unicode() {
+    let cursor = encode_cursor("José García", "uuid-123");
+    let (name, id) = decode_cursor(&cursor).unwrap();
+    assert_eq!(name, "José García");
+    assert_eq!(id, "uuid-123");
+}
+
+#[test]
+fn test_cursor_invalid_base64() {
+    let result = decode_cursor("not-valid-base64!!!");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_cursor_missing_separator() {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let encoded = STANDARD.encode("no-separator-here");
+    let result = decode_cursor(&encoded);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("invalid cursor format"));
+}
+
+// =============================================================================
+// response formatting tests
+// =============================================================================
+
+#[test]
+fn test_success_response_with_employees() {
+    let employees = vec![Employee {
         id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
         name: "John Doe".to_string(),
         email: "jdoe@example.com".to_string(),
         department: "Engineering".to_string(),
         title: "Software Engineer".to_string(),
         hire_date: "2022-01-15".to_string(),
+    }];
+    let resp = success_response(&employees, Some("next-cursor-abc")).unwrap();
+    assert_eq!(resp.status(), 200);
+    let body_str = match resp.body() {
+        Body::Text(t) => t.clone(),
+        _ => panic!("Expected Body::Text"),
     };
-
-    let json = serde_json::to_value(&emp).unwrap();
-    assert_eq!(json["name"], "John Doe");
-    assert_eq!(json["email"], "jdoe@example.com");
-    assert_eq!(json["department"], "Engineering");
+    let json: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+    assert_eq!(json["count"], 1);
+    assert_eq!(json["employees"][0]["name"], "John Doe");
+    assert_eq!(json["next"], "next-cursor-abc");
 }
 
 #[test]
-fn test_response_format() {
-    // Verify the API response body format
-    let employees = vec![serde_json::json!({
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "name": "John Doe",
-        "email": "jdoe@example.com",
-        "department": "Engineering",
-        "title": "Software Engineer",
-        "hire_date": "2022-01-15"
-    })];
-
-    let body = serde_json::json!({
-        "count": employees.len(),
-        "employees": employees,
-    });
-
-    assert_eq!(body["count"], 1);
-    assert!(body["employees"].is_array());
-    assert_eq!(body["employees"][0]["name"], "John Doe");
+fn test_success_response_empty_no_cursor() {
+    let resp = success_response(&[], None).unwrap();
+    assert_eq!(resp.status(), 200);
+    let body_str = match resp.body() {
+        Body::Text(t) => t.clone(),
+        _ => panic!("Expected Body::Text"),
+    };
+    let json: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+    assert_eq!(json["count"], 0);
+    assert!(json["employees"].as_array().unwrap().is_empty());
+    assert!(json["next"].is_null());
 }
 
 #[test]
-fn test_error_response_format() {
-    // Verify error response format matches handler output
-    let err_body = serde_json::json!({
-        "error": "Invalid request body",
-        "detail": "expected value at line 1 column 1"
-    });
-
-    assert_eq!(err_body["error"], "Invalid request body");
-    assert!(err_body["detail"].is_string());
+fn test_error_response_400_with_detail() {
+    let resp = error_response(400, "Invalid request body", Some("expected value")).unwrap();
+    assert_eq!(resp.status(), 400);
+    let body_str = match resp.body() {
+        Body::Text(t) => t.clone(),
+        _ => panic!("Expected Body::Text"),
+    };
+    let json: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+    assert_eq!(json["error"], "Invalid request body");
+    assert_eq!(json["detail"], "expected value");
 }
 
 #[test]
-fn test_prefix_pattern_construction() {
-    // Verify the search pattern is a prefix (not wildcard) match
-    let name_filter = "Alice";
-    let pattern = format!("{}%", name_filter);
-    assert_eq!(pattern, "Alice%");
-    assert!(
-        !pattern.starts_with('%'),
-        "Pattern should NOT start with % (prefix lookup only)"
-    );
-}
-
-#[test]
-fn test_connection_string_format() {
-    let user = "app_readonly";
-    let endpoint = "foo0bar1baz2.dsql.us-east-1.on.aws";
-    let conn_str = format!("postgres://{}@{}/postgres", user, endpoint);
-    assert_eq!(
-        conn_str,
-        "postgres://app_readonly@foo0bar1baz2.dsql.us-east-1.on.aws/postgres"
-    );
-    assert!(
-        conn_str.contains("app_readonly"),
-        "Should use app_readonly, not admin"
-    );
+fn test_error_response_500_no_detail() {
+    let resp = error_response(500, "Internal server error", None).unwrap();
+    assert_eq!(resp.status(), 500);
+    let body_str = match resp.body() {
+        Body::Text(t) => t.clone(),
+        _ => panic!("Expected Body::Text"),
+    };
+    let json: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+    assert_eq!(json["error"], "Internal server error");
+    assert!(json.get("detail").is_none());
 }

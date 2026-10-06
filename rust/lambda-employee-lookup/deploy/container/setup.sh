@@ -8,7 +8,7 @@
 # Prerequisites:
 #   - AWS CLI v2 configured with credentials
 #   - Docker installed and running
-#   - Rust 1.84+ and cargo-lambda installed
+#   - Rust 1.94.1+ and cargo-lambda installed
 #   - jq installed
 #
 # Usage:
@@ -18,7 +18,7 @@
 
 set -euo pipefail
 
-REGION="us-east-1"
+REGION="${AWS_REGION:-us-east-1}"
 FUNCTION_NAME="dsql-employee-lookup"
 ROLE_NAME="dsql-employee-lookup-role"
 API_NAME="dsql-employee-api"
@@ -39,10 +39,12 @@ echo ""
 echo ">>> Step 1: Aurora DSQL cluster..."
 
 read -p "    Do you already have a DSQL cluster? (y/N): " has_cluster
+CREATED_CLUSTER=0
 if [[ "$has_cluster" == "y" || "$has_cluster" == "Y" ]]; then
   read -p "    Enter cluster endpoint: " CLUSTER_ENDPOINT
   CLUSTER_ID=$(echo $CLUSTER_ENDPOINT | cut -d'.' -f1)
 else
+  CREATED_CLUSTER=1
   echo "    Creating cluster..."
   CLUSTER_OUTPUT=$(aws dsql create-cluster \
     --no-deletion-protection-enabled \
@@ -115,7 +117,7 @@ aws iam attach-role-policy \
 aws iam put-role-policy \
   --role-name $ROLE_NAME \
   --policy-name dsql-connect \
-  --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"dsql:DbConnectAdmin\",\"Resource\":\"arn:aws:dsql:${REGION}:${ACCOUNT_ID}:cluster/${CLUSTER_ID}\"}]}"
+  --policy-document "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"dsql:DbConnect\",\"Resource\":\"arn:aws:dsql:${REGION}:${ACCOUNT_ID}:cluster/${CLUSTER_ID}\"}]}"
 
 echo "    IAM role configured. Waiting for propagation..."
 sleep 10
@@ -134,7 +136,7 @@ aws lambda create-function \
   --architectures arm64 \
   --timeout 30 \
   --memory-size 128 \
-  --environment "Variables={DSQL_ENDPOINT=$CLUSTER_ENDPOINT,DSQL_USER=admin,RUST_LOG=info}" \
+  --environment "Variables={DSQL_ENDPOINT=$CLUSTER_ENDPOINT,DSQL_USER=app_readonly,RUST_LOG=info}" \
   --region $REGION \
   --output text --query 'FunctionArn'
 
@@ -187,13 +189,23 @@ echo "  DSQL Endpoint: $CLUSTER_ENDPOINT"
 echo "  API Endpoint:  ${API_ENDPOINT}/lookup"
 echo "  ECR Image:     ${ECR_URI}:latest"
 echo ""
-echo "Test: curl -X POST ${API_ENDPOINT}/lookup -H 'Content-Type: application/json' -d '{\"name\":\"Alice\"}'"
+echo "NEXT STEPS:"
+echo ""
+echo "  1. Seed the database:"
+echo "     TOKEN=\$(aws dsql generate-db-connect-admin-auth-token --hostname $CLUSTER_ENDPOINT --region $REGION)"
+echo "     PGPASSWORD=\$TOKEN psql \"host=$CLUSTER_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require\" \\"
+echo "       -v ON_ERROR_STOP=1 -v role_arn='arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}' -f seed.sql"
+echo ""
+echo "  2. Test the API:"
+echo "     curl -X POST ${API_ENDPOINT}/lookup -H 'Content-Type: application/json' -d '{\"name\":\"Alice\"}'"
 echo ""
 echo "Teardown:"
 echo "  aws lambda delete-function --function-name $FUNCTION_NAME --region $REGION"
 echo "  aws apigatewayv2 delete-api --api-id $API_ID --region $REGION"
 echo "  aws ecr delete-repository --repository-name $ECR_REPO --force --region $REGION"
+if [ "$CREATED_CLUSTER" == "1" ]; then
 echo "  aws dsql delete-cluster --identifier $CLUSTER_ID --region $REGION"
+fi
 echo "  aws iam delete-role-policy --role-name $ROLE_NAME --policy-name dsql-connect"
 echo "  aws iam detach-role-policy --role-name $ROLE_NAME --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 echo "  aws iam delete-role --role-name $ROLE_NAME"

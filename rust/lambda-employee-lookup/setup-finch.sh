@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-REGION="us-east-1"
+REGION="${AWS_REGION:-us-east-1}"
 FUNCTION_NAME="dsql-employee-lookup"
 ROLE_NAME="dsql-employee-lookup-role"
 API_NAME="dsql-employee-api"

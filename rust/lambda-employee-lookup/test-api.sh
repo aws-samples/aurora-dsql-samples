@@ -17,14 +17,17 @@ set -euo pipefail
 
 FAILURES=0
 
-# Load environment
-if [ -f env.sh ]; then
+# Load environment — accept API_ENDPOINT from env, fall back to env.sh
+if [ -z "${API_ENDPOINT:-}" ] && [ -f env.sh ]; then
   source env.sh
-else
-  echo "ERROR: env.sh not found. Run setup.sh first."
+fi
+if [ -z "${API_ENDPOINT:-}" ]; then
+  echo "ERROR: Set API_ENDPOINT or run setup.sh first."
   exit 1
 fi
 
+# Strip trailing /lookup to avoid double-appending
+API_ENDPOINT="${API_ENDPOINT%/lookup}"
 API_URL="${API_ENDPOINT}/lookup"
 
 echo "============================================"
@@ -55,7 +58,7 @@ assert_json_field() {
   local field="$3"
   local expected="$4"
   local actual
-  actual=$(echo "$response_body" | jq -r "$field" 2>/dev/null)
+  actual=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "PARSE_ERROR")
 
   if [ "$actual" == "$expected" ]; then
     echo "    ✅ $test_name: $field = $actual"

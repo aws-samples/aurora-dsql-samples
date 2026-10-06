@@ -1,54 +1,28 @@
 use anyhow::Result;
 use aurora_dsql_sqlx_connector::DsqlConnectOptions;
+use dsql_employee_lookup::{
+    build_search_pattern, decode_cursor, encode_cursor, parse_body, Employee,
+};
+use dsql_employee_lookup::{error_response, success_response};
 use lambda_http::{run, service_fn, Body, Error, Request, Response};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Executor, PgPool, Row};
 use std::env;
 use std::sync::OnceLock;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
-// Global connection pool — initialized once, reused across Lambda invocations
 static POOL: OnceLock<PgPool> = OnceLock::new();
 
-#[derive(Deserialize)]
-struct LookupRequest {
-    #[serde(default)]
-    name: Option<String>,
-}
-
-#[derive(Serialize)]
-struct Employee {
-    id: String,
-    name: String,
-    email: String,
-    department: String,
-    title: String,
-    hire_date: String,
-}
-
-/// Initialize the DSQL connection pool using aurora-dsql-sqlx-connector.
-///
-/// The connector handles:
-/// - IAM token generation and automatic background refresh
-/// - TLS configuration for DSQL
-/// - Connection health checks
-///
-/// PgPoolOptions configures:
-/// - max_connections: max concurrent connections in the pool
-/// - after_connect: sets the search_path on each new connection
 async fn init_pool() -> Result<PgPool> {
     let endpoint = env::var("DSQL_ENDPOINT").expect("DSQL_ENDPOINT required");
     let user = env::var("DSQL_USER").unwrap_or_else(|_| "app_readonly".into());
-
     let conn_str = format!("postgres://{}@{}/postgres", user, endpoint);
     let config = DsqlConnectOptions::from_connection_string(&conn_str)?;
-
     let pool = aurora_dsql_sqlx_connector::pool::connect_with(
         &config,
         PgPoolOptions::new()
-            .max_connections(5)
+            .max_connections(2)
+            .idle_timeout(None)
             .after_connect(|conn, _meta| {
                 Box::pin(async move {
                     conn.execute("SET search_path = 'app'").await?;
@@ -57,12 +31,10 @@ async fn init_pool() -> Result<PgPool> {
             }),
     )
     .await?;
-
-    info!("DSQL connection pool initialized (max_connections=5)");
+    info!("DSQL connection pool initialized (max_connections=2)");
     Ok(pool)
 }
 
-/// Get or initialize the global pool
 async fn get_pool() -> Result<&'static PgPool> {
     if let Some(pool) = POOL.get() {
         return Ok(pool);
@@ -71,100 +43,124 @@ async fn get_pool() -> Result<&'static PgPool> {
     Ok(POOL.get_or_init(|| pool))
 }
 
-/// Query employees from the database with pagination
-async fn query_employees(pool: &PgPool, name_filter: &str) -> Result<Vec<Employee>> {
-    let rows = if name_filter.is_empty() {
-        info!("Fetching employees (limited to 50)");
-        sqlx::query(
-            "SELECT id::text, name, email, department, title, \
-             hire_date::text FROM employees ORDER BY name LIMIT 50",
-        )
-        .fetch_all(pool)
-        .await?
-    } else {
-        info!(name = %name_filter, "Searching employees by prefix");
-        let pattern = format!("{}%", name_filter);
-        sqlx::query(
-            "SELECT id::text, name, email, department, title, \
-             hire_date::text FROM employees \
-             WHERE LOWER(name) LIKE LOWER($1) ORDER BY name LIMIT 50",
-        )
-        .bind(&pattern)
-        .fetch_all(pool)
-        .await?
+async fn handler(event: Request) -> Result<Response<Body>, Error> {
+    // Parse body BEFORE getting pool
+    let query = match parse_body(event.body()) {
+        Ok(q) => q,
+        Err((status, body)) => {
+            return error_response(
+                status,
+                body["error"].as_str().unwrap_or("Invalid request body"),
+                body["detail"].as_str(),
+            );
+        }
     };
 
-    Ok(rows
-        .iter()
-        .map(|row| Employee {
-            id: row.get(0),
-            name: row.get(1),
-            email: row.get(2),
-            department: row.get(3),
-            title: row.get(4),
-            hire_date: row.get(5),
-        })
-        .collect())
-}
-
-async fn handler(event: Request) -> Result<Response<Body>, Error> {
     let pool = get_pool().await.map_err(|e| {
         error!(error = %e, "Pool init failed");
         Error::from(e.to_string())
     })?;
 
-    // Parse the JSON body, returning 400 on malformed input
-    let query: LookupRequest = match event.body() {
-        Body::Text(t) => match serde_json::from_str(t) {
-            Ok(q) => q,
+    let filter = query.name.unwrap_or_default();
+    let pattern = build_search_pattern(&filter);
+    let limit = query.limit.unwrap_or(50).min(50) as i64;
+    let fetch_limit = limit + 1;
+
+    // Decode cursor if provided
+    let cursor = match &query.after {
+        Some(c) => match decode_cursor(c) {
+            Ok(pair) => Some(pair),
             Err(e) => {
-                warn!("Invalid JSON body: {e}");
-                return Ok(Response::builder()
-                    .status(400)
-                    .header("Content-Type", "application/json")
-                    .body(Body::Text(serde_json::to_string(&json!({
-                        "error": "Invalid request body",
-                        "detail": e.to_string()
-                    }))?))?);
+                return error_response(400, "Invalid cursor", Some(&e));
             }
         },
-        Body::Binary(b) => match serde_json::from_slice(b) {
-            Ok(q) => q,
-            Err(e) => {
-                warn!("Invalid binary body: {e}");
-                return Ok(Response::builder()
-                    .status(400)
-                    .header("Content-Type", "application/json")
-                    .body(Body::Text(serde_json::to_string(&json!({
-                        "error": "Invalid request body",
-                        "detail": e.to_string()
-                    }))?))?);
-            }
-        },
-        Body::Empty => LookupRequest { name: None },
+        None => None,
     };
 
-    let filter = query.name.unwrap_or_default();
+    // Build query with optional cursor and filter
+    let rows = match (&cursor, filter.is_empty()) {
+        (None, true) => {
+            info!("Fetching employees (limit {})", limit);
+            sqlx::query(
+                "SELECT id::text, name, email, department, title, hire_date::text \
+                 FROM employees ORDER BY LOWER(name), id LIMIT $1",
+            )
+            .bind(fetch_limit)
+            .fetch_all(pool)
+            .await
+        }
+        (None, false) => {
+            info!(name = %filter, "Searching employees by prefix");
+            sqlx::query(
+                "SELECT id::text, name, email, department, title, hire_date::text \
+                 FROM employees WHERE LOWER(name) LIKE LOWER($1) \
+                 ORDER BY LOWER(name), id LIMIT $2",
+            )
+            .bind(&pattern)
+            .bind(fetch_limit)
+            .fetch_all(pool)
+            .await
+        }
+        (Some((cursor_name, cursor_id)), true) => {
+            info!("Fetching employees after cursor");
+            sqlx::query(
+                "SELECT id::text, name, email, department, title, hire_date::text \
+                 FROM employees WHERE (LOWER(name), id) > (LOWER($1), $2::uuid) \
+                 ORDER BY LOWER(name), id LIMIT $3",
+            )
+            .bind(cursor_name)
+            .bind(cursor_id)
+            .bind(fetch_limit)
+            .fetch_all(pool)
+            .await
+        }
+        (Some((cursor_name, cursor_id)), false) => {
+            info!(name = %filter, "Searching employees by prefix after cursor");
+            sqlx::query(
+                "SELECT id::text, name, email, department, title, hire_date::text \
+                 FROM employees WHERE LOWER(name) LIKE LOWER($1) \
+                 AND (LOWER(name), id) > (LOWER($2), $3::uuid) \
+                 ORDER BY LOWER(name), id LIMIT $4",
+            )
+            .bind(&pattern)
+            .bind(cursor_name)
+            .bind(cursor_id)
+            .bind(fetch_limit)
+            .fetch_all(pool)
+            .await
+        }
+    };
 
-    match query_employees(pool, &filter).await {
-        Ok(employees) => {
-            info!(count = employees.len(), "Query complete");
-            Ok(Response::builder()
-                .status(200)
-                .header("Content-Type", "application/json")
-                .body(Body::Text(serde_json::to_string(&json!({
-                    "count": employees.len(),
-                    "employees": employees,
-                }))?))?)
+    match rows {
+        Ok(rows) => {
+            let has_more = rows.len() as i64 > limit;
+            let result_rows = if has_more {
+                &rows[..limit as usize]
+            } else {
+                &rows[..]
+            };
+            let employees: Vec<Employee> = result_rows
+                .iter()
+                .map(|row| Employee {
+                    id: row.get(0),
+                    name: row.get(1),
+                    email: row.get(2),
+                    department: row.get(3),
+                    title: row.get(4),
+                    hire_date: row.get(5),
+                })
+                .collect();
+            let next_cursor = if has_more {
+                employees.last().map(|e| encode_cursor(&e.name, &e.id))
+            } else {
+                None
+            };
+            info!(count = employees.len(), has_more, "Query complete");
+            success_response(&employees, next_cursor.as_deref())
         }
         Err(e) => {
             error!(error = %e, "Query failed");
-            Ok(Response::builder()
-                .status(500)
-                .header("Content-Type", "application/json")
-                .body(Body::Text(serde_json::to_string(
-                    &json!({"error": e.to_string()}),
-                )?))?)
+            error_response(500, "Internal server error", None)
         }
     }
 }

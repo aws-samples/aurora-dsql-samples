@@ -18,7 +18,10 @@ terraform {
 provider "aws" { region = var.region }
 
 variable "region"        { default = "us-east-1" }
-variable "zip_path"      { type = string description = "Path to bootstrap.zip" }
+variable "zip_path" {
+  type        = string
+  description = "Path to bootstrap.zip"
+}
 variable "function_name" { default = "dsql-employee-lookup" }
 
 data "aws_caller_identity" "current" {}
@@ -48,7 +51,7 @@ resource "aws_iam_role_policy" "dsql" {
   role = aws_iam_role.lambda.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{ Effect = "Allow", Action = "dsql:DbConnect", Resource = "arn:aws:dsql:${var.region}:${data.aws_caller_identity.current.account_id}:cluster/${aws_dsql_cluster.main.id}" }]
+    Statement = [{ Effect = "Allow", Action = "dsql:DbConnect", Resource = "arn:aws:dsql:${var.region}:${data.aws_caller_identity.current.account_id}:cluster/${aws_dsql_cluster.main.identifier}" }]
   })
 }
 
@@ -65,7 +68,7 @@ resource "aws_lambda_function" "main" {
   memory_size      = 128
   environment {
     variables = {
-      DSQL_ENDPOINT = aws_dsql_cluster.main.endpoint
+      DSQL_ENDPOINT = "${aws_dsql_cluster.main.identifier}.dsql.${var.region}.on.aws"
       DSQL_USER     = "app_readonly"
       RUST_LOG      = "info"
     }
@@ -125,5 +128,5 @@ resource "aws_lambda_permission" "apigw" {
 
 # --- Outputs ---
 output "api_endpoint"    { value = "${aws_apigatewayv2_api.main.api_endpoint}/lookup" }
-output "dsql_endpoint"   { value = aws_dsql_cluster.main.endpoint }
-output "dsql_cluster_id" { value = aws_dsql_cluster.main.id }
+output "dsql_endpoint"   { value = "${aws_dsql_cluster.main.identifier}.dsql.${var.region}.on.aws" }
+output "dsql_cluster_id" { value = aws_dsql_cluster.main.identifier }
