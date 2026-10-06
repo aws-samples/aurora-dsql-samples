@@ -74,7 +74,7 @@ jobs:
       base-ref: ${{ steps.detect.outputs.base-ref }}
       run-integration: ${{ steps.detect.outputs.run-integration }}
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         id: detect
         env:
           CHECKOUT_REF: ${{ inputs.checkout-ref }}
@@ -593,7 +593,7 @@ jobs:
       - typescript-type-orm
     if: always()
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const needs = ${{ toJSON(needs) }};
@@ -614,7 +614,7 @@ jobs:
     permissions:
       statuses: write
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GATE_RESULT: ${{ needs.gate.result }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
