@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "aws-cdk": "2.1144.0",
-    "aws-cdk-lib": "^2.271.0"
+    "aws-cdk-lib": "^2.272.0"
   }
 }
