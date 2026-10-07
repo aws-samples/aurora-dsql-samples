@@ -110,6 +110,9 @@ echo ""
 # =============================================================================
 echo ">>> Step 3: Creating IAM role..."
 
+CREATED_ROLE=0
+aws iam get-role --role-name $ROLE_NAME 2>/dev/null > /dev/null && CREATED_ROLE=0 || CREATED_ROLE=1
+
 aws iam create-role \
   --role-name $ROLE_NAME \
   --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' \
@@ -212,6 +215,8 @@ echo "  aws apigatewayv2 delete-api --api-id $API_ID --region $REGION"
 if [ "$CREATED_CLUSTER" == "1" ]; then
 echo "  aws dsql delete-cluster --identifier $CLUSTER_ID --region $REGION"
 fi
+if [ "$CREATED_ROLE" == "1" ]; then
 echo "  aws iam delete-role-policy --role-name $ROLE_NAME --policy-name dsql-connect"
 echo "  aws iam detach-role-policy --role-name $ROLE_NAME --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 echo "  aws iam delete-role --role-name $ROLE_NAME"
+fi

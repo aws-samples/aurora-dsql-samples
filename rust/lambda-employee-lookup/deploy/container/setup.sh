@@ -83,6 +83,9 @@ echo ""
 # =============================================================================
 echo ">>> Step 3: Building and pushing container image to ECR..."
 
+CREATED_ECR=0
+aws ecr describe-repositories --repository-names $ECR_REPO --region $REGION 2>/dev/null > /dev/null && CREATED_ECR=0 || CREATED_ECR=1
+
 aws ecr create-repository \
   --repository-name $ECR_REPO \
   --region $REGION 2>/dev/null || echo "    ECR repo already exists"
@@ -102,6 +105,9 @@ echo ""
 # STEP 4: Create IAM Role
 # =============================================================================
 echo ">>> Step 4: Creating IAM role..."
+
+CREATED_ROLE=0
+aws iam get-role --role-name $ROLE_NAME 2>/dev/null > /dev/null && CREATED_ROLE=0 || CREATED_ROLE=1
 
 aws iam create-role \
   --role-name $ROLE_NAME \
@@ -202,10 +208,14 @@ echo ""
 echo "Teardown:"
 echo "  aws lambda delete-function --function-name $FUNCTION_NAME --region $REGION"
 echo "  aws apigatewayv2 delete-api --api-id $API_ID --region $REGION"
+if [ "$CREATED_ECR" == "1" ]; then
 echo "  aws ecr delete-repository --repository-name $ECR_REPO --force --region $REGION"
+fi
 if [ "$CREATED_CLUSTER" == "1" ]; then
 echo "  aws dsql delete-cluster --identifier $CLUSTER_ID --region $REGION"
 fi
+if [ "$CREATED_ROLE" == "1" ]; then
 echo "  aws iam delete-role-policy --role-name $ROLE_NAME --policy-name dsql-connect"
 echo "  aws iam detach-role-policy --role-name $ROLE_NAME --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 echo "  aws iam delete-role --role-name $ROLE_NAME"
+fi
