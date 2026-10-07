@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS app.employees (
 );
 
 -- Step 5: Create an index for prefix name lookups (requires write access on app schema)
-CREATE INDEX ASYNC idx_employees_name_lower ON app.employees (LOWER(name));
+CREATE INDEX ASYNC IF NOT EXISTS idx_employees_name_lower ON app.employees (LOWER(name));
 
 -- Step 5b: Verify the async index build completed successfully.
 -- If indisvalid is false, the index build failed — drop and recreate it.
