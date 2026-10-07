@@ -1,3 +1,7 @@
+const { createDefaultPreset } = require("ts-jest");
+
+const tsJestTransformCfg = createDefaultPreset().transform;
+
 /** @type {import("jest").Config} **/
 module.exports = {
   testEnvironment: "node",
@@ -6,14 +10,6 @@ module.exports = {
   // CI runs the two suites in separate steps; this makes `npm test` match.
   maxWorkers: 1,
   transform: {
-    "^.+\\.tsx?$": [
-      "babel-jest",
-      {
-        presets: [
-          ["@babel/preset-env", { targets: { node: "current" } }],
-          "@babel/preset-typescript",
-        ],
-      },
-    ],
+    ...tsJestTransformCfg,
   },
 };
