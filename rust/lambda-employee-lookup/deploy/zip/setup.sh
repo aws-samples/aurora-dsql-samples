@@ -2,12 +2,11 @@
 # =============================================================================
 # DSQL Employee Lookup - Zip Deployment (Linux)
 # =============================================================================
-# Deploys Lambda as a .zip package (250MB unzipped limit).
+# Deploys Lambda as a .zip package.
 # Run this on a Linux machine or in a Linux CI/CD pipeline.
 #
-# IMPORTANT: Requires [profile.release] strip=true and lto=true in Cargo.toml
-# to keep binary under 250MB. If your binary exceeds 250MB, use the container
-# approach instead (../container/setup.sh).
+# The [profile.release] settings (strip=true, lto=true, opt-level="z") in
+# Cargo.toml produce a smaller binary for faster cold starts.
 #
 # Prerequisites:
 #   - AWS CLI v2 configured with credentials
@@ -94,8 +93,8 @@ echo "    Zip: $ZIP_PATH ($(echo "scale=1; $ZIP_SIZE/1048576" | bc) MB)"
 UNZIPPED_SIZE=$(unzip -l "$ZIP_PATH" | tail -1 | awk '{print $1}')
 if [ "$UNZIPPED_SIZE" -gt 262144000 ]; then
   echo ""
-  echo "    WARNING: Unzipped size ($UNZIPPED_SIZE bytes) exceeds Lambda's 250MB limit!"
-  echo "    Use the container approach instead: ../container/setup.sh"
+  echo "    WARNING: Unzipped size ($UNZIPPED_SIZE bytes) is large."
+  echo "    Consider the container approach for faster deploys: ../container/setup.sh"
   echo ""
   read -p "    Continue anyway? (y/N): " force_continue
   if [[ "$force_continue" != "y" && "$force_continue" != "Y" ]]; then

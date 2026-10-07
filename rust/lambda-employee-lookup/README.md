@@ -42,7 +42,7 @@ This example supports two deployment approaches: **container image** (recommende
 
 #### Option 1: Container image (recommended)
 
-Deploys Lambda as a container image pushed to ECR. No 250MB size limit.
+Deploys Lambda as a container image pushed to ECR. Supports larger binaries (up to 10 GB).
 
 | Tool | File |
 |------|------|
