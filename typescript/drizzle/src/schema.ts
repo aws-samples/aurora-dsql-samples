@@ -14,8 +14,8 @@ import {
 // columns (`GENERATED ... AS IDENTITY`), which is what dsql-lint rewrites the
 // `SERIAL` keyword into.
 //
-// Relationships are declared with `relations()` at the ORM level rather than
-// `references()`, so the generated SQL carries no foreign-key constraints.
+// Database foreign keys and Drizzle's relations metadata describe the same
+// relationships. RESTRICT avoids unbounded cascading modifications.
 
 export const owner = pgTable("owner", {
   id: uuid("id")
@@ -34,7 +34,10 @@ export const pet = pgTable(
       .default(sql`gen_random_uuid()`),
     name: varchar("name", { length: 30 }).notNull(),
     birthDate: date("birth_date", { mode: "date" }).notNull(),
-    ownerId: uuid("owner_id"),
+    ownerId: uuid("owner_id").references(() => owner.id, {
+      onDelete: "restrict",
+      onUpdate: "restrict",
+    }),
   },
   (table) => [index("pet_owner_id_idx").on(table.ownerId)],
 );
@@ -54,8 +57,18 @@ export const vet = pgTable("vet", {
 export const specialtyToVet = pgTable(
   "specialty_to_vet",
   {
-    specialtyName: varchar("specialty_name", { length: 80 }).notNull(),
-    vetId: uuid("vet_id").notNull(),
+    specialtyName: varchar("specialty_name", { length: 80 })
+      .notNull()
+      .references(() => specialty.name, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+      }),
+    vetId: uuid("vet_id")
+      .notNull()
+      .references(() => vet.id, {
+        onDelete: "restrict",
+        onUpdate: "restrict",
+      }),
   },
   (table) => [primaryKey({ columns: [table.specialtyName, table.vetId] })],
 );
