@@ -74,7 +74,7 @@ echo ""
 # =============================================================================
 echo ">>> Step 2: Building Rust Lambda binary (.zip)..."
 
-cargo lambda build --release --arm64 --output-format zip
+cargo lambda build --locked --release --arm64 --output-format zip
 
 # Locate the zip — check both project-root and deploy/zip relative paths
 ZIP_PATH="target/lambda/${FUNCTION_NAME}/bootstrap.zip"

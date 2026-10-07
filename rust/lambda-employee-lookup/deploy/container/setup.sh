@@ -73,7 +73,7 @@ echo ""
 # =============================================================================
 echo ">>> Step 2: Building Rust Lambda binary..."
 
-cargo lambda build --release --arm64 --output-format binary
+cargo lambda build --locked --release --arm64 --output-format binary
 
 echo "    Binary built: target/lambda/${FUNCTION_NAME}/bootstrap"
 echo ""
