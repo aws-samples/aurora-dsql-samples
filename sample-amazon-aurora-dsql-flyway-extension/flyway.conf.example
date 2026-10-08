@@ -1,0 +1,38 @@
+# Flyway configuration for Amazon Aurora DSQL.
+#
+# Copy to flyway.conf and edit the host. The password is not set here:
+# the Aurora DSQL JDBC Connector auto-mints an IAM token on every new
+# connection using the ambient AWS credentials.
+
+# JDBC URL for the Aurora DSQL JDBC Connector.
+#   jdbc:aws-dsql:postgresql://<cluster>.dsql.<region>.on.aws/postgres
+# Query parameters:
+#   user=admin
+#     Database role to connect as. On Aurora DSQL this is always admin.
+#   sslmode=verify-full
+#     Validates the server cert end-to-end.
+#   sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory
+#     Use the JVM's default trust store (contains the public Amazon Trust
+#     Services CAs that signed Aurora DSQL's cert).
+flyway.url=jdbc:aws-dsql:postgresql://REPLACE-WITH-YOUR-CLUSTER.dsql.us-east-1.on.aws/postgres?user=admin&sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory
+flyway.user=admin
+
+# Migration locations
+flyway.locations=filesystem:/flyway/migrations
+
+# Aurora DSQL requires each DDL statement in its own transaction.
+# flyway.mixed=true tells Flyway to detect DDL statements and run them
+# outside of a transaction.
+flyway.mixed=true
+
+# Baseline on an existing schema (safe default for first-time runs
+# against a cluster that is not empty).
+flyway.baselineOnMigrate=true
+flyway.baselineVersion=0
+
+# Lock retry: Flyway acquires a database lock during migrate. If a
+# concurrent run holds the lock, retry instead of failing.
+flyway.lockRetryCount=20
+
+# Validation
+flyway.validateOnMigrate=true
