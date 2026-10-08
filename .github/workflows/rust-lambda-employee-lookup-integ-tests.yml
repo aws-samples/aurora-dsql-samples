@@ -1,0 +1,93 @@
+name: Rust Lambda Employee Lookup CI
+
+permissions: {}
+
+on:
+  workflow_call: {}
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+defaults:
+  run:
+    working-directory: rust/lambda-employee-lookup
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  fmt:
+    name: Format check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup update
+      - run: |
+          rustup component add rustfmt
+          cargo fmt -- --check
+
+  clippy:
+    name: Clippy lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup update
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/lambda-employee-lookup
+      - run: cargo clippy --locked --all-targets -- -D warnings
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup update
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/lambda-employee-lookup
+      - run: cargo test --locked --verbose
+
+  build:
+    name: Build ARM64 Lambda
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [fmt, clippy, test]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup update
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/lambda-employee-lookup
+      - name: Install cargo-lambda
+        run: pip3 install cargo-lambda
+      - name: Build for ARM64 Lambda
+        run: cargo lambda build --locked --release --arm64 --output-format zip
+      - name: Verify zip exists
+        run: |
+          ZIP_PATH="target/lambda/dsql-employee-lookup/bootstrap.zip"
+          if [ -f "$ZIP_PATH" ]; then
+            SIZE=$(stat -c%s "$ZIP_PATH")
+            echo "✅ bootstrap.zip: $SIZE bytes ($(echo "scale=1; $SIZE/1048576" | bc) MB)"
+          else
+            echo "❌ bootstrap.zip not found"
+            exit 1
+          fi
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-bootstrap-arm64
+          path: rust/lambda-employee-lookup/target/lambda/dsql-employee-lookup/bootstrap.zip
+          retention-days: 7

@@ -66,6 +66,7 @@ jobs:
       ruby-rails-carrental: ${{ steps.detect.outputs.ruby-rails-carrental }}
       rust-cm: ${{ steps.detect.outputs.rust-cm }}
       rust-sqlx: ${{ steps.detect.outputs.rust-sqlx }}
+      rust-lambda-employee-lookup: ${{ steps.detect.outputs.rust-lambda-employee-lookup }}
       typescript-drizzle: ${{ steps.detect.outputs.typescript-drizzle }}
       typescript-prisma: ${{ steps.detect.outputs.typescript-prisma }}
       typescript-sequelize: ${{ steps.detect.outputs.typescript-sequelize }}
@@ -114,6 +115,7 @@ jobs:
               'ruby-rails-carrental': ['ruby/rails/carrental/'],
               'rust-cm': ['rust/cluster_management/'],
               'rust-sqlx': ['rust/sqlx/'],
+              'rust-lambda-employee-lookup': ['rust/lambda-employee-lookup/'],
               'typescript-drizzle': ['typescript/drizzle/'],
               'typescript-prisma': ['typescript/prisma-multi-region/'],
               'typescript-sequelize': ['typescript/sequelize/'],
@@ -500,6 +502,14 @@ jobs:
     permissions:
       id-token: write # required by aws-actions/configure-aws-credentials
 
+  rust-lambda-employee-lookup:
+    needs: changes
+    if: needs.changes.outputs.rust-lambda-employee-lookup == 'true'
+    uses: ./.github/workflows/rust-lambda-employee-lookup-integ-tests.yml
+    secrets: inherit
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   typescript-drizzle:
     needs: changes
     if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.typescript-drizzle == 'true'
@@ -587,6 +597,7 @@ jobs:
       - ruby-rails-carrental
       - rust-cm
       - rust-sqlx
+      - rust-lambda-employee-lookup
       - typescript-drizzle
       - typescript-prisma
       - typescript-sequelize
