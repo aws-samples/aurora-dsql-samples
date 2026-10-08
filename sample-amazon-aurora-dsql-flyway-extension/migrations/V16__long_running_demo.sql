@@ -1,0 +1,23 @@
+-- V16__long_running_demo.sql
+-- Sixteenth migration: a deliberately slow migration (60s pg_sleep)
+-- to exercise long-running execution through the Flyway + DSQL extension.
+--
+-- What this proves:
+--   - The extension does not break Flyway's handling of long-running SQL.
+--   - A single JDBC connection stays alive and usable through a 60-second
+--     statement.
+--   - IAM token mechanics: the DSQL JDBC Connector mints a fresh token at
+--     connection ESTABLISHMENT time only. After the connection is open,
+--     the token is not re-validated for subsequent statements on that
+--     connection. So a migration can span token lifetime (15 min) safely
+--     as long as the connection remains open.
+--
+-- What this does NOT test directly:
+--   - Migrations that run longer than the 1-hour DSQL connection cap.
+--     In that case, DSQL closes the connection and the migration fails.
+--     For such migrations, split into smaller steps or run outside Flyway.
+--   - Connection POOL token refresh across invocations. The connector
+--     handles that transparently; verified elsewhere in this POC by
+--     running make migrate across multiple hours in one session.
+
+SELECT pg_sleep(60);

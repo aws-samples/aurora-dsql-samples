@@ -1,0 +1,37 @@
+# docker-compose.yml for the Flyway + Aurora DSQL POC.
+#
+# Services:
+#   flyway       - runs Flyway through the Aurora DSQL extension.
+#                  The flyway.conf.example is mounted so the runner
+#                  script substitutes DSQL_ENDPOINT at run time.
+#
+# Usage:
+#   docker compose run --rm flyway bash scripts/run-flyway.sh migrate
+#   docker compose run --rm flyway bash scripts/run-flyway.sh info
+#   docker compose run --rm flyway bash tests/test-happy-path.sh
+#
+# Prerequisites on the host:
+#   - AWS_REGION    exported in your shell (or in a .env file)
+#   - DSQL_ENDPOINT exported in your shell (or in a .env file)
+#   - AWS credentials available via ~/.aws, env vars, or instance role
+
+services:
+  flyway:
+    build: .
+    image: flyway-dsql-poc:latest
+    environment:
+      AWS_REGION: "${AWS_REGION:-us-east-1}"
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID:-}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY:-}"
+      AWS_SESSION_TOKEN: "${AWS_SESSION_TOKEN:-}"
+      AWS_PROFILE: "${AWS_PROFILE:-default}"
+      DSQL_ENDPOINT: "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
+      FLYWAY_RETRY: "${FLYWAY_RETRY:-3}"
+    volumes:
+      - ./migrations:/flyway/migrations:ro
+      - ./scripts:/flyway/scripts:ro
+      - ./tests:/flyway/tests:ro
+      - ./flyway.conf.example:/flyway/conf/flyway.conf.example:ro
+      - ~/.aws:/root/.aws:ro
+    working_dir: /flyway
+    command: bash scripts/run-flyway.sh info
