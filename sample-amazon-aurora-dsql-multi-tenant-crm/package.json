@@ -1,0 +1,32 @@
+{
+  "name": "sample-amazon-aurora-dsql-multi-tenant-crm",
+  "version": "1.0.0",
+  "description": "Multi-tenant CRM proof of concept on Amazon Aurora DSQL (pooled model, IAM auth, OCC retries) running on Amazon ECS Express Mode.",
+  "license": "MIT-0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "migrate": "tsx src/db/migrate.ts",
+    "seed": "tsx src/scripts/seed.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/credential-providers": "^3.658.0",
+    "@aws-sdk/dsql-signer": "^3.658.0",
+    "@aws/aurora-dsql-node-postgres-connector": "^0.1.9",
+    "express": "^4.21.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.16.0",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
