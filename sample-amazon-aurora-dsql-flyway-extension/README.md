@@ -197,11 +197,20 @@ sample-amazon-aurora-dsql-flyway-extension/
 Two settings come from the module rather than Flyway core. Both are set in
 [`flyway.conf.example`](./flyway.conf.example) with the reasoning inline.
 
-| Setting | Value here | Effect |
-|---|---|---|
-| `flyway.dsql.awaitAsyncIndexes` | `true` | After a statement that matches `CREATE INDEX ASYNC`, read the returned `job_id` and block on `sys.wait_for_job` until the build finishes. Without it, the migration reports success while the index is still building. |
-| `flyway.dsql.occMaxRetries` | `3` | Retry the migration transaction when Aurora DSQL rejects it with an optimistic concurrency conflict. |
-| `flyway.dsql.occMaxRetryDelaySeconds` | `5` | Cap on the backoff between those retries. |
+| Setting | Upstream default | Value here | Effect |
+|---|---|---|---|
+| `flyway.dsql.awaitAsyncIndexes` | `false` | `true` | After a statement that matches `CREATE INDEX ASYNC`, read the returned `job_id` and block on `sys.wait_for_job` until the build finishes. Without it, the migration reports success while the index is still building. |
+| `flyway.dsql.occMaxRetries` | `0` | `3` | Retry the migration transaction when Aurora DSQL rejects it with an optimistic concurrency conflict. `0` disables retries. |
+| `flyway.dsql.occMaxRetryDelaySeconds` | `5` | `5` | Upper bound on the exponential backoff between those retries. |
+
+Both behaviours are opt-in. If you copy the migrations out of this sample
+without also copying the config, you get no index waiting and no OCC retry.
+The equivalent environment variables are `FLYWAY_DSQL_AWAIT_ASYNC_INDEXES`,
+`FLYWAY_DSQL_OCC_MAX_RETRIES`, and
+`FLYWAY_DSQL_OCC_MAX_RETRY_DELAY_SECONDS`.
+
+The module's own documentation lists these and the per-transaction limits:
+[flyway-database-dsql](https://github.com/flyway/flyway-community-db-support/tree/main/flyway-database-dsql).
 
 `flyway baseline` as a standalone command does not work on Aurora DSQL,
 because it creates the history table and inserts the marker row in one

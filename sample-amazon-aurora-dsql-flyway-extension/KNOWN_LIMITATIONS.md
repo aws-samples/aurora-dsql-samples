@@ -27,6 +27,18 @@ Mitigation:
 - Keep one logical change per migration file. Smaller blast radius when a
   migration half-applies.
 
+If you genuinely need several statements in one file, Flyway can skip the
+wrapping transaction for that file. Add a script config file beside it:
+
+```
+# V2__seed_users.sql.conf
+executeInTransaction=false
+```
+
+Each statement then commits on its own. Note the trade-off: OCC retry does
+not apply to a migration running outside a transaction, so this opts that
+file out of `flyway.dsql.occMaxRetries`.
+
 ## 2. Concurrent `flyway migrate` runs are not safe, and the retry does not make them safe
 
 Aurora DSQL has no PostgreSQL advisory locks (`pg_try_advisory_xact_lock`),
@@ -75,8 +87,10 @@ mandatory, not as a hardening step.
 
 ## 3. `CREATE INDEX ASYNC IF NOT EXISTS` and `awaitAsyncIndexes` conflict
 
-`flyway.dsql.awaitAsyncIndexes=true` is the right default. Aurora DSQL has
-no synchronous index creation: `CREATE INDEX ASYNC` returns a `job_id` and
+`flyway.dsql.awaitAsyncIndexes=true` is the setting you want, and it is not
+the default. Upstream it defaults to `false`, on the reasoning that
+fire-and-forget is faster for a pure performance index. Aurora DSQL has no
+synchronous index creation: `CREATE INDEX ASYNC` returns a `job_id` and
 builds in the background. With the setting on, the module reads that
 `job_id` and blocks on `sys.wait_for_job` until the index is `VALID`, so a
 later migration cannot run against an index that is not ready yet.
