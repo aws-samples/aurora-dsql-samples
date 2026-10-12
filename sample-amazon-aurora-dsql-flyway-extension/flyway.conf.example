@@ -1,38 +1,60 @@
 # Flyway configuration for Amazon Aurora DSQL.
 #
-# Copy to flyway.conf and edit the host. The password is not set here:
-# the Aurora DSQL JDBC Connector auto-mints an IAM token on every new
-# connection using the ambient AWS credentials.
+# Copy to flyway.conf and edit the host. No password is set: the Aurora DSQL
+# JDBC Connector generates a short-lived IAM token on every new connection
+# from the ambient AWS credentials.
+#
+# Aurora DSQL behaviour comes from the org.flywaydb:flyway-database-dsql
+# community module, installed in /flyway/drivers/ by the Dockerfile.
 
-# JDBC URL for the Aurora DSQL JDBC Connector.
-#   jdbc:aws-dsql:postgresql://<cluster>.dsql.<region>.on.aws/postgres
+# JDBC URL for the Aurora DSQL JDBC Connector. The connector accepts only
+# jdbc:aws-dsql:postgresql://<host>/<database>; omitting the postgresql://
+# segment produces "No database found to handle jdbc:aws-dsql:".
+#
 # Query parameters:
-#   user=admin
-#     Database role to connect as. On Aurora DSQL this is always admin.
+#   user=admin         Database role to connect as.
 #   sslmode=verify-full
-#     Validates the server cert end-to-end.
+#                      Validates the server certificate end to end.
 #   sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory
-#     Use the JVM's default trust store (contains the public Amazon Trust
-#     Services CAs that signed Aurora DSQL's cert).
+#                      Use the JVM default trust store, which carries the
+#                      Amazon Trust Services CAs that signed the cluster cert.
 flyway.url=jdbc:aws-dsql:postgresql://REPLACE-WITH-YOUR-CLUSTER.dsql.us-east-1.on.aws/postgres?user=admin&sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory
 flyway.user=admin
 
 # Migration locations
 flyway.locations=filesystem:/flyway/migrations
 
-# Aurora DSQL requires each DDL statement in its own transaction.
-# flyway.mixed=true tells Flyway to detect DDL statements and run them
-# outside of a transaction.
-flyway.mixed=true
-
-# Baseline on an existing schema (safe default for first-time runs
-# against a cluster that is not empty).
+# Baseline. The standalone `flyway baseline` command does not work on Aurora
+# DSQL: it creates the history table and inserts the marker row in one
+# transaction, which mixes DDL and DML. baselineOnMigrate performs the
+# equivalent during migrate instead.
+#
+# This only takes effect when the schema history table does not yet exist. On a
+# cluster that already has a history table it is a no-op, so do not rely on it
+# to adopt an existing populated schema.
 flyway.baselineOnMigrate=true
-flyway.baselineVersion=0
-
-# Lock retry: Flyway acquires a database lock during migrate. If a
-# concurrent run holds the lock, retry instead of failing.
-flyway.lockRetryCount=20
+flyway.baselineVersion=1
 
 # Validation
 flyway.validateOnMigrate=true
+
+# --- Aurora DSQL module settings (flyway.dsql.*) ------------------------
+#
+# Wait for CREATE INDEX ASYNC builds to finish before the migration returns.
+# Aurora DSQL has no synchronous index creation, so without this a migration
+# reports success while the index is still building, and a later migration or
+# query can run against an index that is not ready.
+#
+# Note: a failed build leaves an INVALID index behind, and IF NOT EXISTS will
+# silently accept it on a re-run. Drop such an index explicitly before retrying.
+flyway.dsql.awaitAsyncIndexes=true
+
+# Retry a migration transaction that fails with an OCC conflict. Aurora DSQL
+# uses optimistic concurrency control rather than advisory locks, so Flyway
+# cannot serialize concurrent runs the way it does on PostgreSQL.
+#
+# This is a safety net, not a concurrency strategy: run migrations from a
+# single runner and enforce that in your pipeline. Retry also does not apply
+# to a migration running with executeInTransaction=false.
+flyway.dsql.occMaxRetries=3
+flyway.dsql.occMaxRetryDelaySeconds=5

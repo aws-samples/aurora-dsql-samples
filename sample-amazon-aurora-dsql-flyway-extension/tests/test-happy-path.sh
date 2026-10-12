@@ -26,16 +26,19 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-POC_ROOT="$(dirname "$SCRIPT_DIR")"
+SAMPLE_ROOT="$(dirname "$SCRIPT_DIR")"
 
 echo "==> [test-happy] Resetting schema"
-bash "$POC_ROOT/scripts/reset-db.sh" >/dev/null
+# reset-db.sh prompts before dropping, because its table names collide with
+# other samples. A test run is non-interactive by definition, and this test
+# already requires a cluster dedicated to this sample.
+RESET_DB_ASSUME_YES=true bash "$SAMPLE_ROOT/scripts/reset-db.sh" >/dev/null
 
-echo "==> [test-happy] Running flyway migrate (via extension)"
-bash "$POC_ROOT/scripts/run-flyway.sh" migrate
+echo "==> [test-happy] Running flyway migrate"
+bash "$SAMPLE_ROOT/scripts/run-flyway.sh" migrate
 
 echo "==> [test-happy] Verifying schema"
-export PGPASSWORD="$(bash "$POC_ROOT/scripts/mint-token.sh")"
+export PGPASSWORD="$(bash "$SAMPLE_ROOT/scripts/mint-token.sh")"
 PSQL_CONNINFO="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system"
 
 # psql against DSQL frontend occasionally returns "SSL SYSCALL error: EOF
@@ -178,12 +181,16 @@ assert_index idx_sessions_expires_at
 assert_constraint_count audit_log f 1 FOREIGN_KEY
 assert_constraint_count products c 2 CHECK
 
-# Migration history: expect 15 rows all success
+# Migration history: one successful row per migration file. Derived from the
+# migrations directory rather than hard-coded, so adding a migration does not
+# silently break this assertion.
+MIGRATIONS_DIR="${MIGRATIONS_DIR:-/flyway/migrations}"
+expected=$(find "$MIGRATIONS_DIR" -maxdepth 1 -name 'V*__*.sql' | wc -l | tr -d ' ')
 n=$(psql_retry "SELECT COUNT(*) FROM flyway_schema_history WHERE success=TRUE;") || n="RETRY_FAILED"
-if [[ "$n" == "15" ]]; then
-  echo "    OK  15 successful migrations recorded in flyway_schema_history"
+if [[ "$n" == "$expected" ]]; then
+  echo "    OK  $n successful migrations recorded in flyway_schema_history"
 else
-  echo "    FAIL expected 15 successful migrations, got '$n'"
+  echo "    FAIL expected $expected successful migrations, got '$n'"
   fail=1
 fi
 

@@ -1,138 +1,163 @@
-# Flyway + Aurora DSQL POC
+# Flyway on Amazon Aurora DSQL
 
-A working proof of concept that runs the stock [Flyway](https://flywaydb.org/)
-CLI against [Amazon Aurora DSQL](https://aws.amazon.com/rds/aurora/dsql/)
-via a small database-type extension JAR. The extension translates the
-places vanilla Flyway and Aurora DSQL disagree, so `flyway migrate`
-succeeds end-to-end against a real DSQL cluster.
+A runnable sample that applies 16 Flyway migrations to a real
+[Amazon Aurora DSQL](https://aws.amazon.com/rds/aurora/dsql/) cluster
+using the official Flyway Aurora DSQL module.
 
-> **Status: sample pattern, not an official AWS product.** This POC
-> demonstrates how to extend Flyway for Aurora DSQL. It is not a
-> supported Flyway plugin and not covered by AWS Support. See
-> [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for the trade-offs
-> you must accept before adopting this pattern.
+Aurora DSQL support is built in. Aurora DSQL
+[launched support for Flyway on 25 February 2026](https://aws.amazon.com/about-aws/whats-new/2026/02/aurora-dsql-launches-tortoise-flyway-prisma/),
+and the database module is published on Maven Central as
+`org.flywaydb:flyway-database-dsql`. You do not need to write or build
+anything to make Flyway talk to Aurora DSQL. Drop the module and the
+Aurora DSQL JDBC Connector on the Flyway classpath and `flyway migrate`
+works.
 
-## What this POC proves
+What this sample is for is the part the module cannot do for you:
+**writing migrations that Aurora DSQL will accept.** Aurora DSQL is not
+PostgreSQL. A migration that is routine on Amazon RDS for PostgreSQL can
+fail on Aurora DSQL because it mixes DDL and DML in one transaction, or
+puts an inline constraint on `ADD COLUMN`, or assumes `CREATE INDEX` is
+synchronous. The 16 migrations here are each a worked example of one of
+those rules.
 
-- `flyway migrate` applies 16 varied migrations (DDL + DML + async
-  indexes + long-running + varied constraint patterns) against a real
-  Aurora DSQL cluster.
-- The extension handles six behavioral mismatches between the stock
-  Flyway PostgreSQL plugin and Aurora DSQL (URL regex, driver class,
-  `SET role`, advisory locks, `ALTER TABLE ADD CONSTRAINT`, multi-DDL
-  per transaction).
-- Concurrent `flyway migrate` races surface both DSQL error codes
-  (SQLSTATE 23505 and 40001) and recover cleanly through a bounded
-  shell retry loop.
-- The whole thing runs inside Docker with a pinned Flyway version so
-  the toolchain is reproducible.
+## What this sample demonstrates
+
+- `flyway migrate` applies 16 migrations covering DDL, DML, async index
+  builds, constraint patterns, and a long-running statement.
+- The migration-authoring rules Aurora DSQL imposes, one per file, with
+  the error you get when you break each one.
+- `flyway.dsql.awaitAsyncIndexes` blocking a migration until a
+  `CREATE INDEX ASYNC` build reaches `VALID`, rather than returning while
+  the index is still building.
+- `flyway.dsql.occMaxRetries` retrying a migration transaction that loses
+  an optimistic concurrency check.
+- Why you still need to serialize migration runs in your pipeline, with a
+  reproduction of what happens when you don't
+  ([`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md), limitation 2).
+
+## Which module artifact to use
+
+The same code is published twice:
+
+| Coordinates | Published by | Notes |
+|---|---|---|
+| `org.flywaydb:flyway-database-dsql:10.26.0` | Flyway (Redgate), on Maven Central | Used by this sample. |
+| `software.amazon.dsql:aurora-dsql-flyway-support:3.0.0` | AWS, see [awslabs/aurora-dsql-tools](https://github.com/awslabs/aurora-dsql-tools/tree/main/flyway) | Repackages the same module source. |
+
+The AWS artifact packages the upstream `flyway-database-dsql` 10.26.0
+source with the implementation unchanged. Pick one. Loading both puts two
+copies of the same `DatabaseType` on the classpath, which the AWS README
+warns against.
 
 ## Pinned versions
 
 | Component | Version | Why pinned |
 |---|---|---|
-| Flyway OSS | **11.20.3** | The extension subclasses `org.flywaydb.database.postgresql.*` which Flyway does not treat as a stable public API. Upgrading Flyway requires re-testing the extension. |
-| Aurora DSQL JDBC Connector | 1.0.0 | Matches the `jdbc:aws-dsql:postgresql://` URL prefix handled by the extension. |
-| Base Docker image | `flyway/flyway:11-alpine` | Ships Flyway 11.20.3 + bundled PostgreSQL 17 psql + Alpine with glibc-compat not required. |
-| Builder image | `gradle:8.10-jdk17` | Multi-arch; builds the extension JAR without a local JDK/Gradle. |
+| Flyway CLI | `flyway/flyway:11.20.3-alpine` | Exact tag rather than the floating `11-alpine`, so a new Flyway release cannot silently change what this sample builds against. |
+| Flyway Aurora DSQL module | 10.26.0 | Project version of `flyway-community-db-support`, not a Flyway version. This release targets Flyway 11.9.0 and loads correctly on the 11.20.3 runtime above. |
+| Aurora DSQL JDBC Connector | 1.5.0 | Supplies the `jdbc:aws-dsql:postgresql://` URL scheme and mints the IAM auth token. The module expects you to provide it. |
+| pgJDBC | 42.7.11 | Underlying PostgreSQL wire driver. |
+| AWS SDK for Java | 2.44.13 | Transitive requirement of the connector, pinned so a rebuild produces the same classpath. |
 
 ## Prerequisites
 
-- An Aurora DSQL cluster. Any region works, this POC was developed
-  against us-east-1.
-- AWS credentials with `dsql:DbConnectAdmin` on the cluster. The POC
-  reads whichever `~/.aws` profile is active.
-- Docker (Desktop, Rancher, Colima, or Podman with a Docker-compatible
-  CLI).
-- GNU Make (ships with macOS Command Line Tools; `apt install make` on
+- An Aurora DSQL cluster. Any region works. This sample was developed
+  against `us-east-1`.
+- AWS credentials with `dsql:DbConnectAdmin` on the cluster. The sample
+  uses the ambient credential chain, so whatever `aws sts get-caller-identity`
+  reports is what it will connect as.
+- Docker (Desktop, Rancher, Colima, or Podman with a Docker-compatible CLI).
+- GNU Make (ships with the macOS Command Line Tools; `apt install make` on
   Linux).
 
 ## Quick start
 
 ```bash
-cd poc
+cd sample-amazon-aurora-dsql-flyway-extension
 
 cp .env.example .env
-$EDITOR .env                     # fill in DSQL_ENDPOINT
+$EDITOR .env                     # set DSQL_ENDPOINT
 
-make build                       # build the Docker image + extension JAR (first time: ~15min)
-make info                        # read current migration state from the cluster
-make migrate                     # apply pending migrations (V1 through V16)
+make build                       # pull the Flyway image + module jars
+make info                        # read migration state from the cluster
+make migrate                     # apply V1 through V16
 make verify-schema               # inspect tables, indexes, constraints
 ```
 
-If the migration fails due to a transient error, use `make repair` to
-clear the failed row from `flyway_schema_history`, then retry
-`make migrate`.
+If `migrate` stops on a failed migration, run `make repair` to clear the
+failed row from `flyway_schema_history`, then `make migrate` again.
+
+### Choosing the cluster
+
+`make` resolves `DSQL_ENDPOINT` in this order, highest first:
+
+1. `make DSQL_ENDPOINT=my-other-cluster.dsql.us-east-1.on.aws migrate`
+2. an exported `DSQL_ENDPOINT` in your shell
+3. `.env`
+
+Worth knowing because `make reset` and the test targets drop tables. If you
+keep a cluster in `.env` and then point your shell somewhere else, the shell
+wins. `make reset` prints the endpoint it is about to act on and asks for
+confirmation before it drops anything.
 
 ## All Make targets
 
 ```
 $ make help
   help               Show this help
-  build              Build the flyway-dsql-poc Docker image (compiles the extension too)
+  build              Build the Docker image (Flyway CLI + Aurora DSQL module)
   info               Show Flyway migration status against the configured cluster
-  migrate            Apply pending migrations through the Flyway + DSQL extension
-  repair             Clear failed migrations from flyway_schema_history
+  migrate            Apply pending migrations
+  repair             Clear failed migrations from flyway_schema_history so retry can proceed
   validate           Validate applied migrations against the migration files
   verify-schema      Inspect the cluster: tables, flyway_schema_history, indexes
-  reset              Drop every POC-created object (DANGEROUS; dev only)
-  reproduce-occ      Run two concurrent migrate to force an OCC conflict
-  test               Run every POC test in order (test-happy + test-occ)
-  test-happy         End-to-end apply + schema verification
-  test-occ           Prove the retry loop recovers from a concurrent migrate race
-  clean              Remove local Docker image, network, and tmp files
+  reset              Drop every object the migrations created (DANGEROUS; dev only)
+  reproduce-occ      Run two concurrent migrate against one cluster
+  test               Run every test in order
+  test-happy         End-to-end apply + verify
+  test-occ           Demonstrate a concurrent-migrate race (see KNOWN_LIMITATIONS.md #2)
+  clean              Remove local Docker image and tmp files
 ```
 
 ## File layout
 
 ```
-poc/
+sample-amazon-aurora-dsql-flyway-extension/
 ├── README.md                   <- this file
-├── KNOWN_LIMITATIONS.md        <- trade-offs this pattern makes; read before adopting
-├── Dockerfile                  <- multi-stage: builder (Gradle+JDK17) + runtime (Flyway)
+├── KNOWN_LIMITATIONS.md        <- read before adopting this in production
+├── Dockerfile                  <- Flyway CLI + module jars from Maven Central
 ├── docker-compose.yml          <- runs the image with env + volume mounts
 ├── Makefile                    <- make migrate, make test, etc.
-├── flyway.conf.example         <- Flyway config template; copied + substituted at run time
+├── flyway.conf.example         <- Flyway config template, substituted at run time
 ├── .env.example                <- environment template (copy to .env)
-├── flyway-dsql-ext/            <- the extension JAR source
-│   ├── build.gradle.kts        <- Gradle build; produces thin jar + runtime deps/
-│   ├── settings.gradle.kts
-│   └── src/main/
-│       ├── java/com/example/flyway/dsql/
-│       │   ├── AuroraDsqlDatabaseType.java   <- URL regex, driver class, createDatabase
-│       │   ├── AuroraDsqlDatabase.java       <- supportsDdlTransactions=false, getRawCreateScript
-│       │   └── AuroraDsqlConnection.java     <- doRestoreOriginalState no-op, lock no-op
-│       └── resources/META-INF/services/
-│           └── org.flywaydb.core.extensibility.Plugin   <- Flyway SPI registration
-├── migrations/                 <- V*.sql files; mounted into /flyway/migrations
-│   ├── V1__init_users.sql
-│   ├── V2__add_sessions.sql
-│   ├── V3__add_sessions_user_id_index.sql
-│   ├── V4__add_user_role_column.sql
-│   ├── V5__backfill_user_role.sql
-│   ├── V6__set_user_role_default.sql
+├── migrations/                 <- V*.sql files; mounted at /flyway/migrations
+│   ├── V1__init_users.sql                  <- CREATE TABLE, inline PK
+│   ├── V2__add_sessions.sql                <- inline FK + UNIQUE
+│   ├── V3__add_sessions_user_id_index.sql  <- CREATE INDEX ASYNC
+│   ├── V4__add_user_role_column.sql        <- ADD COLUMN, no inline constraint
+│   ├── V5__backfill_user_role.sql          <- DML, separate file from the DDL
+│   ├── V6__set_user_role_default.sql       <- ALTER COLUMN SET DEFAULT
 │   ├── V7__add_sessions_created_at_index.sql
 │   ├── V8__add_users_last_login_at.sql
 │   ├── V9__backfill_users_last_login_at.sql
-│   ├── V10__refresh_users_last_login_at.sql
-│   ├── V11__add_audit_log_with_fk.sql
-│   ├── V12__add_products_with_check.sql
-│   ├── V13__drop_sessions_revoked_at.sql
-│   ├── V14__rename_products_name.sql
+│   ├── V10__refresh_users_last_login_at.sql <- backfill on a populated table
+│   ├── V11__add_audit_log_with_fk.sql      <- FK declared at CREATE TABLE time
+│   ├── V12__add_products_with_check.sql    <- CHECK constraint
+│   ├── V13__drop_sessions_revoked_at.sql   <- DROP COLUMN
+│   ├── V14__rename_products_name.sql       <- RENAME COLUMN
 │   ├── V15__add_sessions_expires_at_index.sql
-│   └── V16__long_running_demo.sql
+│   └── V16__long_running_demo.sql          <- long-running statement
 ├── scripts/
-│   ├── run-flyway.sh             <- Flyway wrapper with retry on OCC / token-expiry
-│   ├── mint-token.sh             <- mint a DSQL IAM auth token (via boto3)
-│   ├── reset-db.sh               <- DANGEROUS; drops every POC-created table
+│   ├── run-flyway.sh             <- Flyway wrapper; retries token expiry
+│   ├── mint-token.sh             <- mint a DSQL IAM auth token for psql
+│   ├── reset-db.sh               <- DANGEROUS; drops every table the sample creates
 │   ├── verify-schema.sh          <- inspect tables / history / indexes
-│   ├── seed-data.sh              <- 50 users + 200 sessions (for V10 populated-table test)
-│   ├── bulk-seed-sessions.sh     <- larger dataset for CREATE INDEX ASYNC testing
-│   └── reproduce-occ-conflict.sh <- race two migrates to prove retry recovers
+│   ├── seed-data.sh              <- 50 users + 200 sessions
+│   ├── bulk-seed-sessions.sh     <- larger dataset for async index testing
+│   └── reproduce-occ-conflict.sh <- race two migrates
 └── tests/
     ├── test-happy-path.sh        <- end-to-end apply + 24 structural assertions
-    └── test-occ-handling.sh      <- bounded concurrent-migrate race test
+    └── test-occ-handling.sh      <- concurrent-migrate race
 ```
 
 ## How it works
@@ -140,71 +165,93 @@ poc/
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  Developer or CI shell                                           │
-│    make migrate  ->  docker compose run flyway scripts/run-flyway.sh  │
+│    make migrate -> docker compose run flyway run-flyway.sh migrate│
 └───────────────────────────────┬──────────────────────────────────┘
                                 │
                                 ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  Docker container (flyway-dsql-poc:latest)                       │
+│  Docker container (flyway-dsql-sample:latest)                    │
 │                                                                  │
 │  /flyway/drivers/                                                │
-│    flyway-dsql-ext-1.0.0.jar     <- our 3-class extension        │
-│    aurora-dsql-jdbc-connector-*.jar                              │
-│    pgJDBC-*.jar                                                  │
+│    flyway-database-dsql-10.26.0.jar    <- official module        │
+│    aurora-dsql-jdbc-connector-1.5.0.jar                          │
+│    postgresql-42.7.11.jar                                        │
+│    aws-sdk-java-v2 jars                                          │
 │                                                                  │
-│  Flyway CLI starts up, discovers the extension via Plugin SPI,   │
-│  recognises jdbc:aws-dsql:postgresql://, uses our Database +     │
-│  Connection subclasses, applies migrations.                      │
+│  The Flyway CLI discovers the module through the Plugin service   │
+│  loader, matches jdbc:aws-dsql:postgresql://, and uses the        │
+│  module's Database and Connection implementations.                │
 └───────────────────────────────┬──────────────────────────────────┘
                                 │
-                                ▼ JDBC + IAM-minted token (DSQL Connector)
+                                ▼ JDBC, IAM token minted by the connector
 ┌──────────────────────────────────────────────────────────────────┐
 │  Amazon Aurora DSQL cluster                                      │
 │                                                                  │
-│  flyway_schema_history         <- Flyway's own tracking table    │
-│  users | sessions | audit_log | products   <- POC schema         │
+│  flyway_schema_history       <- Flyway's own tracking table      │
+│  users | sessions | audit_log | products   <- sample schema      │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+## Aurora DSQL settings in flyway.conf
+
+Two settings come from the module rather than Flyway core. Both are set in
+[`flyway.conf.example`](./flyway.conf.example) with the reasoning inline.
+
+| Setting | Value here | Effect |
+|---|---|---|
+| `flyway.dsql.awaitAsyncIndexes` | `true` | After a statement that matches `CREATE INDEX ASYNC`, read the returned `job_id` and block on `sys.wait_for_job` until the build finishes. Without it, the migration reports success while the index is still building. |
+| `flyway.dsql.occMaxRetries` | `3` | Retry the migration transaction when Aurora DSQL rejects it with an optimistic concurrency conflict. |
+| `flyway.dsql.occMaxRetryDelaySeconds` | `5` | Cap on the backoff between those retries. |
+
+`flyway baseline` as a standalone command does not work on Aurora DSQL,
+because it creates the history table and inserts the marker row in one
+transaction, which mixes DDL and DML. Use `flyway.baselineOnMigrate=true`
+instead, which does the equivalent during `migrate`.
 
 ## Running the test suite
 
 ```bash
 make test                    # both tests, in order
-make test-happy              # end-to-end apply + verify (24 structural assertions)
-make test-occ                # bounded concurrent-migrate race
+make test-happy              # end-to-end apply + 24 structural assertions
+make test-occ                # concurrent-migrate race
 ```
 
-The OCC test runs two `make migrate` processes in parallel. Across our
-test runs, one of them always wins and the other hits either SQLSTATE
-23505 or 40001 and recovers via the shell retry loop.
+`test-occ` starts two `migrate` runs in parallel. It is a demonstration of
+the failure mode rather than a passing guarantee: see limitation 2 in
+[`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for what we observed and
+why you should serialize migrations in your pipeline regardless.
 
 ## Troubleshooting
 
-**"security token ... is expired"** — your AWS credentials expired.
-Refresh (e.g. `ada credentials update --account=... --role=Admin
---profile=default --once`) and retry.
+**`security token ... is expired`** means your AWS credentials aged out.
+Refresh them however your environment does it, then retry. Check the active
+identity with `aws sts get-caller-identity`.
 
-**"SSL SYSCALL error: EOF detected" from psql** — a known transient at
-the DSQL frontend. The POC scripts retry automatically. Flyway's own
-JDBC path doesn't see this.
+**`ERROR: ddl and dml are not supported in the same transaction`** means a
+migration file mixes schema changes with data changes. Split it into
+separate files, one logical change each. V4, V5, and V6 are the canonical
+example: add the column, backfill it, then set the default.
 
-**"CALL sys.wait_for_job not supported in transaction block"** — call it
-alone with autocommit on, not combined with other statements. See V3,
-V7, V15 for the pattern, and `KNOWN_LIMITATIONS.md` for the production
-alternative (Java-based migration).
+**`ALTER TABLE ADD COLUMN with constraint not supported`** means an inline
+constraint on `ADD COLUMN`. Aurora DSQL rejects those. Use the same
+three-step split as above.
 
-**"ERROR: ddl and dml are not supported in the same transaction"** —
-you have DDL and DML in the same migration file. Split into separate
-files (one logical change per file). See V4/V5/V6 as the canonical
-example.
+**`Validate failed: Detected failed migration to version N`** means a
+previous run left a failed row in `flyway_schema_history`. Run
+`make repair`, then `make migrate`.
 
-**"ALTER TABLE ADD COLUMN with constraint not supported"** — DSQL
-rejects inline constraints on ADD COLUMN. Three-step pattern:
-`ADD COLUMN (plain)` → `UPDATE backfill` → `ALTER COLUMN SET DEFAULT`.
-See V4/V5/V6.
+**`CALL sys.wait_for_job not supported in transaction block`** means you
+are calling it by hand inside a migration script. Let
+`flyway.dsql.awaitAsyncIndexes=true` handle the wait instead.
 
-**"Validate failed: Detected failed migration to version N"** — run
-`make repair` to clear the failed row, then `make migrate`.
+**`no job_id was found in its result`** after a `CREATE INDEX ASYNC IF NOT
+EXISTS` on an index that already exists. This is a real interaction between
+`IF NOT EXISTS` and `awaitAsyncIndexes`; see limitation 3 in
+[`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md).
 
-For a full list of DSQL quirks and the extension's limitations, see
+**`SSL SYSCALL error: EOF detected` from psql** is a transient at the
+Aurora DSQL frontend. The sample's psql helpers retry. Flyway's own JDBC
+path does not see it.
+
+For the full set of constraints this sample ran into, see
 [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md).

@@ -4,14 +4,20 @@
 #
 # Force an Aurora DSQL OCC conflict by running two `make migrate`
 # processes in parallel against the same cluster. Captures the output
-# of each run so the blog's OCC-handling section has real log output
+# of each run so the OCC behaviour is backed by real log output
 # to show.
 #
-# Expectation:
-#   - Both runs complete cleanly.
-#   - One of them picks up the migrations first; the other sees an
-#     OCC conflict on the dsql_migration_history insert (SQLSTATE 40001)
-#     and the shell retry loop recovers it.
+# This demonstrates a failure mode. It is not a test with a passing
+# expectation, because the outcome is not deterministic:
+#
+#   - Usually one run applies the migrations and the other sees a conflict
+#     on the flyway_schema_history insert (SQLSTATE 23505) or an OCC
+#     conflict (SQLSTATE 40001), then recovers.
+#   - Sometimes BOTH runs fail and the schema needs `flyway repair`.
+#
+# Either outcome is the point: concurrent migrate runs are unsafe on Aurora
+# DSQL and no retry setting fixes that. Serialize them in your pipeline.
+# See limitation 2 in KNOWN_LIMITATIONS.md.
 #
 # Required env:
 #   AWS_REGION
@@ -23,8 +29,8 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-POC_ROOT="$(dirname "$SCRIPT_DIR")"
-LOG_DIR="$POC_ROOT/tmp/occ"
+SAMPLE_ROOT="$(dirname "$SCRIPT_DIR")"
+LOG_DIR="$SAMPLE_ROOT/tmp/occ"
 mkdir -p "$LOG_DIR"
 
 A_LOG="$LOG_DIR/race-A-$(date +%s).log"
@@ -37,25 +43,31 @@ echo "      B: $B_LOG"
 echo
 
 echo "==> Resetting schema so both runs have real work to do"
-( cd "$POC_ROOT" && make reset ) >/dev/null 2>&1 || true
+# reset-db.sh prompts before dropping, because its table names collide with
+# other samples. Pass the flag through: this script is non-interactive and
+# already requires a cluster dedicated to this sample.
+( cd "$SAMPLE_ROOT" && RESET_DB_ASSUME_YES=true make reset ) >/dev/null 2>&1 || true
 
 (
-  cd "$POC_ROOT"
+  cd "$SAMPLE_ROOT"
   make migrate
 ) >"$A_LOG" 2>&1 &
 PID_A=$!
 
 (
-  cd "$POC_ROOT"
+  cd "$SAMPLE_ROOT"
   make migrate
 ) >"$B_LOG" 2>&1 &
 PID_B=$!
 
 echo "==> Both runs started (A: $PID_A, B: $PID_B). Waiting..."
-wait "$PID_A"
-RC_A=$?
-wait "$PID_B"
-RC_B=$?
+# `|| RC=$?` is required: under `set -e` a non-zero `wait` would exit the
+# script here, before the OCC outcome below is ever reported. A non-zero exit
+# from one of the runs is the interesting case, not a reason to abort.
+RC_A=0
+wait "$PID_A" || RC_A=$?
+RC_B=0
+wait "$PID_B" || RC_B=$?
 
 echo
 echo "==> Run A exit code: $RC_A"

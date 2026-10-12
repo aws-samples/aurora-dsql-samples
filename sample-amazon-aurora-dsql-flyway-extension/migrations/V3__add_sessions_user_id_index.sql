@@ -23,7 +23,7 @@
 --      Java-based Flyway migration (BaseJavaMigration). From Java you can
 --      executeQuery("CREATE INDEX ASYNC ...") -> read job_id from the
 --      ResultSet -> execute("CALL sys.wait_for_job('<literal>')").
---      This is the production-grade pattern the blog documents.
+--      This is the production-grade pattern for populated tables.
 
 CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_user_id
   ON sessions (user_id);

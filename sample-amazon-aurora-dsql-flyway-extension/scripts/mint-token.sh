@@ -24,14 +24,35 @@ set -euo pipefail
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 
-python3 - <<PY
-import os, sys
+python3 - <<'PY'
+import os, re, sys
 import boto3
 
-region   = os.environ.get("AWS_REGION", "us-east-1")
 hostname = os.environ["DSQL_ENDPOINT"]
 
+# Derive the Region from the endpoint rather than trusting AWS_REGION. A
+# cluster endpoint is <cluster-id>.dsql.<region>.on.aws, and a token signed
+# for the wrong Region is rejected at connect time with an authentication
+# error that gives no hint about the cause.
+match = re.match(r"^[^.]+\.dsql\.([a-z0-9-]+)\.on\.aws$", hostname)
+if match:
+    region = match.group(1)
+    configured = os.environ.get("AWS_REGION")
+    if configured and configured != region:
+        sys.stderr.write(
+            f"note: using Region {region} from DSQL_ENDPOINT "
+            f"(AWS_REGION is set to {configured})\n"
+        )
+else:
+    region = os.environ.get("AWS_REGION")
+    if not region:
+        sys.stderr.write(
+            f"error: could not parse a Region from DSQL_ENDPOINT ({hostname}) "
+            "and AWS_REGION is not set\n"
+        )
+        sys.exit(1)
+
 client = boto3.client("dsql", region_name=region)
-token  = client.generate_db_connect_admin_auth_token(Hostname=hostname)
+token = client.generate_db_connect_admin_auth_token(Hostname=hostname)
 sys.stdout.write(token)
 PY

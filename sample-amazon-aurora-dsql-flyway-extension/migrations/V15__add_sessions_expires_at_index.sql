@@ -11,7 +11,7 @@
 -- Production pattern: capture the returned job_id and poll
 -- `CALL sys.wait_for_job(<literal>)` from a Java-based Flyway migration
 -- (BaseJavaMigration), so the pipeline doesn't move to V16 until the
--- index is actually usable. The blog documents this pattern separately.
+-- index is actually usable.
 
 CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_expires_at
   ON sessions (expires_at);

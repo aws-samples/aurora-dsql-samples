@@ -13,10 +13,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-POC_ROOT="$(dirname "$SCRIPT_DIR")"
+SAMPLE_ROOT="$(dirname "$SCRIPT_DIR")"
 
 echo "==> [test-occ] Reproducing OCC conflict (two parallel migrate.sh runs)"
-bash "$POC_ROOT/scripts/reproduce-occ-conflict.sh"
+bash "$SAMPLE_ROOT/scripts/reproduce-occ-conflict.sh"
 rc=$?
 
 if (( rc == 0 )); then

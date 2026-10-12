@@ -5,22 +5,28 @@
 # Insert N rows into sessions in batches, so later migrations (CREATE INDEX
 # ASYNC in particular) have real data to work against.
 #
-# DSQL's per-transaction mutation cap: up to 10,000 row changes per
-# transaction (and smaller for some operations). We insert in batches of
-# 2000 to stay well under the cap and keep per-batch latency reasonable.
+# Aurora DSQL caps a single transaction at 3,000 modified rows, 10 MiB of
+# modified data, and 5 minutes of wall clock. We insert 1000 rows per batch,
+# which leaves headroom on the row count and keeps each batch well inside the
+# time and size limits too.
 #
 # Required env:
 #   AWS_REGION
 #   DSQL_ENDPOINT
 # Optional env:
 #   TOTAL_ROWS   - rows to add (default 10000)
-#   BATCH_SIZE   - rows per transaction (default 2000)
+#   BATCH_SIZE   - rows per transaction (default 1000; must stay under 3000)
 set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
 TOTAL_ROWS="${TOTAL_ROWS:-10000}"
-BATCH_SIZE="${BATCH_SIZE:-2000}"
+BATCH_SIZE="${BATCH_SIZE:-1000}"
+
+if (( BATCH_SIZE >= 3000 )); then
+  echo "ERROR: BATCH_SIZE=$BATCH_SIZE is at or above the Aurora DSQL 3,000 row per-transaction cap" >&2
+  exit 1
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

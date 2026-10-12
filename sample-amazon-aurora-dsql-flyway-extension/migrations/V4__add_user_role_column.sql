@@ -13,4 +13,4 @@
 -- file, and never mix DDL and DML. This keeps each statement in its own
 -- transaction and makes failures easy to recover from.
 
-ALTER TABLE users ADD COLUMN role VARCHAR(30);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(30);

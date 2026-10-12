@@ -6,7 +6,7 @@
 -- FK at table-creation time, same pattern as the PRIMARY KEY in the Flyway
 -- schema-history override.)
 --
--- Blog claim this test validates: "DSQL supports FKs" is accurate when
+-- What this migration demonstrates: Aurora DSQL supports foreign keys when
 -- the FK is defined at CREATE TABLE time.
 
 CREATE TABLE IF NOT EXISTS audit_log (

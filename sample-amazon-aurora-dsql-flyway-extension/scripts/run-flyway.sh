@@ -7,13 +7,19 @@
 #     flyway.conf.example if not present), with the cluster hostname
 #     substituted from DSQL_ENDPOINT.
 #   - Points at the migrations volume at /flyway/migrations.
-#   - Retries on non-zero exit, which covers OCC errors (SQLSTATE 40001)
-#     if Flyway's own lockRetryCount isn't enough.
+#   - Retries the whole Flyway invocation on the two transient failures a
+#     retry can actually fix: an expired IAM token, and the schema-history
+#     primary key race between two parallel runs.
 #
-# No manual IAM token minting is needed: the flyway-dsql-ext extension
-# installed in /flyway/drivers/ delegates connection setup to the
-# Aurora DSQL JDBC Connector, which auto-mints a 15-minute token from
-# the ambient AWS credentials for every new connection.
+# Transaction-level OCC conflicts are handled inside Flyway by the Aurora
+# DSQL module via flyway.dsql.occMaxRetries, not here. See limitation 2 in
+# KNOWN_LIMITATIONS.md: neither retry makes concurrent runs safe, so
+# serialize migrations in your pipeline.
+#
+# No manual IAM token minting is needed. The official Flyway Aurora DSQL
+# module in /flyway/drivers/ connects through the Aurora DSQL JDBC
+# Connector, which mints a 15-minute token from the ambient AWS
+# credentials on every new connection.
 #
 # Usage:
 #   bash scripts/run-flyway.sh migrate            # apply pending migrations
@@ -33,7 +39,7 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 FLYWAY_RETRY="${FLYWAY_RETRY:-3}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-POC_ROOT="$(dirname "$SCRIPT_DIR")"
+SAMPLE_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Resolve the config path. Inside the container the config lives on a
 # read-only mount, so if we don't already have a per-run copy at /tmp,
@@ -47,21 +53,35 @@ if [[ -z "${FLYWAY_CONF:-}" ]]; then
     cp /flyway/conf/flyway.conf.example "$FLYWAY_CONF"
   else
     FLYWAY_CONF="/tmp/flyway.conf"
-    cp "$POC_ROOT/flyway.conf.example" "$FLYWAY_CONF"
+    cp "$SAMPLE_ROOT/flyway.conf.example" "$FLYWAY_CONF"
   fi
   sed -i -e "s/REPLACE-WITH-YOUR-CLUSTER\.dsql\.us-east-1\.on\.aws/$DSQL_ENDPOINT/g" "$FLYWAY_CONF" 2>/dev/null || true
 fi
 
 # Only retry on errors Flyway + Aurora DSQL raises transiently:
-#   - SQLSTATE 40001          OCC serialization conflict (OC000, OC001)
-#   - SQLSTATE 23505          duplicate key on flyway_schema_history
+#   - SQLSTATE 40001          OCC serialization conflict (OC000, OC001).
+#                             The module already retries these inside the
+#                             transaction via flyway.dsql.occMaxRetries. This
+#                             match catches the case where it exhausted those
+#                             retries; a fresh invocation re-reads the schema
+#                             history and can then succeed.
+#   - SQLSTATE 23505, but ONLY on the flyway_schema_history primary key
 #                             (installed_rank race between parallel runs)
 #   - "security token ... is expired"  IAM token aged out between retries
 # Anything else (syntax errors, unsupported SQL, missing migration file,
-# config error) is terminal -- retrying just wastes time and clutters output.
+# config error) is terminal; retrying just wastes time and clutters output.
+#
+# Retrying does NOT make concurrent migrate runs safe. A race can leave a
+# failed migration that needs `flyway repair`, which no retry here will fix.
+# See limitation 2 in KNOWN_LIMITATIONS.md.
+#
+# The 23505 match is deliberately narrow. A bare "SQL State : 23505" would
+# also match a genuine unique-constraint violation in a migration, for example
+# a seed insert colliding on a user table's unique index. That is a defect in
+# the migration, not a transient conflict, and retrying it hides the cause.
 is_retryable() {
   local log="$1"
-  grep -qE 'SQL State  : 40001|SQL State  : 23505|change conflicts with another transaction|duplicate key value violates unique constraint "flyway_schema_history_pkey"|security token.*is expired' "$log"
+  grep -qE 'SQL State  : 40001|change conflicts with another transaction|duplicate key value violates unique constraint "flyway_schema_history_pkey"|security token.*is expired' "$log"
 }
 
 LOG_DIR="${LOG_DIR:-/tmp/flyway-logs}"

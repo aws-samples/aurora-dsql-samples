@@ -17,7 +17,7 @@
 --     In that case, DSQL closes the connection and the migration fails.
 --     For such migrations, split into smaller steps or run outside Flyway.
 --   - Connection POOL token refresh across invocations. The connector
---     handles that transparently; verified elsewhere in this POC by
+--     handles that transparently; verified elsewhere in this sample by
 --     running make migrate across multiple hours in one session.
 
 SELECT pg_sleep(60);
