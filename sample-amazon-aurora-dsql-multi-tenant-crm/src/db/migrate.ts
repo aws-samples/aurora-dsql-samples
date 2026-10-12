@@ -76,8 +76,13 @@ const DDL_STATEMENTS: string[] = [
   `CREATE INDEX ASYNC IF NOT EXISTS idx_activities_tenant_rel ON activities (tenant_id, related_id)`,
 ];
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Aurora DSQL job identifiers are 26-character lowercase alphanumeric strings,
+ * for example `its3zomaw5fwzjdnz3ojgcotji`. They are not UUIDs. The check below
+ * is strict about the character set, which is what makes it safe to inline the
+ * value as a SQL literal: no quote or escape character can pass it.
+ */
+const JOB_ID_RE = /^[0-9a-z]{26}$/;
 
 /**
  * Block until an async index build finishes, then confirm it actually
@@ -103,8 +108,11 @@ async function waitForIndexJob(
   jobId: string,
   label: string,
 ): Promise<void> {
-  if (!UUID_RE.test(jobId)) {
-    throw new Error(`Refusing to wait on a malformed job id: ${jobId}`);
+  if (!JOB_ID_RE.test(jobId)) {
+    throw new Error(
+      `Refusing to wait on a malformed job id: ${jobId}\n` +
+        "  Expected 26 lowercase alphanumeric characters.",
+    );
   }
   const { rows } = await client.query(`CALL sys.wait_for_job('${jobId}')`);
   const succeeded = (rows?.[0] as { succeeded?: boolean } | undefined)
