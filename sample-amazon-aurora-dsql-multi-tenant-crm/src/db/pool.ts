@@ -34,6 +34,18 @@ export const pool = new AuroraDSQLPool({
   },
 });
 
+/**
+ * node-postgres emits 'error' on the pool when an IDLE connection fails, for
+ * example when Aurora DSQL closes one that has reached its lifetime cap or a
+ * network path drops. That event has no associated query to reject, so without
+ * a listener Node treats it as an unhandled 'error' event and terminates the
+ * process. Logging it is enough: the pool discards the bad connection and
+ * opens a fresh one on the next checkout.
+ */
+pool.on("error", (err: Error) => {
+  console.error("Idle database connection error (pool will recover):", err.message);
+});
+
 export async function closePool(): Promise<void> {
   await pool.end();
 }

@@ -57,9 +57,16 @@ export async function getAccount(
 }
 
 /**
- * Assert an account exists within the tenant. Used by other repositories to
- * enforce referential integrity in the application layer (Aurora DSQL has no
- * foreign keys). Runs inside the caller's transaction for consistency.
+ * Assert an account exists within the tenant.
+ *
+ * The schema already declares `account_id REFERENCES accounts (id)`, and
+ * Aurora DSQL enforces that, so the foreign key proves the account exists.
+ * This check proves something the foreign key cannot: that the account belongs
+ * to the calling tenant. Without it a caller could attach a contact or
+ * opportunity to another tenant's account.
+ *
+ * Runs inside the caller's transaction so the check and the insert commit
+ * together.
  */
 export async function assertAccountInTenant(
   client: PoolClient,

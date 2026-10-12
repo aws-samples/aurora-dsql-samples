@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { pool, closePool } from "./pool.js";
 
 /**
@@ -75,6 +76,52 @@ const DDL_STATEMENTS: string[] = [
   `CREATE INDEX ASYNC IF NOT EXISTS idx_activities_tenant_rel ON activities (tenant_id, related_id)`,
 ];
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Block until an async index build finishes, then confirm it actually
+ * succeeded.
+ *
+ * Two Aurora DSQL details matter here:
+ *
+ *  1. `sys.wait_for_job` is a stored procedure, so it must be invoked with
+ *     `CALL`. Using `SELECT` raises SQLSTATE 42809 (wrong object type).
+ *  2. `CALL` cannot run inside a transaction block, and Aurora DSQL rejects a
+ *     subquery as the argument. The caller commits before reaching this
+ *     function, so the connection is in autocommit, and the job id is
+ *     validated and inlined as a literal.
+ *
+ * The procedure returns normally when the build finishes, whether or not it
+ * worked, reporting the outcome in `succeeded`. A failed build leaves an
+ * invalid index behind, and because the DDL uses `IF NOT EXISTS`, re-running
+ * the migration would skip it and leave the index permanently broken. So treat
+ * `succeeded = false` as fatal and tell the operator how to recover.
+ */
+async function waitForIndexJob(
+  client: PoolClient,
+  jobId: string,
+  label: string,
+): Promise<void> {
+  if (!UUID_RE.test(jobId)) {
+    throw new Error(`Refusing to wait on a malformed job id: ${jobId}`);
+  }
+  const { rows } = await client.query(`CALL sys.wait_for_job('${jobId}')`);
+  const succeeded = (rows?.[0] as { succeeded?: boolean } | undefined)
+    ?.succeeded;
+  if (succeeded === false) {
+    throw new Error(
+      `Async index build failed for: ${label}\n` +
+        `  job id: ${jobId}\n` +
+        "  The index exists but is invalid. Because the statement uses " +
+        "IF NOT EXISTS, re-running this migration will skip it. Drop the " +
+        "index manually, then re-run:\n" +
+        `  DROP INDEX <index name>;`,
+    );
+  }
+  console.log(`  async index job ${jobId} finished`);
+}
+
 async function migrate(): Promise<void> {
   for (const sql of DDL_STATEMENTS) {
     const client = await pool.connect();
@@ -88,8 +135,7 @@ async function migrate(): Promise<void> {
       // migrations are deterministic (useful in CI and for large tables).
       const jobId = (result.rows?.[0] as { job_id?: string } | undefined)?.job_id;
       if (jobId) {
-        await client.query("SELECT sys.wait_for_job($1)", [jobId]);
-        console.log(`  waited for async index job ${jobId}`);
+        await waitForIndexJob(client, jobId, label);
       }
       console.log(`ok: ${label}`);
     } catch (err) {

@@ -7,6 +7,7 @@ import {
   type OpportunityStage,
 } from "../types.js";
 import { assertAccountInTenant } from "./accounts.js";
+import { assertUserInTenant } from "./users.js";
 
 const COLUMNS =
   "id, tenant_id, account_id, name, stage, amount, close_date, owner_id, created_at";
@@ -40,6 +41,12 @@ export async function createOpportunity(
   }
   return withTransaction(async (client) => {
     await assertAccountInTenant(client, tenantId, input.account_id);
+    // owner_id has a foreign key to users (id), which proves the user exists
+    // but says nothing about which tenant they belong to. Check that too, or a
+    // caller could assign their opportunity to another tenant's user.
+    if (input.owner_id) {
+      await assertUserInTenant(client, tenantId, input.owner_id);
+    }
     const { rows } = await client.query<Opportunity>(
       `INSERT INTO opportunities
          (id, tenant_id, account_id, name, stage, amount, close_date, owner_id)

@@ -4,7 +4,9 @@ import { errorHandler } from "./middleware/error.js";
 import { closePool } from "./db/pool.js";
 
 const app = express();
-app.use(express.json());
+// Bound the request body. body-parser raises a 413 above this, which the error
+// handler passes through rather than reporting as a server fault.
+app.use(express.json({ limit: "100kb" }));
 app.use(router);
 app.use(errorHandler);
 

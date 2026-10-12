@@ -8,7 +8,7 @@ tenant isolation enforced in a centralized data-access layer, IAM-based
 database authentication, and Optimistic Concurrency Control (OCC) retries.
 
 The service is a Node.js + Express (TypeScript) application designed to run on
-[Amazon ECS Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service.html),
+[Amazon ECS Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html),
 which — like Aurora DSQL — is serverless: you manage no instances for either.
 
 > This is a companion to
@@ -65,16 +65,31 @@ the pattern it demonstrates is secure by default.
 ## API endpoints
 
 Tenant-scoped endpoints require an `Authorization: Bearer <token>` header whose
-verified `tenant_id` claim selects the tenant. Mint a demo token with
-`POST /api/tenants/:id/token`. (The tenant registry endpoints are
-administrative and are not tenant-scoped.)
+verified `tenant_id` claim selects the tenant. Mint a demo token with the
+`mint-token` script, which needs the signing secret:
+
+```bash
+APP_JWT_SECRET=<secret> npm run mint-token -- <tenant-uuid>
+```
+
+`deploy.sh` records the secret in `scripts/.state.env`.
+
+The three tenant registry routes (`POST /api/tenants`, `GET /api/tenants`,
+`POST /api/tenants/:id/token`) are administrative and have no authentication,
+so they are **not mounted by default**. Enabling them lets any caller who can
+reach the service list every tenant and mint a token for any of them. Turn them
+on only on a throwaway deployment:
+
+```bash
+ENABLE_TENANT_ADMIN_ROUTES=true npm run dev
+```
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/health` | Health check (used by ECS) |
-| POST | `/api/tenants` | Create a tenant (admin) |
-| GET | `/api/tenants` | List tenants (admin) |
-| POST | `/api/tenants/:id/token` | Mint a bearer token for a tenant (demo) |
+| POST | `/api/tenants` | Create a tenant (admin, opt-in only) |
+| GET | `/api/tenants` | List tenants (admin, opt-in only) |
+| POST | `/api/tenants/:id/token` | Mint a bearer token (admin, opt-in only) |
 | POST | `/api/accounts` | Create an account |
 | GET | `/api/accounts` | List accounts for the tenant |
 | GET | `/api/accounts/:id` | Get one account |
@@ -91,9 +106,15 @@ administrative and are not tenant-scoped.)
 
 * An AWS account with permission to create Aurora DSQL clusters, IAM roles,
   ECR repositories, and ECS Express Mode services.
+* **A dedicated Aurora DSQL cluster.** This sample creates a `users` table and
+  an `app_runtime` database role in the `public` schema. The
+  [auth-session-mgmt sample](../sample-amazon-aurora-dsql-auth-session-mgmt)
+  uses the same two names, so running both against one cluster makes the second
+  migration fail. `deploy.sh` provisions a new cluster for you; if you point
+  this at an existing cluster, make sure it does not already host that sample.
 * A default VPC with public subnets in your Region (Express Mode uses it).
 * [AWS CloudShell](https://aws.amazon.com/cloudshell/) is the easiest place to
-  run the scripts — the AWS CLI, Docker, Node.js 20+, `psql`, and credentials
+  run the scripts: the AWS CLI, Docker, Node.js 22+, `psql`, and credentials
   are already available. You can also run locally with those tools installed.
 
 ## Deploy (in AWS CloudShell)
@@ -133,11 +154,17 @@ credentials in your environment.
 
 ## Testing
 
+Run the server with the admin routes enabled for this walkthrough:
+
+```bash
+ENABLE_TENANT_ADMIN_ROUTES=true npm run dev
+```
+
 ```bash
 # Create a tenant (admin), then mint a bearer token for it
 TENANT=$(curl -s -X POST http://localhost:3000/api/tenants \
   -H 'Content-Type: application/json' -d '{"name":"Acme Corp"}' | jq -r .id)
-TOKEN=$(curl -s -X POST http://localhost:3000/api/tenants/$TENANT/token | jq -r .token)
+TOKEN=$(APP_JWT_SECRET="$APP_JWT_SECRET" npm run --silent mint-token -- "$TENANT")
 
 # Create an account for that tenant (authenticated with the token)
 ACCOUNT=$(curl -s -X POST http://localhost:3000/api/accounts \
@@ -156,7 +183,7 @@ curl -s -X POST http://localhost:3000/api/opportunities \
 # Tenant isolation: a token for a different tenant sees none of the above
 OTHER=$(curl -s -X POST http://localhost:3000/api/tenants \
   -H 'Content-Type: application/json' -d '{"name":"Globex"}' | jq -r .id)
-OTHER_TOKEN=$(curl -s -X POST http://localhost:3000/api/tenants/$OTHER/token | jq -r .token)
+OTHER_TOKEN=$(APP_JWT_SECRET="$APP_JWT_SECRET" npm run --silent mint-token -- "$OTHER")
 curl -s http://localhost:3000/api/accounts -H "Authorization: Bearer $OTHER_TOKEN" | jq  # [] empty
 
 # A request with no bearer token is rejected (401)
@@ -193,11 +220,11 @@ diagrams/architecture.py Architecture diagram as code (AWS icons)
 
 ## Security
 
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for reporting
+See [CONTRIBUTING](../CONTRIBUTING.md#security-issue-notifications) for reporting
 security issues. This sample is a proof of concept; review and harden
 (authentication, input validation, least-privilege roles, logging) before any
 production use.
 
 ## License
 
-This library is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.
+This library is licensed under the MIT-0 License. See the [LICENSE](../LICENSE) file.

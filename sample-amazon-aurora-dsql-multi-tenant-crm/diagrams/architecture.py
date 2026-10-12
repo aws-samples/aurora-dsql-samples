@@ -45,7 +45,7 @@ with Diagram(
     direction="LR",
     graph_attr=graph_attr,
 ):
-    clients = Users("Tenant clients\n(X-Tenant-Id)")
+    clients = Users("Tenant clients\n(Bearer JWT)")
 
     with Cluster("AWS Cloud"):
         with Cluster("Amazon ECS Express Mode (AWS Fargate)"):

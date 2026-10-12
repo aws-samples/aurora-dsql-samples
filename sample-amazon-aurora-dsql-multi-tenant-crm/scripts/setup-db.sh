@@ -24,6 +24,15 @@ STATE_FILE="$SCRIPT_DIR/.state.env"
 : "${DSQL_ENDPOINT:?Set DSQL_ENDPOINT (or run deploy.sh first)}"
 : "${TASK_ROLE_ARN:?TASK_ROLE_ARN not found in state; run deploy.sh first}"
 
+# Validate the ARN before handing it to psql. A typo here would otherwise be
+# reported by the database as a syntax error part-way through the script.
+if [[ ! "$TASK_ROLE_ARN" =~ ^arn:aws[a-zA-Z-]*:iam::[0-9]{12}:role/.+$ ]]; then
+  echo "ERROR: TASK_ROLE_ARN is not a valid IAM role ARN:" >&2
+  echo "  $TASK_ROLE_ARN" >&2
+  echo "Expected arn:aws:iam::<12-digit-account>:role/<name>" >&2
+  exit 1
+fi
+
 # --- 1. Create tables and indexes as admin -------------------------------
 echo "==> Running migrations as admin"
 ( cd "$PROJECT_DIR" && npm install --silent && \
@@ -34,18 +43,42 @@ echo "==> Creating app_runtime role and grants"
 ADMIN_TOKEN="$(aws dsql generate-db-connect-admin-auth-token \
   --hostname "$DSQL_ENDPOINT" --region "$REGION" --expires-in 3600)"
 
-# CREATE ROLE / GRANT are idempotent-tolerant here: re-running is harmless and
-# "already exists" style errors are ignored with ON_ERROR_STOP off for setup.
+# Create the role only if it is absent, so the rest of the script can run under
+# ON_ERROR_STOP=1 and a genuine failure actually stops it. Previously this ran
+# with ON_ERROR_STOP=0 to tolerate "role already exists", which also meant a
+# bad endpoint or ARN produced a wall of errors followed by "complete".
+ROLE_EXISTS="$(PGSSLMODE=require PGPASSWORD="$ADMIN_TOKEN" psql \
+  --host "$DSQL_ENDPOINT" --username admin --dbname postgres \
+  -v ON_ERROR_STOP=1 -tAc \
+  "SELECT 1 FROM pg_roles WHERE rolname = 'app_runtime'")"
+
+if [[ "$ROLE_EXISTS" != "1" ]]; then
+  echo "    creating role app_runtime"
+  PGSSLMODE=require PGPASSWORD="$ADMIN_TOKEN" psql \
+    --host "$DSQL_ENDPOINT" --username admin --dbname postgres \
+    -v ON_ERROR_STOP=1 -c "CREATE ROLE app_runtime WITH LOGIN"
+else
+  echo "    role app_runtime already exists"
+fi
+
+# Grant only the privileges the service actually exercises. No endpoint deletes
+# a record, so DELETE is not granted anywhere. Per table:
+#   tenants       SELECT  tenantContext checks the tenant exists and is active
+#                 INSERT  seed script, and the opt-in tenant admin route
+#   users         SELECT  verifying that an opportunity owner_id is in-tenant
+#   accounts      SELECT, INSERT
+#   contacts      SELECT, INSERT
+#   opportunities SELECT, INSERT, UPDATE  (stage transitions)
+#   activities    SELECT, INSERT, UPDATE  (bulk complete)
 PGSSLMODE=require PGPASSWORD="$ADMIN_TOKEN" psql \
-  --host "$DSQL_ENDPOINT" --username admin --dbname postgres -v ON_ERROR_STOP=0 <<SQL
-CREATE ROLE app_runtime WITH LOGIN;
+  --host "$DSQL_ENDPOINT" --username admin --dbname postgres -v ON_ERROR_STOP=1 <<SQL
 AWS IAM GRANT app_runtime TO '${TASK_ROLE_ARN}';
-GRANT SELECT, INSERT, UPDATE, DELETE ON tenants       TO app_runtime;
-GRANT SELECT, INSERT, UPDATE, DELETE ON users         TO app_runtime;
-GRANT SELECT, INSERT, UPDATE, DELETE ON accounts      TO app_runtime;
-GRANT SELECT, INSERT, UPDATE, DELETE ON contacts      TO app_runtime;
-GRANT SELECT, INSERT, UPDATE, DELETE ON opportunities TO app_runtime;
-GRANT SELECT, INSERT, UPDATE, DELETE ON activities    TO app_runtime;
+GRANT SELECT, INSERT         ON tenants       TO app_runtime;
+GRANT SELECT                 ON users         TO app_runtime;
+GRANT SELECT, INSERT         ON accounts      TO app_runtime;
+GRANT SELECT, INSERT         ON contacts      TO app_runtime;
+GRANT SELECT, INSERT, UPDATE ON opportunities TO app_runtime;
+GRANT SELECT, INSERT, UPDATE ON activities    TO app_runtime;
 SQL
 
 echo "Database bootstrap complete. The service can now connect as app_runtime."

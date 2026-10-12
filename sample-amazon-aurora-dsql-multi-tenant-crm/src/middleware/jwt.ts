@@ -5,9 +5,9 @@ import { ApiError } from "../types.js";
  * Minimal HS256 JWT mint/verify, implemented with Node's built-in `crypto`
  * so the sample needs no extra dependency.
  *
- * The point of this file, for the blog, is that the demo derives the tenant
- * from a SIGNED, VERIFIED token rather than a raw client-supplied header: a
- * caller cannot claim an arbitrary tenant without the signing secret. In a
+ * The point of this file is that the sample derives the tenant from a SIGNED,
+ * VERIFIED token rather than a raw client-supplied header: a caller cannot
+ * claim an arbitrary tenant without the signing secret. In a
  * real deployment you would not mint tokens here at all -- an identity
  * provider (for example Amazon Cognito) would issue them and you would verify
  * against its public keys (JWKS). The claim this code reads, `tenant_id`,

@@ -21,8 +21,9 @@ export async function createContact(
 ): Promise<Contact> {
   const id = randomUUID();
   return withTransaction(async (client) => {
-    // Application-layer referential integrity: the account must belong to the
-    // same tenant. Enforced inside the transaction (no foreign keys in DSQL).
+    // The schema's foreign key proves the account exists; this check proves it
+    // belongs to the calling tenant, which a single-column foreign key cannot
+    // express. Runs inside the transaction so both commit together.
     await assertAccountInTenant(client, tenantId, input.account_id);
 
     const { rows } = await client.query<Contact>(

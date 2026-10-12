@@ -5,7 +5,7 @@
   "license": "MIT-0",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -13,6 +13,7 @@
     "dev": "tsx watch src/index.ts",
     "migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/scripts/seed.ts",
+    "mint-token": "tsx src/scripts/mint-token.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -24,7 +25,7 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
-    "@types/node": "^20.16.0",
+    "@types/node": "^22.10.0",
     "@types/pg": "^8.11.10",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"

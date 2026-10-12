@@ -1,13 +1,16 @@
 # Multi-stage build for the multi-tenant CRM service.
-FROM public.ecr.aws/docker/library/node:20-slim AS build
+# Node 22 (Active LTS). Node 20 reached end of life in April 2026.
+FROM public.ecr.aws/docker/library/node:22-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm install
+# npm ci installs exactly what the lockfile pins, so the image matches what was
+# reviewed and tested. npm install may silently resolve newer versions.
+RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev
 
-FROM public.ecr.aws/docker/library/node:20-slim AS runtime
+FROM public.ecr.aws/docker/library/node:22-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
