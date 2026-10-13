@@ -94,6 +94,8 @@ class CiGateTests(unittest.TestCase):
         context = {"inputs": inputs, "github": github}
         self.assertTrue(workflow["jobs"], "No consumer jobs configured")
         for job_name, job in workflow["jobs"].items():
+            if "uses" in job:
+                continue  # Reusable cluster create/delete workflows check out no code.
             checkouts = [
                 step for step in job.get("steps", [])
                 if step.get("uses", "").split("@")[0] == "actions/checkout"
@@ -105,13 +107,14 @@ class CiGateTests(unittest.TestCase):
                     # An empty checkout ref uses the triggering event's commit.
                     self.assertEqual(ref or github["sha"], expected)
 
-    def assert_gate_checkout_refs(self, outputs, github, expected):
+    def assert_gate_checkout_refs(self, outputs, github, expected,
+                                  caller_name="rust-lambda-employee-lookup"):
         gate = load_workflow(WORKFLOW)
         job_outputs = {
             name: resolve_ref(expression, {"steps": {"detect": {"outputs": outputs}}})
             for name, expression in gate["jobs"]["changes"].get("outputs", {}).items()
         }
-        caller = gate["jobs"]["rust-lambda-employee-lookup"]
+        caller = gate["jobs"][caller_name]
         workflow = load_workflow(REPO_ROOT / caller["uses"])
         declarations = workflow["on"]["workflow_call"].get("inputs", {})
         self.assertIn("checkout-ref", declarations, "The forwarded input must be declared")
@@ -134,6 +137,26 @@ class CiGateTests(unittest.TestCase):
     def test_workflow_change_runs_sample_checks(self):
         outputs = detect([".github/workflows/rust-lambda-employee-lookup-integ-tests.yml"])
         self.assertEqual(outputs["rust-lambda-employee-lookup"], "true")
+
+    def test_dsql_workflow_change_runs_sample_checks(self):
+        outputs = detect([".github/workflows/rust-lambda-employee-lookup-dsql-integ-tests.yml"])
+        self.assertEqual(outputs["rust-lambda-employee-lookup"], "true")
+
+    def test_dsql_job_runs_only_with_integration_credentials(self):
+        gate = load_workflow(WORKFLOW)
+        job = gate["jobs"]["rust-lambda-employee-lookup-dsql"]
+        self.assertIn("needs.changes.outputs.run-integration == 'true'", job["if"])
+        self.assertIn("needs.changes.outputs.rust-lambda-employee-lookup == 'true'", job["if"])
+        self.assertEqual(job.get("secrets"), "inherit")
+        self.assertEqual(job["permissions"].get("id-token"), "write")
+        self.assertIn("rust-lambda-employee-lookup-dsql", gate["jobs"]["gate"]["needs"])
+
+    def test_dsql_job_tests_pr_head(self):
+        outputs = detect(["rust/lambda-employee-lookup/seed.sql"])
+        self.assert_gate_checkout_refs(outputs, {
+            "event_name": "workflow_run", "sha": MAIN_SHA,
+            "event": {"workflow_run": {"head_sha": MAIN_SHA}},
+        }, PR_HEAD, caller_name="rust-lambda-employee-lookup-dsql")
 
     def test_sample_change_tests_pr_head(self):
         outputs = detect(["rust/lambda-employee-lookup/src/main.rs"])

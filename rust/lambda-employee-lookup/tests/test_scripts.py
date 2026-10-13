@@ -384,7 +384,7 @@ class DeploymentScriptTests(unittest.TestCase):
                     self.assertEqual(argument(token, "--hostname"), endpoint)
                     self.assertEqual(argument(token, "--region"), REGION)
                     psql, = harness.calls("psql")
-                    self.assertIn(f"host={endpoint} port=5432 dbname=postgres user=admin sslmode=require", psql["args"])
+                    self.assertIn(f"host={endpoint} port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system", psql["args"])
                     self.assertIn("ON_ERROR_STOP=1", psql["args"])
                     self.assertIn(f"role_arn={ROLE_ARN}", psql["args"])
                     self.assertEqual(psql["password"], "offline-admin-token")

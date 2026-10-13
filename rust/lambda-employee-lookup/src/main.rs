@@ -1,9 +1,7 @@
 use anyhow::Result;
-use aurora_dsql_sqlx_connector::DsqlConnectOptions;
-use dsql_employee_lookup::{error_response, handle_lookup, parse_request};
+use dsql_employee_lookup::{connect_pool, error_response, handle_lookup, parse_request};
 use lambda_http::{run, service_fn, Body, Error, Request, Response};
-use sqlx::postgres::PgPoolOptions;
-use sqlx::{Executor, PgPool};
+use sqlx::PgPool;
 use std::env;
 use std::sync::OnceLock;
 use tracing::{error, info};
@@ -13,21 +11,7 @@ static POOL: OnceLock<PgPool> = OnceLock::new();
 async fn init_pool() -> Result<PgPool> {
     let endpoint = env::var("DSQL_ENDPOINT")?;
     let user = env::var("DSQL_USER").unwrap_or_else(|_| "app_readonly".into());
-    let conn_str = format!("postgres://{}@{}/postgres", user, endpoint);
-    let config = DsqlConnectOptions::from_connection_string(&conn_str)?;
-    let pool = aurora_dsql_sqlx_connector::pool::connect_with(
-        &config,
-        PgPoolOptions::new()
-            .max_connections(2)
-            .idle_timeout(None)
-            .after_connect(|conn, _meta| {
-                Box::pin(async move {
-                    conn.execute("SET search_path = 'app'").await?;
-                    Ok(())
-                })
-            }),
-    )
-    .await?;
+    let pool = connect_pool(&endpoint, &user).await?;
     info!("DSQL connection pool initialized (max_connections=2)");
     Ok(pool)
 }

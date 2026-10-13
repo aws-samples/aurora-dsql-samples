@@ -16,6 +16,10 @@ anyhow = "1"
 base64 = "0.22"
 uuid = "1"
 
+[features]
+# Builds tests/dsql_tests.rs, which needs an Aurora DSQL cluster seeded with seed.sql.
+dsql-integration = []
+
 [profile.release]
 strip = true
 lto = true

@@ -21,7 +21,7 @@ The Lambda function exposes a `POST /lookup` endpoint via API Gateway that queri
 - You must have [cargo-lambda](https://www.cargo-lambda.info/) installed.
 - You must have [Docker](https://docs.docker.com/get-docker/) or [Finch](https://runfinch.com/) installed and running (for building on macOS).
 - You must have [jq](https://jqlang.github.io/jq/) installed.
-- You must have `psql` installed to run the database setup script.
+- You must have `psql` 16 or later installed to run the database setup script. The setup commands use `sslmode=verify-full sslrootcert=system`, which verifies the cluster's certificate against your system's trusted CAs.
 
 The CLI setup scripts let you reuse an existing Aurora DSQL cluster or create one. CloudFormation and Terraform create a cluster for this deployment; you do not need to create a separate prerequisite cluster.
 
@@ -113,7 +113,7 @@ TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
   --hostname "$DSQL_ENDPOINT" --region "$AWS_REGION")
 
 PGPASSWORD="$TOKEN" psql \
-  "host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require" \
+  "host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system" \
   -v ON_ERROR_STOP=1 \
   -v role_arn="$ROLE_ARN" \
   -f seed.sql
@@ -188,6 +188,13 @@ cargo test --locked -- --include-ignored
 
 Each test creates and removes its own schema. CI supplies PostgreSQL 17 and runs this command. These tests exercise SQL and handler behavior, not Aurora DSQL IAM/TLS or deployment semantics; do not point them at a production database.
 
+The DSQL integration workflow creates an Aurora DSQL cluster, runs `seed.sql` as admin, and maps `app_readonly` to the workflow's IAM role. It waits for the async index, records the lookup's `EXPLAIN` plan, and then runs `tests/dsql_tests.rs` through the function's connection pool as `app_readonly`. To run those tests against your own seeded cluster, use credentials for an IAM role that `seed.sql` mapped to `app_readonly`:
+
+```bash
+export DSQL_ENDPOINT="<your cluster endpoint>"
+cargo test --locked --features dsql-integration --test dsql_tests -- --test-threads=1
+```
+
 ### Clean up
 
 For the CLI scripts, use the teardown commands printed at the end of the run. They delete only the resources that run created; keep reused clusters and IAM roles.
@@ -204,7 +211,8 @@ For Terraform, run `terraform -chdir="$DEPLOY_DIR" destroy` with the same variab
 ## Project structure
 
 ```
-├── src/main.rs           # Lambda entry point + DSQL connection pool
+├── src/main.rs           # Lambda entry point
+├── src/pool.rs           # DSQL connection pool (connector, IAM auth)
 ├── src/lib.rs            # Shared library exports
 ├── src/handler.rs        # Validated lookup requests, SQL, and pagination
 ├── src/cursor.rs         # Pagination cursors

@@ -13,7 +13,7 @@
 --   TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
 --     --hostname <YOUR_ENDPOINT> --region <YOUR_REGION>)
 --   PGPASSWORD=$TOKEN psql \
---     "host=<YOUR_ENDPOINT> port=5432 dbname=postgres user=admin sslmode=require" \
+--     "host=<YOUR_ENDPOINT> port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system" \
 --     -v ON_ERROR_STOP=1 \
 --     -v role_arn='arn:aws:iam::<YOUR_ACCOUNT_ID>:role/dsql-employee-lookup-role' \
 --     -f seed.sql
@@ -22,17 +22,6 @@
 -- Re-running this script will fail on the CREATE ROLE statement if the role
 -- already exists. To re-seed, comment out Step 2 and Step 3 on subsequent runs.
 --
--- =============================================================================
--- (Optional) Create a write-access role for schema setup and data loading.
--- Uncomment the following block if you want a separate user with write access
--- instead of using admin for CREATE TABLE and INSERT operations:
---
---   CREATE ROLE app_writer WITH LOGIN;
---   AWS IAM GRANT app_writer TO :'role_arn';
---   GRANT CREATE ON SCHEMA app TO app_writer;
---   GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA app TO app_writer;
---   ALTER DEFAULT PRIVILEGES IN SCHEMA app
---     GRANT INSERT, UPDATE, DELETE ON TABLES TO app_writer;
 -- =============================================================================
 
 -- Step 1: Create the application schema (requires write access)
@@ -68,6 +57,15 @@ SELECT indisvalid FROM pg_index WHERE indexrelid = 'app.idx_employees_name_lower
 -- Step 6: Grant schema and table access to the app role (requires admin access)
 GRANT USAGE ON SCHEMA app TO app_readonly;
 GRANT SELECT ON app.employees TO app_readonly;
+
+-- (Optional) To load data without admin, uncomment this block and map
+-- app_writer to a separate setup IAM role, not the Lambda execution role, so
+-- the function keeps read-only access:
+--
+--   CREATE ROLE app_writer WITH LOGIN;
+--   AWS IAM GRANT app_writer TO 'arn:aws:iam::<YOUR_ACCOUNT_ID>:role/<YOUR_SETUP_ROLE>';
+--   GRANT USAGE ON SCHEMA app TO app_writer;
+--   GRANT INSERT, UPDATE, DELETE ON app.employees TO app_writer;
 
 -- Step 7: Insert sample data (requires write access on app.employees table)
 -- Fixed UUIDs ensure ON CONFLICT DO NOTHING works correctly on re-runs.

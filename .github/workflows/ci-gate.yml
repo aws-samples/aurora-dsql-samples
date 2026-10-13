@@ -91,6 +91,7 @@ jobs:
               'rust-lambda-employee-lookup': [
                 'rust/lambda-employee-lookup/',
                 '.github/workflows/rust-lambda-employee-lookup-integ-tests.yml',
+                '.github/workflows/rust-lambda-employee-lookup-dsql-integ-tests.yml',
               ],
               'typescript-drizzle': ['typescript/drizzle/'],
               'typescript-prisma': ['typescript/prisma-multi-region/'],
@@ -383,6 +384,17 @@ jobs:
     permissions:
       contents: read
 
+  rust-lambda-employee-lookup-dsql:
+    needs: changes
+    if: needs.changes.outputs.run-integration == 'true' && needs.changes.outputs.rust-lambda-employee-lookup == 'true'
+    uses: ./.github/workflows/rust-lambda-employee-lookup-dsql-integ-tests.yml
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write # required by aws-actions/configure-aws-credentials
+
   typescript-drizzle:
     needs: changes
     if: needs.changes.outputs.typescript-drizzle == 'true'
@@ -460,6 +472,7 @@ jobs:
       - rust-cm
       - rust-sqlx
       - rust-lambda-employee-lookup
+      - rust-lambda-employee-lookup-dsql
       - typescript-drizzle
       - typescript-prisma
       - typescript-sequelize
