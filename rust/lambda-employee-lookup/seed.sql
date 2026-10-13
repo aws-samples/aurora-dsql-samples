@@ -65,7 +65,7 @@ GRANT SELECT ON app.employees TO app_readonly;
 --   CREATE ROLE app_writer WITH LOGIN;
 --   AWS IAM GRANT app_writer TO 'arn:aws:iam::<YOUR_ACCOUNT_ID>:role/<YOUR_SETUP_ROLE>';
 --   GRANT USAGE ON SCHEMA app TO app_writer;
---   GRANT INSERT, UPDATE, DELETE ON app.employees TO app_writer;
+--   GRANT SELECT, INSERT, UPDATE, DELETE ON app.employees TO app_writer;
 
 -- Step 7: Insert sample data (requires write access on app.employees table)
 -- Fixed UUIDs ensure ON CONFLICT DO NOTHING works correctly on re-runs.

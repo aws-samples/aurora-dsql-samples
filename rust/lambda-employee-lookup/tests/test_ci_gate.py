@@ -93,9 +93,10 @@ class CiGateTests(unittest.TestCase):
     def assert_checkout_refs(self, workflow, inputs, github, expected):
         context = {"inputs": inputs, "github": github}
         self.assertTrue(workflow["jobs"], "No consumer jobs configured")
+        checked = 0
         for job_name, job in workflow["jobs"].items():
-            if "uses" in job:
-                continue  # Reusable cluster create/delete workflows check out no code.
+            if re.fullmatch(r"\./\.github/workflows/dsql-cluster-(create|delete)\.yml", job.get("uses", "")):
+                continue  # Cluster create/delete jobs check out no sample code.
             checkouts = [
                 step for step in job.get("steps", [])
                 if step.get("uses", "").split("@")[0] == "actions/checkout"
@@ -106,6 +107,8 @@ class CiGateTests(unittest.TestCase):
                     ref = resolve_ref(step.get("with", {}).get("ref", ""), context)
                     # An empty checkout ref uses the triggering event's commit.
                     self.assertEqual(ref or github["sha"], expected)
+                    checked += 1
+        self.assertGreater(checked, 0, "No sample checkout was checked")
 
     def assert_gate_checkout_refs(self, outputs, github, expected,
                                   caller_name="rust-lambda-employee-lookup"):
@@ -145,8 +148,11 @@ class CiGateTests(unittest.TestCase):
     def test_dsql_job_runs_only_with_integration_credentials(self):
         gate = load_workflow(WORKFLOW)
         job = gate["jobs"]["rust-lambda-employee-lookup-dsql"]
-        self.assertIn("needs.changes.outputs.run-integration == 'true'", job["if"])
-        self.assertIn("needs.changes.outputs.rust-lambda-employee-lookup == 'true'", job["if"])
+        self.assertEqual(
+            job["if"],
+            "needs.changes.outputs.run-integration == 'true' && "
+            "needs.changes.outputs.rust-lambda-employee-lookup == 'true'",
+        )
         self.assertEqual(job.get("secrets"), "inherit")
         self.assertEqual(job["permissions"].get("id-token"), "write")
         self.assertIn("rust-lambda-employee-lookup-dsql", gate["jobs"]["gate"]["needs"])
