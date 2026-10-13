@@ -7,11 +7,25 @@
 #
 set -euo pipefail
 
-REGION="${AWS_REGION:-us-east-1}"
 APP_NAME="crm-dsql-poc"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_FILE="$SCRIPT_DIR/.state.env"
 [[ -f "$STATE_FILE" ]] && source "$STATE_FILE" || true
+
+# The Region must come from the state file, not the ambient AWS_REGION.
+# deploy.sh records the Region it actually used, and a later CloudShell session
+# can easily default to a different one. Looking in the wrong Region finds
+# nothing, which previously printed "Cleanup complete" and removed the state
+# file while the cluster and service carried on running, and billing.
+REGION="${DEPLOY_REGION:-${AWS_REGION:-us-east-1}}"
+if [[ -z "${DEPLOY_REGION:-}" ]]; then
+  echo "WARNING: no DEPLOY_REGION in the state file (written by an older deploy?)." >&2
+  echo "         Falling back to $REGION. If you deployed to a different Region," >&2
+  echo "         abort and re-run with DEPLOY_REGION=<region> so nothing is left" >&2
+  echo "         behind and billing." >&2
+fi
+echo "==> Region: $REGION"
+
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 
 echo "This will DELETE the DSQL cluster ${CLUSTER_ID:-<none>} and the ECS service."

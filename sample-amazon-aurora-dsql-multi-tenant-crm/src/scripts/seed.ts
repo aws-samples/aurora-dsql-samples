@@ -6,8 +6,14 @@ import { createOpportunity } from "../repositories/opportunities.js";
 
 /**
  * Seed two demo tenants with isolated data. Prints each tenant id so you can
- * mint a bearer token (POST /api/tenants/:id/token) and observe that neither
- * tenant can see the other's records.
+ * mint a bearer token and observe that neither tenant can see the other's
+ * records:
+ *
+ *   APP_JWT_SECRET=<secret> npm run mint-token -- <tenant-id>
+ *
+ * The POST /api/tenants/:id/token route also mints one, but it is gated behind
+ * ENABLE_TENANT_ADMIN_ROUTES and is off by default, because an open
+ * token-minting endpoint lets any caller act as any tenant.
  */
 async function seed(): Promise<void> {
   for (const tenantName of ["Acme Corp", "Globex LLC"]) {

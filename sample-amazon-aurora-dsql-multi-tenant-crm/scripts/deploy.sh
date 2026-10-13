@@ -44,6 +44,11 @@ put_state() { # key value
 
 echo "==> Region=$REGION Account=$ACCOUNT_ID"
 
+# Record the Region alongside the resource ids. cleanup.sh reads this rather
+# than the ambient AWS_REGION, so a later shell defaulting to a different
+# Region cannot report success while leaving the stack running.
+put_state DEPLOY_REGION "$REGION"
+
 # ---------------------------------------------------------------------------
 # 1. Aurora DSQL cluster
 # ---------------------------------------------------------------------------
@@ -59,17 +64,22 @@ else
   echo "==> Reusing DSQL cluster $CLUSTER_ID"
 fi
 
-# Wait for the cluster to be usable, with a ceiling. An IDLE cluster is
-# connectable (it wakes on demand), so treat it as ready rather than looping
-# forever waiting for ACTIVE. A failed or deleted cluster, or a get-cluster
-# that keeps erroring, must abort instead of spinning.
+# Wait for the cluster to be usable, with a ceiling.
+#
+# ACTIVE, IDLE and INACTIVE are all connectable: Aurora DSQL parks an unused
+# cluster and wakes it on the next connection. Waiting for ACTIVE alone means a
+# re-run against a cluster that has been idle for a while spins for the full
+# timeout and then exits 1, even though the cluster is perfectly usable.
+#
+# A failed or deleted cluster, or a get-cluster that keeps erroring, must abort
+# instead of spinning.
 echo "==> Waiting for cluster to become available"
 WAIT_DEADLINE=$(( SECONDS + 600 ))
 while :; do
   CLUSTER_STATUS="$(aws dsql get-cluster --region "$REGION" \
     --identifier "$CLUSTER_ID" --query status --output text 2>/dev/null || echo "UNKNOWN")"
   case "$CLUSTER_STATUS" in
-    ACTIVE|IDLE)
+    ACTIVE|IDLE|INACTIVE)
       echo "    status: $CLUSTER_STATUS"
       break
       ;;

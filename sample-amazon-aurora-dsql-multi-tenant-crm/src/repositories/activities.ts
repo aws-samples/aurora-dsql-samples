@@ -19,15 +19,28 @@ const VALID_TYPES: ActivityRelatedType[] = [
 
 /**
  * Aurora DSQL caps a single transaction two ways: at 3,000 modified rows and
- * at 10 MiB of changed data. The row cap is the easy one to reason about, but
- * the byte cap bites first when rows are wide: `activities.notes` is TEXT, so
- * 3,000 rows carrying a few KiB of notes each exceeds 10 MiB and the whole
- * batch fails with SQLSTATE 54000.
+ * at 10 MiB of changed data. Exceeding either fails the whole batch with
+ * SQLSTATE 54000 (`program_limit_exceeded`).
  *
- * 1,000 keeps a batch under the byte cap for notes up to the length
- * MAX_NOTES_LENGTH allows, while still bounding the number of round trips.
+ * No fixed row count is safe, which is the point worth taking away. The row
+ * cap is a count, but the byte cap depends on the data, and `activities.notes`
+ * is TEXT. Whatever constant you pick is either too small for narrow rows or
+ * too large for wide ones. So start at BATCH_SIZE and halve on 54000 down to
+ * BATCH_SIZE_FLOOR, which adapts to whatever the rows actually weigh.
  */
 const BATCH_SIZE = 1000;
+const BATCH_SIZE_FLOOR = 50;
+
+/** SQLSTATE 54000: a transaction exceeded a per-transaction Aurora DSQL cap. */
+const PROGRAM_LIMIT_EXCEEDED = "54000";
+
+function isLimitExceeded(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: string }).code === PROGRAM_LIMIT_EXCEEDED
+  );
+}
 
 /**
  * Cap on `notes` length. TEXT itself is unbounded, so without a ceiling here a
@@ -150,10 +163,19 @@ export async function listActivities(
 }
 
 /**
- * Mark every open activity for a record as done. A busy tenant can have more
- * than 3,000 open activities, which would exceed the Aurora DSQL per-
- * transaction row limit in a single UPDATE. We loop in batches; the
- * `done = FALSE` predicate makes each iteration idempotent and resumable.
+ * Mark every open activity for a record as done.
+ *
+ * A busy tenant can have more open activities than one Aurora DSQL
+ * transaction may modify, so this loops in batches. The `done = FALSE`
+ * predicate makes each iteration idempotent and resumable: a batch that fails
+ * leaves its rows unchanged, and the next pass picks them up again.
+ *
+ * The batch size adapts. If a batch trips a per-transaction cap (SQLSTATE
+ * 54000) the size is halved and retried, because the 10 MiB byte cap depends
+ * on how wide the rows are and no fixed row count is right for every tenant.
+ * Shrinking is sticky for the rest of the call, since later batches hold
+ * similar data.
+ *
  * Returns the total number of activities completed.
  */
 export async function completeActivitiesFor(
@@ -161,21 +183,36 @@ export async function completeActivitiesFor(
   relatedId: string,
 ): Promise<number> {
   let total = 0;
+  let batchSize = BATCH_SIZE;
+
   for (;;) {
-    const affected = await withTransaction(async (client) => {
-      const result = await client.query(
-        `UPDATE activities SET done = TRUE
-          WHERE id IN (
-            SELECT id FROM activities
-             WHERE tenant_id = $1 AND related_id = $2 AND done = FALSE
-             LIMIT $3
-          )`,
-        [tenantId, relatedId, BATCH_SIZE],
-      );
-      return result.rowCount ?? 0;
-    });
+    let affected: number;
+    try {
+      affected = await withTransaction(async (client) => {
+        const result = await client.query(
+          `UPDATE activities SET done = TRUE
+            WHERE id IN (
+              SELECT id FROM activities
+               WHERE tenant_id = $1 AND related_id = $2 AND done = FALSE
+               LIMIT $3
+            )`,
+          [tenantId, relatedId, batchSize],
+        );
+        return result.rowCount ?? 0;
+      });
+    } catch (err) {
+      if (isLimitExceeded(err) && batchSize > BATCH_SIZE_FLOOR) {
+        batchSize = Math.max(BATCH_SIZE_FLOOR, Math.floor(batchSize / 2));
+        console.warn(
+          `activities.complete: transaction limit hit, retrying with batch ${batchSize}`,
+        );
+        continue;
+      }
+      throw err;
+    }
+
     total += affected;
-    if (affected < BATCH_SIZE) break;
+    if (affected < batchSize) break;
   }
   return total;
 }

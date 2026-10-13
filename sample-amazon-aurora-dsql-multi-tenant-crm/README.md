@@ -132,24 +132,38 @@ export AWS_REGION=us-east-1
 DSQL_ENDPOINT=<printed-by-deploy> ./scripts/setup-db.sh
 ```
 
-`deploy.sh` prints the DSQL endpoint and the application URL
-(`https://crm-dsql-poc.ecs.<region>.on.aws/`). It records state in
-`scripts/.state.env` and is safe to re-run.
+`deploy.sh` prints the DSQL endpoint, and prints the command to look up the
+service endpoint rather than the URL itself:
+
+```bash
+aws ecs describe-express-gateway-service --region <region> --service-arn <arn>
+```
+
+It records state in `scripts/.state.env`, including the Region it deployed to,
+and is safe to re-run. `cleanup.sh` reads that Region, so run `cleanup.sh`
+rather than deleting resources by hand if you want to be sure nothing is left
+billing.
 
 ## Run locally
 
 ```bash
 npm install
 export DSQL_ENDPOINT="<cluster-id>.dsql.us-east-1.on.aws"
-export DSQL_USER=admin          # for first-time migrate; use app_runtime after setup
+export DSQL_USER=admin          # locally this stays admin; see the note below
 export APP_JWT_SECRET="$(openssl rand -hex 32)"   # signs/verifies tenant bearer tokens
 npm run migrate                 # create tables + async indexes
 npm run seed                    # optional: two demo tenants with sample data
 npm run dev                     # start the API on http://localhost:3000
 ```
 
+Running locally connects as `admin`, not `app_runtime`. The `app_runtime`
+database role is granted to the ECS task role, so only the deployed service can
+authenticate as it; your own IAM identity cannot. `app_runtime` is what
+constrains the service's privileges in the deployment, which is the point of
+creating it, but it is not usable from a developer machine.
+
 The Aurora DSQL connector parses the Region from the cluster hostname and
-generates IAM auth tokens automatically, so no password is needed — just AWS
+generates IAM auth tokens automatically, so no password is needed, just AWS
 credentials in your environment.
 
 ## Testing
