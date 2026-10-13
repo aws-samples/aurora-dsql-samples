@@ -124,6 +124,8 @@ HTTP_STATUS=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$API_URL" 
   -H 'Content-Type: application/json') || { HTTP_STATUS="000"; : > "$RESPONSE_FILE"; }
 BODY=$(cat "$RESPONSE_FILE")
 assert_status "Empty body" "200" "$HTTP_STATUS" "$BODY"
+assert_json_field "Empty body" "$BODY" \
+  '(.employees | type) == "array" and (.count | type) == "number" and has("next")' "true"
 
 # Test 6: Invalid JSON — expect 400
 echo ">>> Test 6: Invalid JSON body (expect 400)"

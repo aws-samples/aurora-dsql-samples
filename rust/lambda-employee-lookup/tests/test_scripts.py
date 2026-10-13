@@ -566,6 +566,19 @@ class ApiScriptTests(unittest.TestCase):
                 self.assert_failure_summary(harness, result)
                 self.assertIn("Expected count > 0", result.stdout)
 
+    def test_empty_body_response_must_match_lookup_contract(self):
+        # Checking only the status lets a 200 with HTML, text, truncated JSON
+        # or missing contract fields pass as "All tests passed".
+        for body in ("<html>OK</html>", "not JSON", '{"count": 2', "[]",
+                     '{"count": 2, "employees": []}', '{"employees": [], "next": null}',
+                     '{"count": "2", "employees": [], "next": null}'):
+            with self.subTest(body=body), ScriptHarness() as harness:
+                harness.configure(curl_responses={"": {"status": "200", "body": body}})
+                result = harness.run_api(API_ENDPOINT=API_ENDPOINT)
+                self.assert_failure_summary(harness, result)
+                empty_body_test = result.stdout.split(">>> Test 5:", 1)[1].split(">>> Test 6:", 1)[0]
+                self.assertIn("❌ Empty body", empty_body_test)
+
     def test_http_and_json_field_errors_produce_nonzero_summary(self):
         # Ignoring either status checks or field checks incorrectly returns 0.
         for data, response in (
