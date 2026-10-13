@@ -1,12 +1,10 @@
 //! Unit tests for the DSQL Employee Lookup Lambda handler.
 //!
-//! These tests import and call real functions from the dsql_employee_lookup
-//! crate: parse_body, build_search_pattern, encode/decode_cursor, and
-//! response builders. No types are redefined locally.
+//! These tests call the shared library without AWS or a running database.
 
 use dsql_employee_lookup::{
-    build_search_pattern, decode_cursor, encode_cursor, error_response, parse_body,
-    success_response, Employee,
+    build_search_pattern, decode_cursor, encode_cursor, error_response, handle_lookup, parse_body,
+    parse_request, success_response, Employee,
 };
 use lambda_http::Body;
 
@@ -141,18 +139,18 @@ fn test_cursor_round_trip() {
 
 #[test]
 fn test_cursor_round_trip_empty_name() {
-    let cursor = encode_cursor("", "some-id");
+    let cursor = encode_cursor("", "00000000-0000-0000-0000-000000000000");
     let (name, id) = decode_cursor(&cursor).unwrap();
     assert_eq!(name, "");
-    assert_eq!(id, "some-id");
+    assert_eq!(id, "00000000-0000-0000-0000-000000000000");
 }
 
 #[test]
 fn test_cursor_round_trip_unicode() {
-    let cursor = encode_cursor("José García", "uuid-123");
+    let cursor = encode_cursor("José García", "550e8400-e29b-41d4-a716-446655440000");
     let (name, id) = decode_cursor(&cursor).unwrap();
     assert_eq!(name, "José García");
-    assert_eq!(id, "uuid-123");
+    assert_eq!(id, "550e8400-e29b-41d4-a716-446655440000");
 }
 
 #[test]
@@ -234,4 +232,24 @@ fn test_error_response_500_no_detail() {
     let json: serde_json::Value = serde_json::from_str(&body_str).unwrap();
     assert_eq!(json["error"], "Internal server error");
     assert!(json.get("detail").is_none());
+}
+
+#[tokio::test]
+async fn test_handler_closed_pool_returns_generic_500() {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://unused@127.0.0.1/postgres")
+        .unwrap();
+    pool.close().await;
+    let query = parse_request(&Body::Empty).unwrap();
+    let response = handle_lookup(query, &pool).await.unwrap();
+    assert_eq!(response.status(), 500);
+    assert_eq!(response.headers()["content-type"], "application/json");
+    let body = match response.body() {
+        Body::Text(body) => body,
+        other => panic!("expected JSON text response, got {other:?}"),
+    };
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(body).unwrap(),
+        serde_json::json!({ "error": "Internal server error" })
+    );
 }

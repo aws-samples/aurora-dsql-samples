@@ -1,4 +1,5 @@
 use lambda_http::Body;
+use serde::de::Error as _;
 use serde_json::Value;
 use tracing::warn;
 
@@ -12,8 +13,20 @@ const MAX_INPUT_LENGTH: usize = 100;
 /// Returns Ok(LookupRequest) on success, or Err((status_code, json_body))
 /// for invalid input (always 400).
 pub fn parse_body(body: &Body) -> Result<LookupRequest, (u16, Value)> {
+    // Buffering a Value would discard duplicate fields before the request's
+    // deserializer can reject them. Check the shape, then deserialize directly.
+    let parse_object = |input: &[u8]| {
+        if input.trim_ascii_start().starts_with(b"{") {
+            serde_json::from_slice(input)
+        } else {
+            Err(serde_json::Error::custom(
+                "request body must be a JSON object",
+            ))
+        }
+    };
+
     match body {
-        Body::Text(t) => serde_json::from_str(t).map_err(|e| {
+        Body::Text(t) => parse_object(t.as_bytes()).map_err(|e| {
             warn!("Invalid JSON body: {e}");
             (
                 400,
@@ -23,7 +36,7 @@ pub fn parse_body(body: &Body) -> Result<LookupRequest, (u16, Value)> {
                 }),
             )
         }),
-        Body::Binary(b) => serde_json::from_slice(b).map_err(|e| {
+        Body::Binary(b) => parse_object(b).map_err(|e| {
             warn!("Invalid binary body: {e}");
             (
                 400,

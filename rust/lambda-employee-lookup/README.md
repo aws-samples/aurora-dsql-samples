@@ -21,24 +21,25 @@ The Lambda function exposes a `POST /lookup` endpoint via API Gateway that queri
 - You must have [cargo-lambda](https://www.cargo-lambda.info/) installed.
 - You must have [Docker](https://docs.docker.com/get-docker/) or [Finch](https://runfinch.com/) installed and running (for building on macOS).
 - You must have [jq](https://jqlang.github.io/jq/) installed.
-- You must have an Aurora DSQL cluster. See [Getting started with Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html).
+- You must have `psql` installed to run the database setup script.
+
+The CLI setup scripts let you reuse an existing Aurora DSQL cluster or create one. CloudFormation and Terraform create a cluster for this deployment; you do not need to create a separate prerequisite cluster.
 
 ### Configure the environment
 
-Set environment variables with your cluster details:
+Run the commands below from `rust/lambda-employee-lookup`. Set the Region for your deployment:
 
 ```bash
-# e.g. "foo0bar1baz2quux3quuux4.dsql.us-east-1.on.aws"
-export DSQL_ENDPOINT="<your cluster endpoint>"
-
 # e.g. "us-east-1"
 export AWS_REGION="<your region>"
 ```
 ### Deploy
 
-> **Note:** This sample deploys an open API endpoint with no authentication or throttling. Use only with demo/sample data. For production use, add `AWS_IAM` authorization to the API Gateway route.
+> **Note:** This sample deploys an open API endpoint with no authentication, throttled to 5 requests per second with a burst of 10. Use only with demo/sample data. For production use, add `AWS_IAM` authorization to the API Gateway route and review the throttling limits.
 
 This example supports two deployment approaches: **container image** (recommended) and **zip package**.
+
+Choose one deployment tool and approach. They use the same function and role names, so do not deploy multiple copies with the default names. Lambda logs are retained for 7 days. If you are adding log-group management to an existing CloudFormation or Terraform deployment, import any existing `/aws/lambda/dsql-employee-lookup` log group rather than deleting its logs.
 
 #### Option 1: Container image (recommended)
 
@@ -54,7 +55,7 @@ Deploys Lambda as a container image pushed to ECR. Supports larger binaries (up 
 
 ```bash
 # Linux
-cd deploy/container && chmod +x setup.sh && ./setup.sh
+chmod +x deploy/container/setup.sh && ./deploy/container/setup.sh
 
 # macOS (Apple Silicon)
 chmod +x setup-finch.sh && ./setup-finch.sh
@@ -71,26 +72,56 @@ Deploys Lambda as a `.zip` file. Uses `[profile.release]` settings (strip, LTO, 
 | Terraform | `deploy/zip/main.tf` |
 
 ```bash
-cd deploy/zip && chmod +x setup.sh && ./setup.sh
+chmod +x deploy/zip/setup.sh && ./deploy/zip/setup.sh
 ```
 
 
 ### Seed the database
 
-After deploying, connect to your Aurora DSQL cluster as admin and run `seed.sql`:
+Run these commands from `rust/lambda-employee-lookup`. Use the cluster endpoint and Lambda execution-role ARN from **the deployment you just created**, not a different cluster. The CLI scripts print both values and the seed command.
+
+For CloudFormation, read the stack outputs:
 
 ```bash
-TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
-  --hostname $DSQL_ENDPOINT --region $AWS_REGION)
+STACK_NAME=dsql-employee-lookup
+export DSQL_ENDPOINT=$(aws cloudformation describe-stacks \
+  --stack-name "$STACK_NAME" --region "$AWS_REGION" \
+  --query "Stacks[0].Outputs[?OutputKey=='DsqlEndpoint'].OutputValue | [0]" --output text)
+export ROLE_ARN=$(aws cloudformation describe-stacks \
+  --stack-name "$STACK_NAME" --region "$AWS_REGION" \
+  --query "Stacks[0].Outputs[?OutputKey=='LambdaRoleArn'].OutputValue | [0]" --output text)
+export API_URL=$(aws cloudformation describe-stacks \
+  --stack-name "$STACK_NAME" --region "$AWS_REGION" \
+  --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue | [0]" --output text)
+```
 
-PGPASSWORD=$TOKEN psql \
+For Terraform, read the outputs from the directory you applied:
+
+```bash
+DEPLOY_DIR=deploy/container # or deploy/zip
+export DSQL_ENDPOINT=$(terraform -chdir="$DEPLOY_DIR" output -raw dsql_endpoint)
+export ROLE_ARN=$(terraform -chdir="$DEPLOY_DIR" output -raw lambda_role_arn)
+export API_URL=$(terraform -chdir="$DEPLOY_DIR" output -raw api_endpoint)
+```
+
+Connect to that cluster as admin and run `seed.sql`. Your setup identity needs `dsql:DbConnectAdmin`; the Lambda execution role uses only `dsql:DbConnect`:
+
+```bash
+: "${DSQL_ENDPOINT:?Use the endpoint from your deployment}"
+: "${ROLE_ARN:?Use the Lambda execution-role ARN from your deployment}"
+TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
+  --hostname "$DSQL_ENDPOINT" --region "$AWS_REGION")
+
+PGPASSWORD="$TOKEN" psql \
   "host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require" \
   -v ON_ERROR_STOP=1 \
-  -v role_arn='arn:aws:iam::<YOUR_ACCOUNT_ID>:role/dsql-employee-lookup-role' \
+  -v role_arn="$ROLE_ARN" \
   -f seed.sql
 ```
 
-> **Note:** The `CREATE ROLE` statement in `seed.sql` does not support `IF NOT EXISTS` in DSQL. If you re-run the seed script, comment out Step 2 (CREATE ROLE) and Step 3 (AWS IAM GRANT) to avoid errors.
+> **Note:** PostgreSQL `CREATE ROLE` does not accept `IF NOT EXISTS`. If the role and IAM mapping already exist, comment out Step 2 (CREATE ROLE) and Step 3 (AWS IAM GRANT) before re-running the seed script. The schema, table, index, and sample rows can be seeded again.
+
+The index builds asynchronously. A false `indisvalid` result immediately after seeding does not mean the build failed. Check its status in `sys.jobs` or wait with `sys.wait_for_job(job_id)` before deciding to recreate it; dropping the index cancels an in-progress build.
 
 ### Test the API
 
@@ -116,28 +147,70 @@ Or use the test script:
 chmod +x test-api.sh && ./test-api.sh
 ```
 
-### Clean up
+### API contract
 
-Teardown commands are printed at the end of each setup script. Alternatively:
+`POST /lookup` accepts an empty body or a JSON object:
+
+| Field | Description |
+|-------|-------------|
+| `name` | Optional case-insensitive, literal name prefix. At most the first 100 characters are used; `%` and `_` are not wildcards. NUL characters are rejected. |
+| `limit` | Optional page size. Defaults to 50, is capped at 50, and must be greater than zero. |
+| `after` | Optional opaque cursor from the previous response's `next` field. Keep the same name filter when requesting the next page. |
+
+The response contains `employees`, the number of employees in this page as `count`, and `next` (a cursor, or `null` when there are no more results). For example:
+
+```json
+{"employees": [], "count": 0, "next": null}
+```
+
+Use `{"name": "Alice", "limit": 10}` for the first page, then include the returned `next` value as `after` in the next request. Malformed JSON, an invalid cursor, or a zero page size returns HTTP 400. Database query failures return a generic HTTP 500 response.
+
+### Run the checks locally
 
 ```bash
-# Container approach
-aws lambda delete-function --function-name dsql-employee-lookup --region us-east-1
-aws apigatewayv2 delete-api --api-id <API_ID> --region us-east-1
-aws ecr delete-repository --repository-name dsql-employee-lookup --force --region us-east-1
-aws dsql delete-cluster --identifier <CLUSTER_ID> --region us-east-1
-
-# Zip approach (no ECR cleanup needed)
-aws lambda delete-function --function-name dsql-employee-lookup --region us-east-1
-aws apigatewayv2 delete-api --api-id <API_ID> --region us-east-1
-aws dsql delete-cluster --identifier <CLUSTER_ID> --region us-east-1
+cargo test --locked
+cargo fmt -- --check
+cargo clippy --locked --all-targets -- -D warnings
+python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
+
+The Python checks require Bash, `jq`, and Node.js, and replace external AWS/build/HTTP commands with test fixtures. They do not deploy resources.
+
+The database tests are explicitly ignored by the default `cargo test` command. To run them, set `DATABASE_URL` to a **disposable PostgreSQL database** whose user can create and drop schemas, then opt in:
+
+```bash
+export DATABASE_URL="postgres://<user>:<password>@localhost:5432/<test-database>"
+cargo test --locked -- --include-ignored
+```
+
+Each test creates and removes its own schema. CI supplies PostgreSQL 17 and runs this command. These tests exercise SQL and handler behavior, not Aurora DSQL IAM/TLS or deployment semantics; do not point them at a production database.
+
+### Clean up
+
+For the CLI scripts, use the teardown commands printed at the end of the run. They delete only the resources that run created; keep reused clusters and IAM roles.
+
+For CloudFormation, delete the stack:
+
+```bash
+aws cloudformation delete-stack --stack-name "$STACK_NAME" --region "$AWS_REGION"
+aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" --region "$AWS_REGION"
+```
+
+For Terraform, run `terraform -chdir="$DEPLOY_DIR" destroy` with the same variables used for `apply`, including the Region and image URI or zip path. The stack or Terraform state owns the cluster, IAM role, API, function, and managed log groups. Remove separately created ECR images/repositories or S3 build artifacts only if they belong to this sample.
 
 ## Project structure
 
 ```
-├── src/main.rs           # Lambda function handler + DSQL connection pool
+├── src/main.rs           # Lambda entry point + DSQL connection pool
+├── src/lib.rs            # Shared library exports
+├── src/handler.rs        # Validated lookup requests, SQL, and pagination
+├── src/cursor.rs         # Pagination cursors
+├── src/models.rs         # Request and employee models
+├── src/parsing.rs        # Body parsing and literal prefix filtering
+├── src/response.rs       # HTTP response formatting
+├── tests/                # Rust and offline script regression tests
 ├── Cargo.toml            # Rust dependencies
+├── Cargo.lock            # Locked dependency versions
 ├── Dockerfile            # Container image definition for Lambda
 ├── seed.sql              # Database schema + sample employee data
 ├── test-api.sh           # API test script

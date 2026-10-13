@@ -18,7 +18,7 @@
 --     -v role_arn='arn:aws:iam::<YOUR_ACCOUNT_ID>:role/dsql-employee-lookup-role' \
 --     -f seed.sql
 --
--- NOTE: CREATE ROLE does not support IF NOT EXISTS in DSQL.
+-- NOTE: PostgreSQL CREATE ROLE does not accept IF NOT EXISTS.
 -- Re-running this script will fail on the CREATE ROLE statement if the role
 -- already exists. To re-seed, comment out Step 2 and Step 3 on subsequent runs.
 --
@@ -39,7 +39,7 @@
 CREATE SCHEMA IF NOT EXISTS app;
 
 -- Step 2: Create the application role with least privilege (requires admin access)
--- NOTE: DSQL does not support IF NOT EXISTS for CREATE ROLE.
+-- NOTE: CREATE ROLE does not accept IF NOT EXISTS.
 -- This statement will fail if app_readonly already exists.
 CREATE ROLE app_readonly WITH LOGIN;
 
@@ -59,10 +59,10 @@ CREATE TABLE IF NOT EXISTS app.employees (
 -- Step 5: Create an index for prefix name lookups (requires write access on app schema)
 CREATE INDEX ASYNC IF NOT EXISTS idx_employees_name_lower ON app.employees (LOWER(name));
 
--- Step 5b: Verify the async index build completed successfully.
--- If indisvalid is false, the index build failed — drop and recreate it.
--- For psql users: you can alternatively capture the job_id with \gset and
--- run CALL sys.wait_for_job(:'job_id'); to wait for completion.
+-- Step 5b: Check whether the async index is ready.
+-- indisvalid is false while the index builds, and also if the build fails.
+-- Check the job in sys.jobs or wait with sys.wait_for_job(job_id) before
+-- deciding to recreate it. Dropping an index cancels an in-progress build.
 SELECT indisvalid FROM pg_index WHERE indexrelid = 'app.idx_employees_name_lower'::regclass;
 
 -- Step 6: Grant schema and table access to the app role (requires admin access)

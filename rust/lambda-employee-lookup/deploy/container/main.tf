@@ -17,8 +17,8 @@ terraform {
 
 provider "aws" { region = var.region }
 
-variable "region"        { default = "us-east-1" }
-variable "image_uri"     { type = string }
+variable "region" { default = "us-east-1" }
+variable "image_uri" { type = string }
 variable "function_name" { default = "dsql-employee-lookup" }
 
 data "aws_caller_identity" "current" {}
@@ -26,14 +26,14 @@ data "aws_caller_identity" "current" {}
 # --- Aurora DSQL ---
 resource "aws_dsql_cluster" "main" {
   deletion_protection_enabled = false
-  tags = { Project = "dsql-employee-lookup" }
+  tags                        = { Project = "dsql-employee-lookup" }
 }
 
 # --- IAM Role ---
 resource "aws_iam_role" "lambda" {
   name = "${var.function_name}-role"
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
+    Version   = "2012-10-17"
     Statement = [{ Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" }, Action = "sts:AssumeRole" }]
   })
 }
@@ -47,9 +47,14 @@ resource "aws_iam_role_policy" "dsql" {
   name = "dsql-connect"
   role = aws_iam_role.lambda.id
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version   = "2012-10-17"
     Statement = [{ Effect = "Allow", Action = "dsql:DbConnect", Resource = "arn:aws:dsql:${var.region}:${data.aws_caller_identity.current.account_id}:cluster/${aws_dsql_cluster.main.identifier}" }]
   })
+}
+
+resource "aws_cloudwatch_log_group" "lambda_logs" {
+  name              = "/aws/lambda/${var.function_name}"
+  retention_in_days = 7
 }
 
 # --- Lambda (Container Image) ---
@@ -68,7 +73,7 @@ resource "aws_lambda_function" "main" {
       RUST_LOG      = "info"
     }
   }
-  depends_on = [aws_iam_role_policy_attachment.basic, aws_iam_role_policy.dsql]
+  depends_on = [aws_iam_role_policy_attachment.basic, aws_iam_role_policy.dsql, aws_cloudwatch_log_group.lambda_logs]
 }
 
 # --- API Gateway ---
@@ -127,6 +132,7 @@ resource "aws_lambda_permission" "apigw" {
 }
 
 # --- Outputs ---
-output "api_endpoint"    { value = "${aws_apigatewayv2_api.main.api_endpoint}/lookup" }
-output "dsql_endpoint"   { value = "${aws_dsql_cluster.main.identifier}.dsql.${var.region}.on.aws" }
+output "api_endpoint" { value = "${aws_apigatewayv2_api.main.api_endpoint}/lookup" }
+output "dsql_endpoint" { value = "${aws_dsql_cluster.main.identifier}.dsql.${var.region}.on.aws" }
 output "dsql_cluster_id" { value = aws_dsql_cluster.main.identifier }
+output "lambda_role_arn" { value = aws_iam_role.lambda.arn }

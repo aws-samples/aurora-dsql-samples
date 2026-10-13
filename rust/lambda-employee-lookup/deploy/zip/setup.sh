@@ -20,8 +20,12 @@
 
 set -euo pipefail
 
+PROJECT_ROOT=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
+cd "$PROJECT_ROOT"
+
 REGION="${AWS_REGION:-us-east-1}"
 FUNCTION_NAME="dsql-employee-lookup"
+LOG_GROUP_NAME="/aws/lambda/${FUNCTION_NAME}"
 ROLE_NAME="dsql-employee-lookup-role"
 API_NAME="dsql-employee-api"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -75,30 +79,25 @@ echo ">>> Step 2: Building Rust Lambda binary (.zip)..."
 
 cargo lambda build --locked --release --arm64 --output-format zip
 
-# Locate the zip — check both project-root and deploy/zip relative paths
-ZIP_PATH="target/lambda/${FUNCTION_NAME}/bootstrap.zip"
+ZIP_PATH="$PROJECT_ROOT/target/lambda/${FUNCTION_NAME}/bootstrap.zip"
 if [ ! -f "$ZIP_PATH" ]; then
-  ZIP_PATH="../../target/lambda/${FUNCTION_NAME}/bootstrap.zip"
-fi
-if [ ! -f "$ZIP_PATH" ]; then
-  echo "    ERROR: bootstrap.zip not found. Run from the project root:"
-  echo "    cd rust/lambda-employee-lookup && ./deploy/zip/setup.sh"
+  echo "    ERROR: bootstrap.zip not found at $ZIP_PATH"
   exit 1
 fi
 
 ZIP_SIZE=$(stat -c%s "$ZIP_PATH" 2>/dev/null || stat -f%z "$ZIP_PATH")
-echo "    Zip: $ZIP_PATH ($(echo "scale=1; $ZIP_SIZE/1048576" | bc) MB)"
+echo "    Zip: $ZIP_PATH ($(awk -v bytes="$ZIP_SIZE" 'BEGIN {printf "%.1f", bytes/1048576}') MB)"
 
 # Check if unzipped size exceeds Lambda limit
 UNZIPPED_SIZE=$(unzip -l "$ZIP_PATH" | tail -1 | awk '{print $1}')
 if [ "$UNZIPPED_SIZE" -gt 262144000 ]; then
   echo ""
   echo "    WARNING: Unzipped size ($UNZIPPED_SIZE bytes) is large."
-  echo "    Consider the container approach for faster deploys: ../container/setup.sh"
+  echo "    Consider the container approach for faster deploys: $PROJECT_ROOT/deploy/container/setup.sh"
   echo ""
   read -p "    Continue anyway? (y/N): " force_continue
   if [[ "$force_continue" != "y" && "$force_continue" != "Y" ]]; then
-    echo "    Aborted. Use ../container/setup.sh instead."
+    echo "    Aborted. Use $PROJECT_ROOT/deploy/container/setup.sh instead."
     exit 1
   fi
 fi
@@ -137,13 +136,24 @@ echo ""
 # =============================================================================
 echo ">>> Step 4: Creating Lambda function..."
 
+CREATED_LOG_GROUP=0
+if LOG_GROUP_ERROR=$(aws logs create-log-group --log-group-name "$LOG_GROUP_NAME" --region "$REGION" 2>&1); then
+  CREATED_LOG_GROUP=1
+elif [[ "$LOG_GROUP_ERROR" == *"ResourceAlreadyExistsException"* ]]; then
+  echo "    Log group already exists"
+else
+  echo "$LOG_GROUP_ERROR" >&2
+  exit 1
+fi
+aws logs put-retention-policy --log-group-name "$LOG_GROUP_NAME" --retention-in-days 7 --region "$REGION"
+
 aws lambda create-function \
   --function-name $FUNCTION_NAME \
   --runtime provided.al2023 \
   --handler bootstrap \
   --architectures arm64 \
   --role $ROLE_ARN \
-  --zip-file fileb://$ZIP_PATH \
+  --zip-file "fileb://$ZIP_PATH" \
   --timeout 30 \
   --memory-size 128 \
   --environment "Variables={DSQL_ENDPOINT=$CLUSTER_ENDPOINT,DSQL_USER=app_readonly,RUST_LOG=info}" \
@@ -177,7 +187,9 @@ aws apigatewayv2 create-route --api-id $API_ID \
   --region $REGION > /dev/null
 
 aws apigatewayv2 create-stage --api-id $API_ID \
-  --stage-name '$default' --auto-deploy --region $REGION > /dev/null
+  --stage-name '$default' --auto-deploy \
+  --default-route-settings "ThrottlingBurstLimit=10,ThrottlingRateLimit=5" \
+  --region $REGION > /dev/null
 
 aws lambda add-permission --function-name $FUNCTION_NAME \
   --statement-id apigateway-invoke --action lambda:InvokeFunction \
@@ -196,6 +208,7 @@ echo "SETUP COMPLETE!"
 echo "============================================"
 echo ""
 echo "  DSQL Endpoint: $CLUSTER_ENDPOINT"
+echo "  Lambda Role ARN: $ROLE_ARN"
 echo "  API Endpoint:  ${API_ENDPOINT}/lookup"
 echo ""
 echo "NEXT STEPS:"
@@ -203,7 +216,7 @@ echo ""
 echo "  1. Seed the database:"
 echo "     TOKEN=\$(aws dsql generate-db-connect-admin-auth-token --hostname $CLUSTER_ENDPOINT --region $REGION)"
 echo "     PGPASSWORD=\$TOKEN psql \"host=$CLUSTER_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require\" \\"
-echo "       -v ON_ERROR_STOP=1 -v role_arn='arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}' -f seed.sql"
+echo "       -v ON_ERROR_STOP=1 -v role_arn='$ROLE_ARN' -f \"$PROJECT_ROOT/seed.sql\""
 echo ""
 echo "  2. Test the API:"
 echo "     curl -X POST ${API_ENDPOINT}/lookup -H 'Content-Type: application/json' -d '{\"name\":\"Alice\"}'"
@@ -211,6 +224,9 @@ echo ""
 echo "Teardown:"
 echo "  aws lambda delete-function --function-name $FUNCTION_NAME --region $REGION"
 echo "  aws apigatewayv2 delete-api --api-id $API_ID --region $REGION"
+if [ "$CREATED_LOG_GROUP" == "1" ]; then
+echo "  aws logs delete-log-group --log-group-name $LOG_GROUP_NAME --region $REGION"
+fi
 if [ "$CREATED_CLUSTER" == "1" ]; then
 echo "  aws dsql delete-cluster --identifier $CLUSTER_ID --region $REGION"
 fi

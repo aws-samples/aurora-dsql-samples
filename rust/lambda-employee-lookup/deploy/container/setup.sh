@@ -18,8 +18,12 @@
 
 set -euo pipefail
 
+PROJECT_ROOT=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
+cd "$PROJECT_ROOT"
+
 REGION="${AWS_REGION:-us-east-1}"
 FUNCTION_NAME="dsql-employee-lookup"
+LOG_GROUP_NAME="/aws/lambda/${FUNCTION_NAME}"
 ROLE_NAME="dsql-employee-lookup-role"
 API_NAME="dsql-employee-api"
 ECR_REPO="${FUNCTION_NAME}"
@@ -94,7 +98,7 @@ aws ecr get-login-password --region $REGION | \
   docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
 
 # Use the Dockerfile from the project root
-docker build --platform linux/arm64 -t ${ECR_URI}:latest -f ../../Dockerfile ../..
+docker build --platform linux/arm64 -t ${ECR_URI}:latest -f Dockerfile .
 
 docker push ${ECR_URI}:latest
 
@@ -133,6 +137,17 @@ echo ""
 # STEP 5: Create Lambda function (container image)
 # =============================================================================
 echo ">>> Step 5: Creating Lambda function..."
+
+CREATED_LOG_GROUP=0
+if LOG_GROUP_ERROR=$(aws logs create-log-group --log-group-name "$LOG_GROUP_NAME" --region "$REGION" 2>&1); then
+  CREATED_LOG_GROUP=1
+elif [[ "$LOG_GROUP_ERROR" == *"ResourceAlreadyExistsException"* ]]; then
+  echo "    Log group already exists"
+else
+  echo "$LOG_GROUP_ERROR" >&2
+  exit 1
+fi
+aws logs put-retention-policy --log-group-name "$LOG_GROUP_NAME" --retention-in-days 7 --region "$REGION"
 
 aws lambda create-function \
   --function-name $FUNCTION_NAME \
@@ -173,7 +188,9 @@ aws apigatewayv2 create-route --api-id $API_ID \
   --region $REGION > /dev/null
 
 aws apigatewayv2 create-stage --api-id $API_ID \
-  --stage-name '$default' --auto-deploy --region $REGION > /dev/null
+  --stage-name '$default' --auto-deploy \
+  --default-route-settings "ThrottlingBurstLimit=10,ThrottlingRateLimit=5" \
+  --region $REGION > /dev/null
 
 aws lambda add-permission --function-name $FUNCTION_NAME \
   --statement-id apigateway-invoke --action lambda:InvokeFunction \
@@ -192,6 +209,7 @@ echo "SETUP COMPLETE!"
 echo "============================================"
 echo ""
 echo "  DSQL Endpoint: $CLUSTER_ENDPOINT"
+echo "  Lambda Role ARN: $ROLE_ARN"
 echo "  API Endpoint:  ${API_ENDPOINT}/lookup"
 echo "  ECR Image:     ${ECR_URI}:latest"
 echo ""
@@ -200,7 +218,7 @@ echo ""
 echo "  1. Seed the database:"
 echo "     TOKEN=\$(aws dsql generate-db-connect-admin-auth-token --hostname $CLUSTER_ENDPOINT --region $REGION)"
 echo "     PGPASSWORD=\$TOKEN psql \"host=$CLUSTER_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require\" \\"
-echo "       -v ON_ERROR_STOP=1 -v role_arn='arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}' -f seed.sql"
+echo "       -v ON_ERROR_STOP=1 -v role_arn='$ROLE_ARN' -f \"$PROJECT_ROOT/seed.sql\""
 echo ""
 echo "  2. Test the API:"
 echo "     curl -X POST ${API_ENDPOINT}/lookup -H 'Content-Type: application/json' -d '{\"name\":\"Alice\"}'"
@@ -208,6 +226,9 @@ echo ""
 echo "Teardown:"
 echo "  aws lambda delete-function --function-name $FUNCTION_NAME --region $REGION"
 echo "  aws apigatewayv2 delete-api --api-id $API_ID --region $REGION"
+if [ "$CREATED_LOG_GROUP" == "1" ]; then
+echo "  aws logs delete-log-group --log-group-name $LOG_GROUP_NAME --region $REGION"
+fi
 if [ "$CREATED_ECR" == "1" ]; then
 echo "  aws ecr delete-repository --repository-name $ECR_REPO --force --region $REGION"
 fi

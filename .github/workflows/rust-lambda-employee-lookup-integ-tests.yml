@@ -1,9 +1,16 @@
 name: Rust Lambda Employee Lookup CI
 
-permissions: {}
+permissions:
+  contents: read
 
 on:
-  workflow_call: {}
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "Exact commit to test; defaults to the triggering ref"
+        required: false
+        type: string
+        default: ""
   workflow_dispatch:
   push:
     branches: [main]
@@ -24,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.checkout-ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup update
       - run: |
           rustup component add rustfmt
@@ -37,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.checkout-ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup update
       - uses: Swatinem/rust-cache@v2
         with:
@@ -45,28 +52,54 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
 
   test:
-    name: Unit tests
+    name: Handler and query tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: employee_lookup
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: employee_lookup
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U employee_lookup -d employee_lookup"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://employee_lookup:local-test-only@localhost:5432/employee_lookup
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.checkout-ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup update
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust/lambda-employee-lookup
-      - run: cargo test --locked --verbose
+      - run: cargo test --locked --verbose -- --include-ignored
+
+  scripts:
+    name: Deployment and API script tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout-ref || github.event.pull_request.head.sha || github.sha }}
+      - run: python3 -m unittest discover -s tests -p 'test_*.py' -v
 
   build:
     name: Build ARM64 Lambda
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [fmt, clippy, test]
+    needs: [fmt, clippy, test, scripts]
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.checkout-ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup update
       - uses: Swatinem/rust-cache@v2
         with:

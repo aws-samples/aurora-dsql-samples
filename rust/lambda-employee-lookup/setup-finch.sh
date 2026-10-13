@@ -16,8 +16,12 @@
 
 set -euo pipefail
 
+PROJECT_ROOT=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+cd "$PROJECT_ROOT"
+
 REGION="${AWS_REGION:-us-east-1}"
 FUNCTION_NAME="dsql-employee-lookup"
+LOG_GROUP_NAME="/aws/lambda/${FUNCTION_NAME}"
 ROLE_NAME="dsql-employee-lookup-role"
 API_NAME="dsql-employee-api"
 ECR_REPO="${FUNCTION_NAME}"
@@ -73,12 +77,12 @@ echo ""
 # =============================================================================
 echo ">>> Step 2: Building Rust Lambda binary (Finch container)..."
 
-finch run --rm -v $(pwd):/code -w /code \
+finch run --rm -v "$PROJECT_ROOT:/code" -w /code \
   public.ecr.aws/sam/build-provided.al2023:latest-arm64 \
   bash -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
   source \$HOME/.cargo/env && \
   pip3 install cargo-lambda && \
-  cargo lambda build --release --arm64 --output-format binary"
+  cargo lambda build --locked --release --arm64 --output-format binary"
 
 echo "    Binary built!"
 echo ""
@@ -117,7 +121,10 @@ echo ">>> Step 4: Creating IAM role..."
 CREATED_ROLE=0
 aws iam get-role --role-name $ROLE_NAME 2>/dev/null > /dev/null && CREATED_ROLE=0 || CREATED_ROLE=1
 
-cat > /tmp/trust-policy.json << 'EOF'
+POLICY_DIR=$(mktemp -d "${TMPDIR:-/tmp}/dsql-employee-lookup.XXXXXX")
+trap 'rm -f "$POLICY_DIR/trust-policy.json" "$POLICY_DIR/dsql-policy.json"; rmdir "$POLICY_DIR"' EXIT
+
+cat > "$POLICY_DIR/trust-policy.json" << 'EOF'
 {
   "Version": "2012-10-17",
   "Statement": [{
@@ -130,7 +137,7 @@ EOF
 
 aws iam create-role \
   --role-name $ROLE_NAME \
-  --assume-role-policy-document file:///tmp/trust-policy.json \
+  --assume-role-policy-document "file://$POLICY_DIR/trust-policy.json" \
   --output text --query 'Role.Arn' 2>/dev/null || echo "    Role already exists"
 
 ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
@@ -139,7 +146,7 @@ aws iam attach-role-policy \
   --role-name $ROLE_NAME \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole 2>/dev/null || true
 
-cat > /tmp/dsql-policy.json << EOF
+cat > "$POLICY_DIR/dsql-policy.json" << EOF
 {
   "Version": "2012-10-17",
   "Statement": [{
@@ -153,7 +160,7 @@ EOF
 aws iam put-role-policy \
   --role-name $ROLE_NAME \
   --policy-name dsql-connect \
-  --policy-document file:///tmp/dsql-policy.json
+  --policy-document "file://$POLICY_DIR/dsql-policy.json"
 
 echo "    IAM role configured"
 echo "    Waiting for role propagation..."
@@ -164,6 +171,17 @@ echo ""
 # STEP 5: Create Lambda function from container image
 # =============================================================================
 echo ">>> Step 5: Creating Lambda function..."
+
+CREATED_LOG_GROUP=0
+if LOG_GROUP_ERROR=$(aws logs create-log-group --log-group-name "$LOG_GROUP_NAME" --region "$REGION" 2>&1); then
+  CREATED_LOG_GROUP=1
+elif [[ "$LOG_GROUP_ERROR" == *"ResourceAlreadyExistsException"* ]]; then
+  echo "    Log group already exists"
+else
+  echo "$LOG_GROUP_ERROR" >&2
+  exit 1
+fi
+aws logs put-retention-policy --log-group-name "$LOG_GROUP_NAME" --retention-in-days 7 --region "$REGION"
 
 aws lambda create-function \
   --function-name $FUNCTION_NAME \
@@ -218,6 +236,7 @@ aws apigatewayv2 create-stage \
   --api-id $API_ID \
   --stage-name '$default' \
   --auto-deploy \
+  --default-route-settings "ThrottlingBurstLimit=10,ThrottlingRateLimit=5" \
   --region $REGION > /dev/null
 
 aws lambda add-permission \
@@ -241,14 +260,18 @@ echo ""
 echo "Resources:"
 echo "  DSQL Cluster:    $CLUSTER_ID"
 echo "  DSQL Endpoint:   $CLUSTER_ENDPOINT"
+echo "  Lambda Role ARN: $ROLE_ARN"
 echo "  ECR Image:       ${ECR_URI}:latest"
 echo "  Lambda Function: $FUNCTION_NAME"
 echo "  API Gateway:     $API_ID"
-echo "  API Endpoint:    $API_ENDPOINT"
+echo "  API Endpoint:    ${API_ENDPOINT}/lookup"
 echo ""
 echo "NEXT STEPS:"
 echo ""
-echo "  1. Seed the database (connect via Query Editor or psql, run seed.sql)"
+echo "  1. Seed the database:"
+echo "     TOKEN=\$(aws dsql generate-db-connect-admin-auth-token --hostname $CLUSTER_ENDPOINT --region $REGION)"
+echo "     PGPASSWORD=\$TOKEN psql \"host=$CLUSTER_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require\" \\"
+echo "       -v ON_ERROR_STOP=1 -v role_arn='$ROLE_ARN' -f \"$PROJECT_ROOT/seed.sql\""
 echo ""
 echo "  2. Test the API:"
 echo "     curl -X POST ${API_ENDPOINT}/lookup \\"
@@ -258,6 +281,9 @@ echo ""
 echo "  3. Teardown when done:"
 echo "     aws lambda delete-function --function-name $FUNCTION_NAME --region $REGION"
 echo "     aws apigatewayv2 delete-api --api-id $API_ID --region $REGION"
+if [ "$CREATED_LOG_GROUP" == "1" ]; then
+echo "     aws logs delete-log-group --log-group-name $LOG_GROUP_NAME --region $REGION"
+fi
 if [ "$CREATED_ECR" == "1" ]; then
 echo "     aws ecr delete-repository --repository-name $ECR_REPO --force --region $REGION"
 fi
@@ -277,10 +303,12 @@ export CLUSTER_ID="$CLUSTER_ID"
 export CLUSTER_ENDPOINT="$CLUSTER_ENDPOINT"
 export FUNCTION_NAME="$FUNCTION_NAME"
 export ROLE_NAME="$ROLE_NAME"
+export ROLE_ARN="$ROLE_ARN"
 export API_ID="$API_ID"
 export API_ENDPOINT="$API_ENDPOINT"
+export API_URL="${API_ENDPOINT}/lookup"
 export ECR_URI="$ECR_URI"
 export ACCOUNT_ID="$ACCOUNT_ID"
 EOF
 
-echo "Environment saved to env.sh"
+echo "Environment saved to $PROJECT_ROOT/env.sh"

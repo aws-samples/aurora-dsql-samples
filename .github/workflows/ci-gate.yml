@@ -48,11 +48,15 @@ jobs:
       typescript-prisma: ${{ steps.detect.outputs.typescript-prisma }}
       typescript-sequelize: ${{ steps.detect.outputs.typescript-sequelize }}
       typescript-type-orm: ${{ steps.detect.outputs.typescript-type-orm }}
+      checkout-ref: ${{ steps.detect.outputs.checkout-ref }}
+      base-ref: ${{ steps.detect.outputs.base-ref }}
+      run-integration: ${{ steps.detect.outputs.run-integration }}
     steps:
       - uses: actions/github-script@v8
         id: detect
         with:
           script: |
+            core.setOutput('checkout-ref', context.payload.pull_request?.head.sha || context.sha);
             const config = {
               'cpp-cm': ['cpp/cluster_management/'],
               'cpp-libpq': ['cpp/libpq/'],
@@ -84,7 +88,10 @@ jobs:
               'ruby-rails-carrental': ['ruby/rails/carrental/'],
               'rust-cm': ['rust/cluster_management/'],
               'rust-sqlx': ['rust/sqlx/'],
-              'rust-lambda-employee-lookup': ['rust/lambda-employee-lookup/'],
+              'rust-lambda-employee-lookup': [
+                'rust/lambda-employee-lookup/',
+                '.github/workflows/rust-lambda-employee-lookup-integ-tests.yml',
+              ],
               'typescript-drizzle': ['typescript/drizzle/'],
               'typescript-prisma': ['typescript/prisma-multi-region/'],
               'typescript-sequelize': ['typescript/sequelize/'],
@@ -371,9 +378,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.rust-lambda-employee-lookup == 'true'
     uses: ./.github/workflows/rust-lambda-employee-lookup-integ-tests.yml
-    secrets: inherit
+    with:
+      checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
     permissions:
-      id-token: write # required by aws-actions/configure-aws-credentials
+      contents: read
 
   typescript-drizzle:
     needs: changes

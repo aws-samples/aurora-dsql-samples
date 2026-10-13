@@ -17,18 +17,23 @@ set -euo pipefail
 
 FAILURES=0
 
-# Load environment — accept API_ENDPOINT from env, fall back to env.sh
-if [ -z "${API_ENDPOINT:-}" ] && [ -f env.sh ]; then
-  source env.sh
+# Prefer explicit API_URL, then legacy API_ENDPOINT; env.sh is only a fallback.
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+if [ -z "${API_URL:-${API_ENDPOINT:-}}" ] && [ -f "$SCRIPT_DIR/env.sh" ]; then
+  source "$SCRIPT_DIR/env.sh"
 fi
-if [ -z "${API_ENDPOINT:-}" ]; then
-  echo "ERROR: Set API_ENDPOINT or run setup.sh first."
+API_URL="${API_URL:-${API_ENDPOINT:-}}"
+if [ -z "$API_URL" ]; then
+  echo "ERROR: Set API_URL (full /lookup URL) or API_ENDPOINT, or run setup-docker.sh/setup-finch.sh first."
   exit 1
 fi
 
-# Strip trailing /lookup to avoid double-appending
-API_ENDPOINT="${API_ENDPOINT%/lookup}"
-API_URL="${API_ENDPOINT}/lookup"
+# Accept a base endpoint or /lookup URL, with an optional trailing slash.
+API_URL="${API_URL%/}"
+API_URL="${API_URL%/lookup}/lookup"
+
+RESPONSE_FILE=$(mktemp "${TMPDIR:-/tmp}/dsql-employee-lookup-response.XXXXXX")
+trap 'rm -f "$RESPONSE_FILE"' EXIT
 
 echo "============================================"
 echo "DSQL Employee Lookup - API Tests"
@@ -70,12 +75,12 @@ assert_json_field() {
 
 # Test 1: List all employees (empty body) — expect 200 with count > 0
 echo ">>> Test 1: List all employees"
-HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST "$API_URL" \
+HTTP_STATUS=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$API_URL" \
   -H 'Content-Type: application/json' \
-  -d '{}')
-BODY=$(cat /tmp/response.json)
+  -d '{}') || { HTTP_STATUS="000"; : > "$RESPONSE_FILE"; }
+BODY=$(cat "$RESPONSE_FILE")
 assert_status "List all" "200" "$HTTP_STATUS" "$BODY"
-COUNT=$(echo "$BODY" | jq -r '.count' 2>/dev/null)
+COUNT=$(echo "$BODY" | jq -r '.count' 2>/dev/null || echo "PARSE_ERROR")
 if [ "$COUNT" -gt 0 ] 2>/dev/null; then
   echo "    ✅ Returned $COUNT employees"
 else
@@ -86,46 +91,46 @@ echo ""
 
 # Test 2: Search by name prefix — expect 200 with matching results
 echo ">>> Test 2: Search for 'John'"
-HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST "$API_URL" \
+HTTP_STATUS=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$API_URL" \
   -H 'Content-Type: application/json' \
-  -d '{"name": "John"}')
-BODY=$(cat /tmp/response.json)
+  -d '{"name": "John"}') || { HTTP_STATUS="000"; : > "$RESPONSE_FILE"; }
+BODY=$(cat "$RESPONSE_FILE")
 assert_status "Search John" "200" "$HTTP_STATUS" "$BODY"
 assert_json_field "Search John" "$BODY" '.count' "1"
 assert_json_field "Search John" "$BODY" '.employees[0].name' "John Doe"
 
 # Test 3: Case-insensitive prefix search
 echo ">>> Test 3: Search for 'alice' (case-insensitive)"
-HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST "$API_URL" \
+HTTP_STATUS=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$API_URL" \
   -H 'Content-Type: application/json' \
-  -d '{"name": "alice"}')
-BODY=$(cat /tmp/response.json)
+  -d '{"name": "alice"}') || { HTTP_STATUS="000"; : > "$RESPONSE_FILE"; }
+BODY=$(cat "$RESPONSE_FILE")
 assert_status "Search alice" "200" "$HTTP_STATUS" "$BODY"
 assert_json_field "Search alice" "$BODY" '.count' "1"
 assert_json_field "Search alice" "$BODY" '.employees[0].name' "Alice Johnson"
 
 # Test 4: Search with no results — expect 200 with count 0
 echo ">>> Test 4: Search for 'zzz' (no results expected)"
-HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST "$API_URL" \
+HTTP_STATUS=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$API_URL" \
   -H 'Content-Type: application/json' \
-  -d '{"name": "zzz"}')
-BODY=$(cat /tmp/response.json)
+  -d '{"name": "zzz"}') || { HTTP_STATUS="000"; : > "$RESPONSE_FILE"; }
+BODY=$(cat "$RESPONSE_FILE")
 assert_status "No results" "200" "$HTTP_STATUS" "$BODY"
 assert_json_field "No results" "$BODY" '.count' "0"
 
 # Test 5: Empty body — expect 200 (treated as list all)
 echo ">>> Test 5: Empty body"
-HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST "$API_URL" \
-  -H 'Content-Type: application/json')
-BODY=$(cat /tmp/response.json)
+HTTP_STATUS=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$API_URL" \
+  -H 'Content-Type: application/json') || { HTTP_STATUS="000"; : > "$RESPONSE_FILE"; }
+BODY=$(cat "$RESPONSE_FILE")
 assert_status "Empty body" "200" "$HTTP_STATUS" "$BODY"
 
 # Test 6: Invalid JSON — expect 400
 echo ">>> Test 6: Invalid JSON body (expect 400)"
-HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" -X POST "$API_URL" \
+HTTP_STATUS=$(curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" -X POST "$API_URL" \
   -H 'Content-Type: application/json' \
-  -d 'not valid json')
-BODY=$(cat /tmp/response.json)
+  -d 'not valid json') || { HTTP_STATUS="000"; : > "$RESPONSE_FILE"; }
+BODY=$(cat "$RESPONSE_FILE")
 assert_status "Invalid JSON" "400" "$HTTP_STATUS" "$BODY"
 assert_json_field "Invalid JSON" "$BODY" '.error' "Invalid request body"
 

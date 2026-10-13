@@ -48,9 +48,16 @@ Resources:
                 Action: dsql:DbConnect
                 Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}'
 
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/dsql-employee-lookup
+      RetentionInDays: 7
+
   # --- Lambda (Container Image) ---
   EmployeeLookupFunction:
     Type: AWS::Lambda::Function
+    DependsOn: LambdaLogGroup
     Properties:
       FunctionName: dsql-employee-lookup
       PackageType: Image
@@ -122,3 +129,5 @@ Outputs:
     Value: !GetAtt DsqlCluster.Endpoint
   DsqlClusterId:
     Value: !Ref DsqlCluster
+  LambdaRoleArn:
+    Value: !GetAtt LambdaRole.Arn

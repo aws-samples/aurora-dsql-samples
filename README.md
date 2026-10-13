@@ -66,6 +66,7 @@ The subdirectories contain code examples for connecting and using Aurora DSQL in
 |:---------------------------------------------------------------------:|
 | [Amazon Aurora DSQL Agent](sample-amazon-aurora-dsql-agent) — A sample application showing how to build an AI agent that queries Aurora DSQL using natural language, powered by Strands Agents, Bedrock AgentCore Gateway (MCP), and AgentCore Runtime (A2A) |
 | [Booking API (Deno)](deno/booking-api/postgres-js) — A sample REST API for room/resource bookings built with Deno.serve() and postgres.js via the Aurora DSQL connector. Includes OCC retry handling, unique-window enforcement via an async index, and pooled IAM token auth |
+| [Employee Directory API (Rust Lambda)](rust/lambda-employee-lookup) — A serverless employee lookup API using AWS Lambda, API Gateway, and the Aurora DSQL SQLx connector |
 
 Each example includes language and client-specific instructions as well as instructions to invoke example code.
 
