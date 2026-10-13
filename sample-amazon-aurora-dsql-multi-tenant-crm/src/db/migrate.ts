@@ -1,5 +1,5 @@
-import type { PoolClient } from "pg";
 import { pool, closePool } from "./pool.js";
+import { waitForIndexJob } from "./asyncIndex.js";
 
 /**
  * Aurora DSQL requires each DDL statement to run in its own transaction, and a
@@ -75,60 +75,6 @@ const DDL_STATEMENTS: string[] = [
   `CREATE INDEX ASYNC IF NOT EXISTS idx_opps_tenant_stage ON opportunities (tenant_id, stage)`,
   `CREATE INDEX ASYNC IF NOT EXISTS idx_activities_tenant_rel ON activities (tenant_id, related_id)`,
 ];
-
-/**
- * Aurora DSQL job identifiers are 26-character lowercase alphanumeric strings,
- * for example `its3zomaw5fwzjdnz3ojgcotji`. They are not UUIDs. The check below
- * is strict about the character set, which is what makes it safe to inline the
- * value as a SQL literal: no quote or escape character can pass it.
- */
-const JOB_ID_RE = /^[0-9a-z]{26}$/;
-
-/**
- * Block until an async index build finishes, then confirm it actually
- * succeeded.
- *
- * Two Aurora DSQL details matter here:
- *
- *  1. `sys.wait_for_job` is a stored procedure, so it must be invoked with
- *     `CALL`. Using `SELECT` raises SQLSTATE 42809 (wrong object type).
- *  2. `CALL` cannot run inside a transaction block, and Aurora DSQL rejects a
- *     subquery as the argument. The caller commits before reaching this
- *     function, so the connection is in autocommit, and the job id is
- *     validated and inlined as a literal.
- *
- * The procedure returns normally when the build finishes, whether or not it
- * worked, reporting the outcome in `succeeded`. A failed build leaves an
- * invalid index behind, and because the DDL uses `IF NOT EXISTS`, re-running
- * the migration would skip it and leave the index permanently broken. So treat
- * `succeeded = false` as fatal and tell the operator how to recover.
- */
-async function waitForIndexJob(
-  client: PoolClient,
-  jobId: string,
-  label: string,
-): Promise<void> {
-  if (!JOB_ID_RE.test(jobId)) {
-    throw new Error(
-      `Refusing to wait on a malformed job id: ${jobId}\n` +
-        "  Expected 26 lowercase alphanumeric characters.",
-    );
-  }
-  const { rows } = await client.query(`CALL sys.wait_for_job('${jobId}')`);
-  const succeeded = (rows?.[0] as { succeeded?: boolean } | undefined)
-    ?.succeeded;
-  if (succeeded === false) {
-    throw new Error(
-      `Async index build failed for: ${label}\n` +
-        `  job id: ${jobId}\n` +
-        "  The index exists but is invalid. Because the statement uses " +
-        "IF NOT EXISTS, re-running this migration will skip it. Drop the " +
-        "index manually, then re-run:\n" +
-        `  DROP INDEX <index name>;`,
-    );
-  }
-  console.log(`  async index job ${jobId} finished`);
-}
 
 async function migrate(): Promise<void> {
   for (const sql of DDL_STATEMENTS) {

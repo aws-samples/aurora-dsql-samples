@@ -12,6 +12,11 @@ RUN npm run build && npm prune --omit=dev
 
 FROM public.ecr.aws/docker/library/node:22-slim AS runtime
 ENV NODE_ENV=production
+# The app binds 127.0.0.1 by default so local `npm run dev` is not exposed on
+# the developer's network. In the container the listener must accept the
+# container network for the ECS Express Gateway to route to it, so opt in here.
+# The container publishes no host port; the gateway is the boundary.
+ENV HOST=0.0.0.0
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

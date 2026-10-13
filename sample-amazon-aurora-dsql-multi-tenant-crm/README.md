@@ -154,6 +154,27 @@ credentials in your environment.
 
 ## Testing
 
+### Automated tests
+
+```bash
+npm test                        # vitest, no cluster or credentials needed
+npm run test:watch
+npm run typecheck               # application and tests
+```
+
+The suite covers the isolation boundary and the request surface rather than the
+repository SQL, which needs a cluster. It asserts that the tenant comes only
+from a verified token and never from an `X-Tenant-Id` header, that unknown and
+inactive tenants are rejected before any data access, that two callers with
+different tokens cannot reach each other's data, that the admin routes stay
+absent unless `ENABLE_TENANT_ADMIN_ROUTES` is exactly `true`, and that bad input
+produces a 400, 401, 403, 404, 409 or 413 rather than a 500.
+
+`src/app.ts` builds the Express app without binding a port so the tests can
+drive it in-process; `src/index.ts` is the listener and signal handling.
+
+### Manual walkthrough against a cluster
+
 Run the server with the admin routes enabled for this walkthrough:
 
 ```bash
@@ -203,7 +224,8 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/api/accounts     
 
 ```
 src/
-  index.ts              Express bootstrap + graceful shutdown
+  app.ts                Builds the Express app (no listener, so tests can import it)
+  index.ts              Listener + graceful shutdown
   db/pool.ts            AuroraDSQLPool (IAM auth, connection recycling)
   db/occ.ts             OCC transaction wrapper (delegates to pool.transaction)
   db/migrate.ts         One-DDL-per-transaction migration runner
@@ -213,9 +235,15 @@ src/
   repositories/         Tenant-scoped data access (accounts, contacts, ...)
   routes/index.ts       HTTP API
   scripts/seed.ts       Demo data for two tenants
+  scripts/mint-token.ts Sign a tenant token locally (no open endpoint needed)
+  middleware/jwt.test.ts    Token signing and verification
+  middleware/error.test.ts  Status-code mapping
+  routes/api.test.ts        Auth, tenant isolation, validation, error handling
 sql/schema.sql          Documented schema
 scripts/                deploy.sh, setup-db.sh, cleanup.sh (CloudShell)
 diagrams/architecture.py Architecture diagram as code (AWS icons)
+vitest.config.ts        Test runner config
+tsconfig.test.json      Typechecks the tests; tests are excluded from the build
 ```
 
 ## Security
