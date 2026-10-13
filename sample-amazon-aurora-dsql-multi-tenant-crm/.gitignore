@@ -1,0 +1,20 @@
+node_modules/
+dist/
+*.log
+.env
+.DS_Store
+
+# Runtime deploy state — holds your account-specific resource IDs.
+# NEVER commit this (keeps account IDs out of the public repo).
+scripts/.state.env
+
+# Diagram build venv (the rendered diagram itself IS committed).
+.diagrams-venv/
+
+# Internal-only docs and blog draft — not part of the public POC package.
+docs/blog-draft.md
+docs/PART-1-testing-in-isengard.md
+docs/PART-2-package-for-gitlab-and-samples.md
+docs/testing-and-closeout-checklist.md
+docs/manual-console-e2e.md
+docs/why-each-service.md
