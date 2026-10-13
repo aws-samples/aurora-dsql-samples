@@ -2,7 +2,7 @@
 #
 # test-happy-path.sh
 #
-# End-to-end test: apply all migrations with Flyway + the DSQL extension,
+# End-to-end test: apply all migrations with Flyway + the Aurora DSQL module,
 # then verify every expected object is in place.
 #
 # Expected post-conditions (V1..V15):

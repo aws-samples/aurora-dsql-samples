@@ -5,8 +5,8 @@ official `org.flywaydb:flyway-database-dsql` module. Read before adopting
 this in production.
 
 Everything below is a property of Aurora DSQL or of the module, not of
-this sample. None of it is worked around by writing your own Flyway
-extension; these are the real edges.
+this sample, and none of it is avoided by writing a database-type
+extension of your own. These are the real edges.
 
 ## 1. No DDL atomicity
 

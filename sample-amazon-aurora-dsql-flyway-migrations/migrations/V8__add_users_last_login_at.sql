@@ -6,7 +6,7 @@
 -- sessions data.
 --
 -- This migration is the first in the sample that runs AGAINST A POPULATED
--- TABLE. V1-V7 ran against an empty schema, so the extension is now being
+-- TABLE. V1-V7 ran against an empty schema, so the module is now being
 -- exercised in a more realistic situation (DSQL applies the ALTER against
 -- existing rows). The ALTER itself is a no-op data-wise -- the new column
 -- is simply NULL for every existing row until V9 runs.

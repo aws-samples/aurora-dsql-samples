@@ -73,7 +73,7 @@ warns against.
 ## Quick start
 
 ```bash
-cd sample-amazon-aurora-dsql-flyway-extension
+cd sample-amazon-aurora-dsql-flyway-migrations
 
 cp .env.example .env
 $EDITOR .env                     # set DSQL_ENDPOINT
@@ -122,7 +122,7 @@ $ make help
 ## File layout
 
 ```
-sample-amazon-aurora-dsql-flyway-extension/
+sample-amazon-aurora-dsql-flyway-migrations/
 ├── README.md                   <- this file
 ├── KNOWN_LIMITATIONS.md        <- read before adopting this in production
 ├── Dockerfile                  <- Flyway CLI + module jars from Maven Central
