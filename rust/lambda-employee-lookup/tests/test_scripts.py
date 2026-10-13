@@ -442,17 +442,18 @@ class DeploymentScriptTests(unittest.TestCase):
                     self.assertFalse(harness.calls("aws", ("logs", "delete-log-group")))
 
     def test_log_errors_stop_deployment_instead_of_claiming_success(self):
-        # Treating every create error as "already exists", or suppressing a
-        # retention error, hides missing permission and leaves unlimited logs.
+        # Existing groups prevent a later retention error from masking failure
+        # to stop immediately after a denied create call.
         for script in SETUP_SCRIPTS:
             for operation in ("create-log-group", "put-retention-policy"):
-                with self.subTest(script=script, operation=operation), ScriptHarness() as harness:
-                    harness.configure(fail_command=["logs", operation])
-                    result = harness.run_setup(script, harness.foreign, reuse_cluster=True)
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("AccessDeniedException", result.stderr)
-                    self.assertNotIn("SETUP COMPLETE!", result.stdout)
-                    self.assertFalse(harness.calls("aws", ("lambda", "create-function")))
+                for existing_logs in (False, True):
+                    with self.subTest(script=script, operation=operation, existing_logs=existing_logs), ScriptHarness() as harness:
+                        harness.configure(fail_command=["logs", operation], existing_logs=existing_logs)
+                        result = harness.run_setup(script, harness.foreign, reuse_cluster=True)
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn("AccessDeniedException", result.stderr)
+                        self.assertNotIn("SETUP COMPLETE!", result.stdout)
+                        self.assertFalse(harness.calls("aws", ("lambda", "create-function")))
 
     def test_iam_policy_error_stops_deployment_and_cleans_private_files(self):
         # Suppressing the DSQL policy error creates a nonfunctional Lambda;
@@ -571,7 +572,8 @@ class ApiScriptTests(unittest.TestCase):
         # or missing contract fields pass as "All tests passed".
         for body in ("<html>OK</html>", "not JSON", '{"count": 2', "[]",
                      '{"count": 2, "employees": []}', '{"employees": [], "next": null}',
-                     '{"count": "2", "employees": [], "next": null}'):
+                     '{"count": "2", "employees": [], "next": null}',
+                     '{"count": 0, "employees": null, "next": null}'):
             with self.subTest(body=body), ScriptHarness() as harness:
                 harness.configure(curl_responses={"": {"status": "200", "body": body}})
                 result = harness.run_api(API_ENDPOINT=API_ENDPOINT)

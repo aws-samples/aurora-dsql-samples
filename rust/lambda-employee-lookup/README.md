@@ -171,10 +171,13 @@ Use `{"name": "Alice", "limit": 10}` for the first page, then include the return
 cargo test --locked
 cargo fmt -- --check
 cargo clippy --locked --all-targets -- -D warnings
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r tests/requirements.txt
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-The Python checks require Bash, `jq`, and Node.js, and replace external AWS/build/HTTP commands with test fixtures. They do not deploy resources.
+The Python checks require Python 3.8 or later, Bash, `jq`, and Node.js. Their test-only YAML parser checks the PR commit's path through the workflow configuration. External AWS/build/HTTP commands are replaced with test fixtures; these checks do not deploy resources.
 
 The database tests are explicitly ignored by the default `cargo test` command. To run them, set `DATABASE_URL` to a **disposable PostgreSQL database** whose user can create and drop schemas, then opt in:
 
