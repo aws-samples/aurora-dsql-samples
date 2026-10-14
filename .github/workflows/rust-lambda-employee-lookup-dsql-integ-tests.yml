@@ -1,0 +1,102 @@
+name: Rust Lambda Employee Lookup DSQL integration tests
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: "Exact commit to test; defaults to the triggering ref"
+        required: false
+        type: string
+        default: ""
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  create-cluster:
+    uses: ./.github/workflows/dsql-cluster-create.yml
+    with:
+      workflow_name: rust-lambda-employee-lookup
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.RUST_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
+
+  test:
+    name: Seed and lookup against Aurora DSQL
+    needs: create-cluster
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # required by aws-actions/configure-aws-credentials
+    defaults:
+      run:
+        working-directory: rust/lambda-employee-lookup
+    env:
+      CARGO_TERM_COLOR: always
+      DSQL_ENDPOINT: ${{ needs.create-cluster.outputs.cluster-endpoint }}
+      AWS_REGION: ${{ needs.create-cluster.outputs.region }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout-ref || github.event.pull_request.head.sha || github.sha }}
+      - run: rustup update
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/lambda-employee-lookup
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.RUST_IAM_ROLE }}
+          aws-region: ${{ needs.create-cluster.outputs.region }}
+
+      - name: Run seed.sql as admin
+        env:
+          # seed.sql maps app_readonly to this role, so the tests below use
+          # the same IAM grant and dsql:DbConnect path as the Lambda function.
+          ROLE_ARN: ${{ secrets.RUST_IAM_ROLE }}
+        run: |
+          psql --version
+          PGPASSWORD=$(aws dsql generate-db-connect-admin-auth-token \
+            --hostname "$DSQL_ENDPOINT" --region "$AWS_REGION") \
+          psql "host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system" \
+            -v ON_ERROR_STOP=1 -v role_arn="$ROLE_ARN" -f seed.sql
+
+      - name: Wait for the name index and record the lookup plan
+        run: |
+          export PGPASSWORD=$(aws dsql generate-db-connect-admin-auth-token \
+            --hostname "$DSQL_ENDPOINT" --region "$AWS_REGION")
+          CONNECTION="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system"
+          for attempt in $(seq 1 60); do
+            VALID=$(psql "$CONNECTION" -At -c \
+              "SELECT indisvalid FROM pg_index WHERE indexrelid = 'app.idx_employees_name_lower'::regclass")
+            if [ "$VALID" = "t" ]; then break; fi
+            echo "Index not valid yet (attempt $attempt)"
+            sleep 5
+          done
+          if [ "$VALID" != "t" ]; then
+            psql "$CONNECTION" -c "SELECT job_id, status, details, object_name FROM sys.jobs"
+            echo "idx_employees_name_lower did not become valid"
+            exit 1
+          fi
+          psql "$CONNECTION" -v ON_ERROR_STOP=1 -c \
+            "EXPLAIN SELECT id::text, name FROM app.employees WHERE LOWER(name) LIKE LOWER('ali%') ORDER BY LOWER(name), id LIMIT 51"
+
+      - name: Run lookups as app_readonly
+        run: cargo test --locked --features dsql-integration --test dsql_tests -- --test-threads=1
+
+  delete-cluster:
+    if: always() && needs.create-cluster.result == 'success'
+    needs: [create-cluster, test]
+    uses: ./.github/workflows/dsql-cluster-delete.yml
+    with:
+      cluster-id: ${{ needs.create-cluster.outputs.cluster-id }}
+      region: ${{ needs.create-cluster.outputs.region }}
+    secrets:
+      AWS_IAM_ROLE: ${{ secrets.RUST_IAM_ROLE }}
+    permissions:
+      id-token: write # required by aws-actions/configure-aws-credentials
