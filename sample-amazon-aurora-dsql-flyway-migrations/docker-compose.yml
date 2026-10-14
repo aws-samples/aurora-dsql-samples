@@ -38,6 +38,7 @@ services:
       - AWS_SESSION_TOKEN
       - AWS_PROFILE
       - DSQL_ENDPOINT=${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}
+      - DSQL_SCHEMA=${DSQL_SCHEMA:-flyway_sample}
       - FLYWAY_RETRY=${FLYWAY_RETRY:-3}
     volumes:
       - ./migrations:/flyway/migrations:ro

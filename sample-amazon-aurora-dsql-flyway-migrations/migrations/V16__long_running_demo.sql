@@ -9,15 +9,23 @@
 --   - IAM token mechanics: the DSQL JDBC Connector mints a fresh token at
 --     connection ESTABLISHMENT time only. After the connection is open,
 --     the token is not re-validated for subsequent statements on that
---     connection. So a migration can span token lifetime (15 min) safely
---     as long as the connection remains open.
+--     connection, so a 15-minute token does not cut off a longer run.
+--
+-- The limit that actually binds here is 5 MINUTES, not the 1-hour connection
+-- lifetime. Aurora DSQL caps a single transaction at 5 minutes of wall clock,
+-- and Flyway runs each migration file in one transaction, so a statement that
+-- runs past 5 minutes fails long before the connection cap is anywhere near.
+-- An earlier version of this comment named the 1-hour figure, which is the
+-- connection lifetime and the wrong number for a migration.
+--
+-- 60 seconds is therefore well inside the limit. Anything approaching 5
+-- minutes needs splitting into smaller migrations, or moving out of Flyway
+-- into something that commits in batches.
 --
 -- What this does NOT test directly:
---   - Migrations that run longer than the 1-hour DSQL connection cap.
---     In that case, DSQL closes the connection and the migration fails.
---     For such migrations, split into smaller steps or run outside Flyway.
---   - Connection POOL token refresh across invocations. The connector
---     handles that transparently; verified elsewhere in this sample by
---     running make migrate across multiple hours in one session.
+--   - A statement at or beyond the 5-minute transaction cap.
+--   - Token refresh across invocations. Each `migrate` opens its own
+--     connection and gets its own token, so there is nothing to refresh
+--     mid-run; see limitation 5 in KNOWN_LIMITATIONS.md.
 
 SELECT pg_sleep(60);

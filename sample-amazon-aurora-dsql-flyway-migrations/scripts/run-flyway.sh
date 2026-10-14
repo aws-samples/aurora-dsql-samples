@@ -37,6 +37,7 @@ set -euo pipefail
 AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
 FLYWAY_RETRY="${FLYWAY_RETRY:-3}"
+DSQL_SCHEMA="${DSQL_SCHEMA:-flyway_sample}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SAMPLE_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -55,7 +56,8 @@ if [[ -z "${FLYWAY_CONF:-}" ]]; then
     FLYWAY_CONF="/tmp/flyway.conf"
     cp "$SAMPLE_ROOT/flyway.conf.example" "$FLYWAY_CONF"
   fi
-  sed -i -e "s/REPLACE-WITH-YOUR-CLUSTER\.dsql\.us-east-1\.on\.aws/$DSQL_ENDPOINT/g" "$FLYWAY_CONF" 2>/dev/null || true
+  sed -i -e "s/REPLACE-WITH-YOUR-CLUSTER\.dsql\.us-east-1\.on\.aws/$DSQL_ENDPOINT/g" \
+         -e "s/REPLACE-WITH-YOUR-SCHEMA/$DSQL_SCHEMA/g" "$FLYWAY_CONF" 2>/dev/null || true
 fi
 
 # Only retry on errors Flyway + Aurora DSQL raises transiently:

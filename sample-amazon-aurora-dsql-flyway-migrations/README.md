@@ -4,13 +4,13 @@ A runnable sample that applies 16 Flyway migrations to a real
 [Amazon Aurora DSQL](https://aws.amazon.com/rds/aurora/dsql/) cluster
 using the official Flyway Aurora DSQL module.
 
-Aurora DSQL support is built in. Aurora DSQL
+Aurora DSQL support comes from a community database module you add to
+Flyway, not from Flyway itself. Aurora DSQL
 [launched support for Flyway on 25 February 2026](https://aws.amazon.com/about-aws/whats-new/2026/02/aurora-dsql-launches-tortoise-flyway-prisma/),
-and the database module is published on Maven Central as
+and the module is published on Maven Central as
 `org.flywaydb:flyway-database-dsql`. You do not need to write or build
-anything to make Flyway talk to Aurora DSQL. Drop the module and the
-Aurora DSQL JDBC Connector on the Flyway classpath and `flyway migrate`
-works.
+anything. Drop the module and the Aurora DSQL JDBC Connector on the Flyway
+classpath and `flyway migrate` works.
 
 What this sample is for is the part the module cannot do for you:
 **writing migrations that Aurora DSQL will accept.** Aurora DSQL is not
@@ -79,26 +79,45 @@ cp .env.example .env
 $EDITOR .env                     # set DSQL_ENDPOINT
 
 make build                       # pull the Flyway image + module jars
+make create-schema               # create the schema (migrate does this too)
 make info                        # read migration state from the cluster
 make migrate                     # apply V1 through V16
-make verify-schema               # inspect tables, indexes, constraints
+make verify-schema               # inspect tables, index validity, constraints
 ```
 
+Everything the sample creates goes into one schema, `flyway_sample` by
+default. Override it with `DSQL_SCHEMA`. The table names here are generic, and
+`users` and `sessions` in particular are also created by the
+`aurora-dsql-auth-session-mgmt` sample, so keeping them in their own schema
+means the two can share a cluster and `make reset` cannot reach across.
+
 If `migrate` stops on a failed migration, run `make repair` to clear the
-failed row from `flyway_schema_history`, then `make migrate` again.
+failed row from `flyway_schema_history`, then `make migrate` again. If the
+failure was a `CREATE INDEX ASYNC` migration, drop the index first: repair and
+migrate alone will loop on the same failure. See the troubleshooting section.
 
-### Choosing the cluster
+### Choosing the cluster, the schema and the credentials
 
-`make` resolves `DSQL_ENDPOINT` in this order, highest first:
+`make` resolves `DSQL_ENDPOINT`, `AWS_REGION`, `AWS_PROFILE` and
+`DSQL_SCHEMA` in this order, highest first:
 
 1. `make DSQL_ENDPOINT=my-other-cluster.dsql.us-east-1.on.aws migrate`
-2. an exported `DSQL_ENDPOINT` in your shell
+2. an exported value in your shell
 3. `.env`
 
-Worth knowing because `make reset` and the test targets drop tables. If you
+GNU Make resolves variables from an `include`d file above ones inherited from
+the environment, which is the opposite of what you want here, so the Makefile
+restores the order explicitly for these four.
+
+Worth knowing because `make reset` and the test targets drop a schema. If you
 keep a cluster in `.env` and then point your shell somewhere else, the shell
-wins. `make reset` prints the endpoint it is about to act on and asks for
-confirmation before it drops anything.
+wins. `AWS_PROFILE` is in the list for the same reason: it selects the
+credentials, so letting `.env` silently override your shell would mean a
+target could act on a different account than the one
+`aws sts get-caller-identity` just reported.
+
+`make reset` prints the endpoint and the schema it is about to drop, and asks
+for confirmation first. It refuses to touch `public`.
 
 ## All Make targets
 
@@ -107,15 +126,16 @@ $ make help
   help               Show this help
   build              Build the Docker image (Flyway CLI + Aurora DSQL module)
   info               Show Flyway migration status against the configured cluster
+  create-schema      Create the dedicated schema (required once before migrate)
   migrate            Apply pending migrations
   repair             Clear failed migrations from flyway_schema_history so retry can proceed
   validate           Validate applied migrations against the migration files
   verify-schema      Inspect the cluster: tables, flyway_schema_history, indexes
-  reset              Drop every object the migrations created (DANGEROUS; dev only)
+  reset              Drop the sample's schema and everything in it (DANGEROUS; dev only)
   reproduce-occ      Run two concurrent migrate against one cluster
-  test               Run every test in order
+  test               Run the deterministic test suite
   test-happy         End-to-end apply + verify
-  test-occ           Demonstrate a concurrent-migrate race (see KNOWN_LIMITATIONS.md #2)
+  test-occ           Demonstrate a concurrent-migrate race; non-deterministic, not part of `make test`
   clean              Remove local Docker image and tmp files
 ```
 
@@ -131,34 +151,40 @@ sample-amazon-aurora-dsql-flyway-migrations/
 ├── flyway.conf.example         <- Flyway config template, substituted at run time
 ├── .env.example                <- environment template (copy to .env)
 ├── migrations/                 <- V*.sql files; mounted at /flyway/migrations
-│   ├── V1__init_users.sql                  <- CREATE TABLE, inline PK
-│   ├── V2__add_sessions.sql                <- inline FK + UNIQUE
+│   ├── V1__init_users.sql                  <- CREATE TABLE, inline PK + UNIQUE
+│   ├── V2__add_sessions.sql                <- CREATE TABLE, no constraints
 │   ├── V3__add_sessions_user_id_index.sql  <- CREATE INDEX ASYNC
 │   ├── V4__add_user_role_column.sql        <- ADD COLUMN, no inline constraint
 │   ├── V5__backfill_user_role.sql          <- DML, separate file from the DDL
 │   ├── V6__set_user_role_default.sql       <- ALTER COLUMN SET DEFAULT
-│   ├── V7__add_sessions_created_at_index.sql
-│   ├── V8__add_users_last_login_at.sql
-│   ├── V9__backfill_users_last_login_at.sql
-│   ├── V10__refresh_users_last_login_at.sql <- backfill on a populated table
+│   ├── V7__add_sessions_created_at_index.sql <- the race target in test-occ
+│   ├── V8__add_users_last_login_at.sql     <- ADD COLUMN, nullable
+│   ├── V9__backfill_users_last_login_at.sql <- backfill, the wrong way
+│   ├── V10__refresh_users_last_login_at.sql <- backfill, the right way
 │   ├── V11__add_audit_log_with_fk.sql      <- FK declared at CREATE TABLE time
 │   ├── V12__add_products_with_check.sql    <- CHECK constraint
 │   ├── V13__drop_sessions_revoked_at.sql   <- DROP COLUMN
 │   ├── V14__rename_products_name.sql       <- RENAME COLUMN
-│   ├── V15__add_sessions_expires_at_index.sql
+│   ├── V15__add_sessions_expires_at_index.sql <- CREATE INDEX ASYNC, awaited
 │   └── V16__long_running_demo.sql          <- long-running statement
 ├── scripts/
+│   ├── create-schema.sh          <- create $DSQL_SCHEMA; migrate depends on it
 │   ├── run-flyway.sh             <- Flyway wrapper; retries token expiry
 │   ├── mint-token.sh             <- mint a DSQL IAM auth token for psql
-│   ├── reset-db.sh               <- DANGEROUS; drops every table the sample creates
-│   ├── verify-schema.sh          <- inspect tables / history / indexes
-│   ├── seed-data.sh              <- 50 users + 200 sessions
-│   ├── bulk-seed-sessions.sh     <- larger dataset for async index testing
+│   ├── reset-db.sh               <- DANGEROUS; DROP SCHEMA $DSQL_SCHEMA CASCADE
+│   ├── verify-schema.sh          <- inspect tables / history / index validity
+│   ├── seed-data.sh              <- 50 users + 200 sessions; NOT run by migrate
+│   ├── bulk-seed-sessions.sh     <- larger dataset; NOT run by migrate
 │   └── reproduce-occ-conflict.sh <- race two migrates
 └── tests/
-    ├── test-happy-path.sh        <- end-to-end apply + 24 structural assertions
-    └── test-occ-handling.sh      <- concurrent-migrate race
+    ├── test-happy-path.sh        <- end-to-end apply + 25 structural assertions
+    └── test-occ-handling.sh      <- concurrent-migrate race; non-deterministic
 ```
+
+The two seed scripts are not part of the migration path. `make migrate` and
+`make test` apply the migrations to an empty schema, so the tables are empty
+throughout. Run the seed scripts by hand between migrations if you want to
+exercise the backfills and the index builds against real rows.
 
 ## How it works
 
@@ -194,8 +220,8 @@ sample-amazon-aurora-dsql-flyway-migrations/
 
 ## Aurora DSQL settings in flyway.conf
 
-Two settings come from the module rather than Flyway core. Both are set in
-[`flyway.conf.example`](./flyway.conf.example) with the reasoning inline.
+Three settings come from the module rather than Flyway core. All three are set
+in [`flyway.conf.example`](./flyway.conf.example) with the reasoning inline.
 
 | Setting | Upstream default | Value here | Effect |
 |---|---|---|---|
@@ -203,30 +229,52 @@ Two settings come from the module rather than Flyway core. Both are set in
 | `flyway.dsql.occMaxRetries` | `0` | `3` | Retry the migration transaction when Aurora DSQL rejects it with an optimistic concurrency conflict. `0` disables retries. |
 | `flyway.dsql.occMaxRetryDelaySeconds` | `5` | `5` | Upper bound on the exponential backoff between those retries. |
 
-Both behaviours are opt-in. If you copy the migrations out of this sample
-without also copying the config, you get no index waiting and no OCC retry.
-The equivalent environment variables are `FLYWAY_DSQL_AWAIT_ASYNC_INDEXES`,
-`FLYWAY_DSQL_OCC_MAX_RETRIES`, and
+The index waiting and the OCC retry are both opt-in. If you copy the
+migrations out of this sample without also copying the config, you get
+neither. The equivalent environment variables are
+`FLYWAY_DSQL_AWAIT_ASYNC_INDEXES`, `FLYWAY_DSQL_OCC_MAX_RETRIES`, and
 `FLYWAY_DSQL_OCC_MAX_RETRY_DELAY_SECONDS`.
 
 The module's own documentation lists these and the per-transaction limits:
 [flyway-database-dsql](https://github.com/flyway/flyway-community-db-support/tree/main/flyway-database-dsql).
 
-`flyway baseline` as a standalone command does not work on Aurora DSQL,
-because it creates the history table and inserts the marker row in one
-transaction, which mixes DDL and DML. Use `flyway.baselineOnMigrate=true`
-instead, which does the equivalent during `migrate`.
+### Two Flyway settings that do not work here
+
+`flyway.createSchemas=true` does not work. Flyway issues the `CREATE SCHEMA`
+and the `CREATE TABLE` for the history table in one transaction, Aurora DSQL
+rejects two DDL statements in a transaction, nothing commits, and after a few
+retries it fails with `SQLSTATE 3F000, schema does not exist`, which points
+nowhere near the cause. `make create-schema` creates the schema in its own
+statement instead, and `make migrate` depends on it.
+
+**Baselining is unavailable.** `flyway baseline` mixes DDL and DML in one
+transaction, so Aurora DSQL rejects it. `flyway.baselineOnMigrate=true` is not
+a substitute: on a non-empty schema it logs a successful baseline, writes no
+baseline row, and migrates from V1 over your existing tables, leaving the
+history claiming a version the schema does not match. This sample used to set
+it. See limitation 10 in [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for
+the full output.
 
 ## Running the test suite
 
 ```bash
-make test                    # both tests, in order
-make test-happy              # end-to-end apply + 24 structural assertions
-make test-occ                # concurrent-migrate race
+make test                    # the deterministic suite: test-happy
+make test-happy              # end-to-end apply + 25 structural assertions
+make test-occ                # concurrent-migrate race; run this one on its own
 ```
 
-`test-occ` starts two `migrate` runs in parallel. It is a demonstration of
-the failure mode rather than a passing guarantee: see limitation 2 in
+`make test` runs `test-happy` only. It resets the schema, applies all 16
+migrations, and asserts 25 post-conditions, including that each
+`CREATE INDEX ASYNC` index came out `indisvalid`. That last one is the
+evidence that `awaitAsyncIndexes` did its job, since checking only that the
+index exists would pass even when the build had failed.
+
+`test-occ` is deliberately **not** part of `make test`. It starts two
+`migrate` runs in parallel and the outcome is not deterministic: sometimes one
+run recovers, sometimes both fail and the schema needs repair. It demonstrates
+the failure mode rather than asserting a pass, so putting it in the suite
+would make the suite flaky for no benefit. Run it when you want to see the
+race. See limitation 2 in
 [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for what we observed and
 why you should serialize migrations in your pipeline regardless.
 
@@ -257,6 +305,27 @@ are calling it by hand inside a migration script. Let
 EXISTS` on an index that already exists. This is a real interaction between
 `IF NOT EXISTS` and `awaitAsyncIndexes`; see limitation 3 in
 [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md).
+
+**A failed index migration that `repair` will not fix.** `make repair` plus
+`make migrate` loops on the same error here, because the module commits the
+`CREATE INDEX ASYNC` before it waits. The index survives the failed
+migration, so the retry hits `IF NOT EXISTS`, Aurora DSQL skips the build, no
+`job_id` comes back, and the await fails again. Drop the index first:
+
+```bash
+make verify-schema            # shows indisvalid / indisready per index
+# then, against the cluster, for the index named in the error:
+#   DROP INDEX idx_sessions_user_id;
+make repair
+make migrate
+```
+
+**`Unable to load credentials` or an SSO error inside Flyway** while the AWS
+CLI works on the same machine. The image carries the `sso`, `ssooidc` and
+`sts` SDK jars so IAM Identity Center profiles and `role_arn` profiles
+resolve. If you build a trimmed image and drop them, those profile types stop
+working on the Flyway path even though the Aurora DSQL connection itself needs
+neither.
 
 **`SSL SYSCALL error: EOF detected` from psql** is a transient at the
 Aurora DSQL frontend. The sample's psql helpers retry. Flyway's own JDBC

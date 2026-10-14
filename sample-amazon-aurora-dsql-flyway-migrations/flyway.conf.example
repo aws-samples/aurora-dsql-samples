@@ -24,16 +24,35 @@ flyway.user=admin
 # Migration locations
 flyway.locations=filesystem:/flyway/migrations
 
-# Baseline. The standalone `flyway baseline` command does not work on Aurora
-# DSQL: it creates the history table and inserts the marker row in one
-# transaction, which mixes DDL and DML. baselineOnMigrate performs the
-# equivalent during migrate instead.
+# Schema. Everything this sample creates goes in one dedicated schema, so its
+# generic table names (users, sessions, products) cannot collide with another
+# sample's. The runner script substitutes DSQL_SCHEMA here.
 #
-# This only takes effect when the schema history table does not yet exist. On a
-# cluster that already has a history table it is a no-op, so do not rely on it
-# to adopt an existing populated schema.
-flyway.baselineOnMigrate=true
-flyway.baselineVersion=1
+# The schema must already exist. flyway.createSchemas=true does NOT work on
+# Aurora DSQL: Flyway issues the CREATE SCHEMA and the CREATE TABLE for the
+# history table in one transaction, Aurora DSQL rejects two DDL statements in
+# a transaction, and nothing commits. Flyway then retries and finally fails
+# with SQLSTATE 3F000, schema does not exist. `make create-schema` creates it
+# in its own statement first.
+flyway.schemas=REPLACE-WITH-YOUR-SCHEMA
+flyway.defaultSchema=REPLACE-WITH-YOUR-SCHEMA
+
+# Baselining is not available on Aurora DSQL.
+#
+# The standalone `flyway baseline` command creates the history table and
+# inserts the marker row in one transaction, which mixes DDL and DML, so
+# Aurora DSQL rejects it.
+#
+# flyway.baselineOnMigrate=true is NOT a substitute, and this sample used to
+# set it. On a non-empty schema it logs "Successfully baselined schema with
+# version: 1", writes no baseline row, and then runs every migration from V1
+# over the existing tables. If those migrations use IF NOT EXISTS they are
+# skipped individually but still recorded as applied, which leaves the history
+# claiming a version the schema does not actually match, and `validate` passes
+# on it. That is worse than a clean failure, so it is left off here.
+#
+# To adopt a schema that already has objects in it, create a fresh schema and
+# migrate into that, or reconcile by hand.
 
 # Validation
 flyway.validateOnMigrate=true

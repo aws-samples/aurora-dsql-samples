@@ -5,10 +5,14 @@
 -- rejected. The column is added nullable here; V9 backfills it from the
 -- sessions data.
 --
--- This migration is the first in the sample that runs AGAINST A POPULATED
--- TABLE. V1-V7 ran against an empty schema, so the module is now being
--- exercised in a more realistic situation (DSQL applies the ALTER against
--- existing rows). The ALTER itself is a no-op data-wise -- the new column
--- is simply NULL for every existing row until V9 runs.
+-- The ALTER is a no-op data-wise: the new column is NULL for every existing
+-- row until V9 runs.
+--
+-- Note on table contents: `make migrate` applies the migrations to an empty
+-- schema, so users and sessions are empty here. The seed scripts
+-- (scripts/seed-data.sh, scripts/bulk-seed-sessions.sh) are not part of the
+-- migration path and are not run by `make migrate` or `make test`. Run them
+-- by hand between migrations if you want to exercise these statements against
+-- real rows.
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;

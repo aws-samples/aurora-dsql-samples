@@ -20,6 +20,7 @@ set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
+DSQL_SCHEMA="${DSQL_SCHEMA:-flyway_sample}"
 TOTAL_ROWS="${TOTAL_ROWS:-10000}"
 BATCH_SIZE="${BATCH_SIZE:-1000}"
 
@@ -30,8 +31,12 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-export PGPASSWORD="$(bash "$SCRIPT_DIR/mint-token.sh")"
-PSQL_CONNINFO="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system"
+# Assign first, then export. `export PGPASSWORD="$(cmd)"` reports export's
+# exit status rather than the command's, so a failed token mint would be
+# swallowed and show up later as an authentication error instead.
+PGPASSWORD="$(bash "$SCRIPT_DIR/mint-token.sh")"
+export PGPASSWORD
+PSQL_CONNINFO="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system options=-csearch_path=$DSQL_SCHEMA"
 
 echo "==> Bulk-seeding $TOTAL_ROWS session rows ($BATCH_SIZE per batch)"
 
@@ -42,9 +47,15 @@ PER_USER=$(( BATCH_SIZE / 50 ))
 
 for ((batch = 1; batch <= NUM_BATCHES; batch++)); do
   attempt=1
+  ok=0
   LAST_ERR=""
   while (( attempt <= 5 )); do
-    LAST_ERR=$(psql "$PSQL_CONNINFO" -v ON_ERROR_STOP=1 -q <<SQL 2>&1
+    # The assignment has to be the `if` condition. A bare
+    # `LAST_ERR=$(psql ...)` takes the command's exit status as the status of
+    # the assignment, which under `set -e` ends the script on the very first
+    # failure. The retry loop below it then never ran, which defeated the
+    # point of having one.
+    if LAST_ERR=$(psql "$PSQL_CONNINFO" -v ON_ERROR_STOP=1 -q <<SQL 2>&1
 INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at)
 SELECT
   gen_random_uuid(),
@@ -55,14 +66,14 @@ SELECT
 FROM users u
 CROSS JOIN generate_series(1, $PER_USER) AS t(n);
 SQL
-)
-    if [[ $? -eq 0 ]] && [[ -z "$LAST_ERR" ]]; then
+    ); then
+      ok=1
       break
     fi
     (( attempt++ ))
     sleep $attempt
   done
-  if (( attempt > 5 )); then
+  if (( ok == 0 )); then
     echo "ERROR: batch $batch failed after 5 attempts" >&2
     echo "Last error: $LAST_ERR" >&2
     exit 1

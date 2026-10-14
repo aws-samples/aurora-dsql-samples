@@ -1,16 +1,20 @@
 -- V10__refresh_users_last_login_at.sql
 -- Tenth migration: refresh users.last_login_at from current sessions.
 --
--- Context (populated-table test):
---   V8 added users.last_login_at (nullable).
---   V9 ran a backfill, but at that point sessions was empty, so every
---     user got last_login_at = NULL.
---   This migration re-runs the backfill. By now sessions has ~200 rows
---     across ~50 users, so this UPDATE should actually touch rows.
+-- This is the backfill pattern to copy, as opposed to V9.
 --
--- The WHERE clause is intentionally defensive: skip users with no
--- sessions (keeps last_login_at NULL for them), only update rows where
--- the derived value differs from the current one.
+-- Two differences, both of which matter on Aurora DSQL:
+--   - It joins against an aggregate rather than running a correlated
+--     subquery per row.
+--   - `IS DISTINCT FROM` means only rows whose value actually changes are
+--     modified. Unchanged rows cost nothing against the 3,000 modified rows
+--     per transaction cap, and re-running the migration modifies nothing.
+--     V9, with no WHERE at all, rewrites every row every time.
+--
+-- Note on table contents: `make migrate` runs against an empty schema, so
+-- both users and sessions are empty here and this UPDATE touches zero rows.
+-- The seed scripts are not part of the migration path. To see it do real
+-- work, run scripts/seed-data.sh after V2 and before this migration.
 
 UPDATE users u
    SET last_login_at = s.max_created_at

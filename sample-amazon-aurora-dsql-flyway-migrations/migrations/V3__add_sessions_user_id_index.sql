@@ -1,29 +1,24 @@
 -- V3__add_sessions_user_id_index.sql
 -- Third migration: add a secondary index to the sessions table.
 --
--- Aurora DSQL creates secondary indexes asynchronously. `CREATE INDEX ASYNC`
--- returns a `job_id` row immediately; the index build then runs in the
--- background. You can poll completion with `CALL sys.wait_for_job(<job_id>)`.
+-- Aurora DSQL has no synchronous index creation. `CREATE INDEX ASYNC` returns
+-- a `job_id` row immediately and the build runs in the background, so the
+-- index is not usable the moment the statement returns.
 --
--- DSQL + Flyway nuance (why we don't wait here):
---   DSQL does NOT accept a subquery as a CALL argument. In a plain SQL
---   migration, there's no portable way to capture the `job_id` emitted by
---   CREATE INDEX ASYNC and pass it as a literal to sys.wait_for_job in
---   the same script. Attempting:
+-- The module handles the wait. With flyway.dsql.awaitAsyncIndexes=true, which
+-- this sample sets, it reads the returned job_id and blocks on
+-- sys.wait_for_job until the build finishes, so this migration does not
+-- complete until the index is VALID. You do not need a Java migration for
+-- this, and you do not need to call sys.wait_for_job yourself. Calling it
+-- inside a migration would in fact fail, because Aurora DSQL rejects
+-- `CALL sys.wait_for_job` inside a transaction block.
 --
---     CALL sys.wait_for_job((SELECT job_id FROM sys.jobs ...));
---
---   fails with SQLSTATE 0A000: "cannot use subquery in CALL argument".
---
--- Options when you need the wait semantics:
---   1. The sessions table is empty at this point in the migration pipeline,
---      so the index build completes in milliseconds. Skipping the explicit
---      wait is safe here.
---   2. In production, when adding an index to a populated table, use a
---      Java-based Flyway migration (BaseJavaMigration). From Java you can
---      executeQuery("CREATE INDEX ASYNC ...") -> read job_id from the
---      ResultSet -> execute("CALL sys.wait_for_job('<literal>')").
---      This is the production-grade pattern for populated tables.
+-- Note the IF NOT EXISTS below. It makes this migration re-runnable, which
+-- matters because a failed migration leaves earlier statements applied. It
+-- also interacts badly with awaitAsyncIndexes: if the index already exists,
+-- Aurora DSQL skips the build, returns no job_id, and the module fails the
+-- migration because it has nothing to wait on. See limitation 3 in
+-- KNOWN_LIMITATIONS.md for both sides of that trade.
 
 CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_user_id
   ON sessions (user_id);

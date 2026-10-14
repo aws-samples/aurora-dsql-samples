@@ -14,6 +14,13 @@
 # Flyway version. That release targets Flyway 11.9.0, and it loads correctly
 # on the 11.20.3 runtime below.
 #
+# The AWS SDK jar list includes sso, ssooidc and sts. They are not needed to
+# reach Aurora DSQL, but they are needed to resolve the credentials: an IAM
+# Identity Center profile (sso_session) needs sso and ssooidc, and a profile
+# with role_arn and source_profile needs sts. Without them those profiles fail
+# inside Flyway with a provider-chain error, even though the AWS CLI on the
+# same machine works fine.
+#
 # Helper tools (bash, psql, boto3, jq) are installed for the verification
 # scripts.
 #
@@ -45,9 +52,20 @@ ARG PGJDBC_VERSION=42.7.11
 # discovers the module's DatabaseType through its service loader, and the JDK
 # DriverManager auto-registers both the pgJDBC driver and the Aurora DSQL
 # connector driver the same way.
+#
+# The base image already ships its own pgJDBC in /flyway/drivers/, and the
+# Flyway launcher puts that directory on the classpath as a wildcard
+# (drivers/*). Two postgresql jars under one wildcard means the JVM picks
+# whichever it enumerates first, and that order is explicitly unspecified. So
+# the bundled copy is removed before the pinned one is fetched, leaving exactly
+# one pgJDBC on the classpath. Without this, sslNegotiation=direct and anything
+# else newer than the bundled driver may or may not be available from one
+# build to the next.
 RUN set -eux; \
     M=https://repo1.maven.org/maven2; \
     fetch() { curl -fsSL -o "/flyway/drivers/$(basename "$1")" "$M/$1"; }; \
+    \
+    rm -f /flyway/drivers/postgresql-*.jar; \
     \
     fetch "org/flywaydb/flyway-database-dsql/${FLYWAY_DSQL_MODULE_VERSION}/flyway-database-dsql-${FLYWAY_DSQL_MODULE_VERSION}.jar"; \
     \
@@ -58,12 +76,14 @@ RUN set -eux; \
              utils annotations metrics-spi profiles json-utils endpoints-spi \
              apache-client netty-nio-client http-auth http-auth-spi \
              http-auth-aws checksums checksums-spi retries retries-spi \
-             aws-json-protocol protocol-core third-party-jackson-core; do \
+             aws-json-protocol protocol-core third-party-jackson-core \
+             sso ssooidc sts; do \
       fetch "software/amazon/awssdk/$a/${AWS_SDK_VERSION}/$a-${AWS_SDK_VERSION}.jar"; \
     done; \
     fetch "software/amazon/eventstream/eventstream/1.0.1/eventstream-1.0.1.jar"; \
     fetch "org/reactivestreams/reactive-streams/1.0.4/reactive-streams-1.0.4.jar"; \
     \
+    test "$(ls -1 /flyway/drivers/postgresql-*.jar | wc -l)" -eq 1; \
     ls -1 /flyway/drivers/
 
 # Clear the base image's ENTRYPOINT so docker-compose's `command:` and

@@ -2,40 +2,61 @@
 #
 # reset-db.sh
 #
-# Drop every object the sample's migrations and Flyway created, so you can
+# Drop the schema this sample migrates into, with everything in it, so you can
 # run `make migrate` from a clean slate.
 #
-# DANGEROUS: drops the tables listed below, several of which have generic
-# names that collide with other samples in this repository. Prompts for
-# confirmation first. Only run against a cluster dedicated to this sample.
+# DANGEROUS: this destroys every object in the schema and all its data.
+# Prompts for confirmation first.
+#
+# This used to drop a hard-coded list of table names from the public schema,
+# which was a sharp edge: users and sessions are also created by the
+# aurora-dsql-auth-session-mgmt sample, so resetting this sample on a shared
+# cluster destroyed that one's data. The list also had to be kept in step with
+# the migrations by hand, and had drifted, naming tables the sample no longer
+# creates. One DROP SCHEMA CASCADE fixes both problems: the blast radius is
+# exactly what this sample created, and it cannot go stale.
 #
 # Required env:
-#   AWS_REGION
 #   DSQL_ENDPOINT
 #
 # Optional env:
+#   AWS_REGION                 default us-east-1
+#   DSQL_SCHEMA                default flyway_sample
 #   RESET_DB_ASSUME_YES=true   skip the confirmation prompt (for CI)
 
 set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
+DSQL_SCHEMA="${DSQL_SCHEMA:-flyway_sample}"
+
+if [[ ! "$DSQL_SCHEMA" =~ ^[a-z_][a-z0-9_]*$ ]]; then
+  echo "ERROR: DSQL_SCHEMA must match ^[a-z_][a-z0-9_]*$ (got '$DSQL_SCHEMA')" >&2
+  exit 1
+fi
+
+# Refuse to drop a schema that is not this sample's. public in particular is
+# shared with every other sample on the cluster.
+case "$DSQL_SCHEMA" in
+  public|pg_catalog|information_schema|sys)
+    echo "ERROR: refusing to drop the '$DSQL_SCHEMA' schema." >&2
+    echo "       Set DSQL_SCHEMA to this sample's own schema." >&2
+    exit 1
+    ;;
+esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 cat <<WARN
 ==> Resetting the sample schema on $DSQL_ENDPOINT
 
-This drops the following tables if they exist:
+This runs:
 
-  audit_log  sessions  products  users  flyway_schema_history
+  DROP SCHEMA $DSQL_SCHEMA CASCADE;
 
-Several of those names are generic. In particular, users and sessions are
-also created by the aurora-dsql-auth-session-mgmt sample. If this cluster
-hosts anything other than this sample, those tables and all their data will
-be destroyed.
+which destroys every table, index and row in that schema, including
+flyway_schema_history. Objects in other schemas are untouched.
 
-Only continue against a cluster dedicated to this sample.
 WARN
 
 if [[ "${RESET_DB_ASSUME_YES:-}" != "true" ]]; then
@@ -50,29 +71,18 @@ PGPASSWORD="$(bash "$SCRIPT_DIR/mint-token.sh")"
 export PGPASSWORD
 PSQL_CONNINFO="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system"
 
-# Pipe every DROP into a SINGLE psql invocation. One connection, one TLS
-# handshake, one IAM auth.
-#
 # Why the retry loop: Aurora DSQL frontend nodes can return
 # "SSL SYSCALL error: EOF detected" on connection establishment -- a transient
 # frontend-layer failure that resolves on retry. The Flyway JDBC Connector
 # handles this transparently; raw psql does not, so this script retries
 # the whole operation up to 5 times with linear backoff.
 #
-# Table order matters: child tables (that hold FKs to others) must drop
-# before parents. The dependency graph is:
-#   audit_log → users (FK)
-# Everything else is independent. If you add new tables with FKs, add
-# them above their parents in this list.
+# CASCADE handles drop ordering, so the foreign key from audit_log to users no
+# longer needs the table list to be in dependency order.
 attempt=1
 max_attempts=5
-until psql "$PSQL_CONNINFO" -v ON_ERROR_STOP=1 <<'SQL'
-DROP TABLE IF EXISTS audit_log;
-DROP TABLE IF EXISTS sessions;
-DROP TABLE IF EXISTS products;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS flyway_schema_history;
-SQL
+until psql "$PSQL_CONNINFO" -v ON_ERROR_STOP=1 -q \
+        -c "DROP SCHEMA IF EXISTS $DSQL_SCHEMA CASCADE;"
 do
   if (( attempt >= max_attempts )); then
     echo "ERROR: psql failed after $max_attempts attempts" >&2
@@ -84,4 +94,4 @@ do
 done
 
 echo
-echo "==> Done. Run \`make migrate\` to re-apply migrations."
+echo "==> Done. Run \`make migrate\` to re-create the schema and apply migrations."

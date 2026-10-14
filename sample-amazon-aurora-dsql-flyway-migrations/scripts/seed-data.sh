@@ -12,13 +12,18 @@ set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
+DSQL_SCHEMA="${DSQL_SCHEMA:-flyway_sample}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-export PGPASSWORD="$(bash "$SCRIPT_DIR/mint-token.sh")"
-PSQL_CONNINFO="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system"
+# Assign first, then export. `export PGPASSWORD="$(cmd)"` reports export's
+# exit status rather than the command's, so a failed token mint would be
+# swallowed and show up later as an authentication error instead.
+PGPASSWORD="$(bash "$SCRIPT_DIR/mint-token.sh")"
+export PGPASSWORD
+PSQL_CONNINFO="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system options=-csearch_path=$DSQL_SCHEMA"
 
-echo "==> Seeding data (50 users, ~200 sessions)"
+echo "==> Seeding data (50 users, ~200 sessions) into schema '$DSQL_SCHEMA'"
 
 # Retry on the known DSQL frontend transient (SSL SYSCALL error: EOF detected).
 attempt=1

@@ -5,41 +5,59 @@
 # End-to-end test: apply all migrations with Flyway + the Aurora DSQL module,
 # then verify every expected object is in place.
 #
-# Expected post-conditions (V1..V15):
+# Expected post-conditions (V1..V16), all inside $DSQL_SCHEMA:
 #   - Tables users, sessions, audit_log, products, flyway_schema_history
 #   - users columns: id, email, name, created_at, role, last_login_at
 #   - sessions columns: id, user_id, token_hash, expires_at, created_at
 #       (revoked_at dropped in V13)
-#   - Indexes: idx_sessions_user_id, idx_sessions_created_at, idx_sessions_expires_at
+#   - Indexes idx_sessions_user_id, idx_sessions_created_at,
+#     idx_sessions_expires_at, each with indisvalid AND indisready true
 #   - audit_log has FK on user_id -> users(id)
 #   - products has CHECK constraints on price_cents and category
-#   - flyway_schema_history has 15 success=TRUE rows
+#   - one success=TRUE row per migration file in flyway_schema_history
+#
+# The migration count is derived from the migrations directory rather than
+# written here, so adding a migration cannot leave this comment lying.
 #
 # Required env:
 #   AWS_REGION
 #   DSQL_ENDPOINT
+# Optional env:
+#   DSQL_SCHEMA   default flyway_sample
 #
 # Exit code: 0 on success, 1 on any assertion failure.
 set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
+DSQL_SCHEMA="${DSQL_SCHEMA:-flyway_sample}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SAMPLE_ROOT="$(dirname "$SCRIPT_DIR")"
 
-echo "==> [test-happy] Resetting schema"
-# reset-db.sh prompts before dropping, because its table names collide with
-# other samples. A test run is non-interactive by definition, and this test
-# already requires a cluster dedicated to this sample.
-RESET_DB_ASSUME_YES=true bash "$SAMPLE_ROOT/scripts/reset-db.sh" >/dev/null
+echo "==> [test-happy] Resetting schema '$DSQL_SCHEMA' on $DSQL_ENDPOINT"
+# The reset output is shown, not sent to /dev/null. It names the endpoint and
+# the schema it is about to drop, which is the one thing worth reading if this
+# test is ever pointed at the wrong cluster. Only the interactive prompt is
+# skipped, because a test run is non-interactive by definition.
+#
+# The blast radius is now one DROP SCHEMA CASCADE against this sample's own
+# schema, so a shared cluster no longer loses another sample's tables.
+RESET_DB_ASSUME_YES=true bash "$SAMPLE_ROOT/scripts/reset-db.sh"
+
+echo "==> [test-happy] Creating schema"
+bash "$SAMPLE_ROOT/scripts/create-schema.sh"
 
 echo "==> [test-happy] Running flyway migrate"
 bash "$SAMPLE_ROOT/scripts/run-flyway.sh" migrate
 
 echo "==> [test-happy] Verifying schema"
-export PGPASSWORD="$(bash "$SAMPLE_ROOT/scripts/mint-token.sh")"
-PSQL_CONNINFO="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system"
+# Assign first, then export: `export PGPASSWORD="$(cmd)"` reports export's
+# exit status, not the command's, so a failed token mint would be invisible
+# here and surface as a confusing authentication error further down.
+PGPASSWORD="$(bash "$SAMPLE_ROOT/scripts/mint-token.sh")"
+export PGPASSWORD
+PSQL_CONNINFO="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system options=-csearch_path=$DSQL_SCHEMA"
 
 # psql against DSQL frontend occasionally returns "SSL SYSCALL error: EOF
 # detected" on connection establishment -- transient, resolves on retry.
@@ -68,7 +86,7 @@ fail=0
 assert_table() {
   local tbl="$1"
   local n
-  if ! n=$(psql_retry "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='$tbl';"); then
+  if ! n=$(psql_retry "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DSQL_SCHEMA' AND table_name='$tbl';"); then
     echo "    FAIL table $tbl -- psql retries exhausted"
     fail=1
     return 0
@@ -84,7 +102,7 @@ assert_table() {
 assert_column() {
   local tbl="$1" col="$2"
   local n
-  if ! n=$(psql_retry "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='$tbl' AND column_name='$col';"); then
+  if ! n=$(psql_retry "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='$DSQL_SCHEMA' AND table_name='$tbl' AND column_name='$col';"); then
     echo "    FAIL $tbl.$col -- psql retries exhausted"
     fail=1
     return 0
@@ -100,7 +118,7 @@ assert_column() {
 assert_no_column() {
   local tbl="$1" col="$2"
   local n
-  if ! n=$(psql_retry "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='$tbl' AND column_name='$col';"); then
+  if ! n=$(psql_retry "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='$DSQL_SCHEMA' AND table_name='$tbl' AND column_name='$col';"); then
     echo "    FAIL $tbl.$col -- psql retries exhausted"
     fail=1
     return 0
@@ -113,26 +131,58 @@ assert_no_column() {
   fi
 }
 
-assert_index() {
+# Assert an index exists AND is usable.
+#
+# pg_indexes alone is not enough, and checking only that was the weak point in
+# this test. Aurora DSQL builds secondary indexes asynchronously: the index row
+# appears as soon as CREATE INDEX ASYNC is accepted, and a build that later
+# fails leaves it in place with indisvalid = false. So a presence check passes
+# whether the build succeeded or not, which means it could not tell whether
+# flyway.dsql.awaitAsyncIndexes was doing anything at all.
+#
+# indisvalid true is the evidence that the await worked: the migration did not
+# return until the build finished. indisready is checked alongside it.
+assert_index_valid() {
   local idx="$1"
-  local n
-  if ! n=$(psql_retry "SELECT COUNT(*) FROM pg_indexes WHERE indexname='$idx';"); then
+  local row
+  # The two flags are emitted as explicit words rather than relying on how
+  # psql renders a boolean. Concatenating a boolean to text yields
+  # 'true'/'false', while a bare boolean column prints 't'/'f', and depending
+  # on the wrong one of those is how this assertion got written incorrectly
+  # the first time.
+  if ! row=$(psql_retry "
+    SELECT CASE WHEN x.indisvalid THEN 'VALID' ELSE 'INVALID' END || '/' ||
+           CASE WHEN x.indisready THEN 'READY' ELSE 'NOTREADY' END
+      FROM pg_index x
+      JOIN pg_class i ON i.oid = x.indexrelid
+      JOIN pg_namespace n ON n.oid = i.relnamespace
+     WHERE n.nspname = '$DSQL_SCHEMA' AND i.relname = '$idx';"); then
     echo "    FAIL index $idx -- psql retries exhausted"
     fail=1
     return 0
   fi
-  if [[ "$n" == "1" ]]; then
-    echo "    OK  index $idx exists"
-  else
-    echo "    FAIL index $idx missing (got '$n')"
-    fail=1
-  fi
+  case "$row" in
+    "VALID/READY")
+      echo "    OK  index $idx exists, indisvalid and indisready"
+      ;;
+    "")
+      echo "    FAIL index $idx missing from $DSQL_SCHEMA"
+      fail=1
+      ;;
+    *)
+      echo "    FAIL index $idx present but not usable ($row)"
+      echo "         An async build that failed leaves the index INVALID. With"
+      echo "         awaitAsyncIndexes=true the migration should not have"
+      echo "         returned until the build completed."
+      fail=1
+      ;;
+  esac
 }
 
 assert_constraint_count() {
   local tbl="$1" ctype="$2" expected="$3" label="$4"
   local n
-  if ! n=$(psql_retry "SELECT COUNT(*) FROM pg_constraint WHERE conrelid = '$tbl'::regclass AND contype = '$ctype';"); then
+  if ! n=$(psql_retry "SELECT COUNT(*) FROM pg_constraint WHERE conrelid = '$DSQL_SCHEMA.$tbl'::regclass AND contype = '$ctype';"); then
     echo "    FAIL $tbl $label -- psql retries exhausted"
     fail=1
     return 0
@@ -172,10 +222,11 @@ assert_no_column sessions revoked_at
 assert_column products product_name
 assert_no_column products name
 
-# Indexes
-assert_index idx_sessions_user_id
-assert_index idx_sessions_created_at
-assert_index idx_sessions_expires_at
+# Indexes. Each is built by CREATE INDEX ASYNC, so validity is the assertion
+# that matters, not presence.
+assert_index_valid idx_sessions_user_id
+assert_index_valid idx_sessions_created_at
+assert_index_valid idx_sessions_expires_at
 
 # Constraints
 assert_constraint_count audit_log f 1 FOREIGN_KEY
@@ -186,7 +237,7 @@ assert_constraint_count products c 2 CHECK
 # silently break this assertion.
 MIGRATIONS_DIR="${MIGRATIONS_DIR:-/flyway/migrations}"
 expected=$(find "$MIGRATIONS_DIR" -maxdepth 1 -name 'V*__*.sql' | wc -l | tr -d ' ')
-n=$(psql_retry "SELECT COUNT(*) FROM flyway_schema_history WHERE success=TRUE;") || n="RETRY_FAILED"
+n=$(psql_retry "SELECT COUNT(*) FROM $DSQL_SCHEMA.flyway_schema_history WHERE success=TRUE;") || n="RETRY_FAILED"
 if [[ "$n" == "$expected" ]]; then
   echo "    OK  $n successful migrations recorded in flyway_schema_history"
 else
