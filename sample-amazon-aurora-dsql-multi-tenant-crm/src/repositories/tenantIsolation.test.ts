@@ -256,3 +256,310 @@ describe("activities bulk complete: adapts to the transaction byte cap", () => {
     expect(attempts).toHaveLength(1);
   });
 });
+/* -------------------------------------------------------------------------
+ * Whole-surface sweep.
+ *
+ * The targeted tests above were written one at a time, in response to review
+ * findings, which meant they covered whichever repository had been raised and
+ * left the rest unproven: the tenant predicate could be deleted from
+ * contacts.ts or opportunities.ts and the suite still passed.
+ *
+ * So rather than add two more hand-written cases, every tenant-scoped
+ * repository entry point is enumerated below and checked by one shared rule.
+ * A function missing from this table fails the coverage guard at the bottom,
+ * which is what stops the gap from reopening when a repository gains a new
+ * query.
+ * ---------------------------------------------------------------------------
+ */
+
+/**
+ * The rule every tenant-scoped statement must satisfy.
+ *
+ * Reads and writes must filter on tenant_id, and the placeholder they filter
+ * on must actually be bound to the caller's tenant: resolving $n and checking
+ * the value catches a predicate that is present but wired to the wrong
+ * parameter, which a text-only match would wave through. Inserts instead have
+ * to name tenant_id as a column and supply that same tenant.
+ */
+function expectTenantScoped(tenant: string) {
+  const statements = dataCalls();
+  expect(statements.length).toBeGreaterThan(0);
+
+  for (const { sql, params } of statements) {
+    if (/^\s*insert/i.test(sql)) {
+      expect(sql, `INSERT must set tenant_id: ${sql}`).toMatch(
+        /insert\s+into\s+\w+\s*\([^)]*\btenant_id\b/i,
+      );
+      expect(params, `INSERT must bind the tenant: ${sql}`).toContain(tenant);
+      continue;
+    }
+
+    const predicate = sql.match(/where[\s\S]*?\btenant_id\s*=\s*\$(\d+)/i);
+    expect(predicate, `missing tenant_id predicate: ${sql}`).not.toBeNull();
+    expect(
+      params[Number(predicate![1]) - 1],
+      `tenant_id bound to the wrong parameter: ${sql}`,
+    ).toBe(tenant);
+  }
+}
+
+/**
+ * Every tenant-scoped entry point, with each query branch listed separately.
+ *
+ * The optional-filter branches matter: listContacts, listOpportunities and
+ * listActivities each run a different statement depending on whether the
+ * filter is supplied, so exercising only one of the two leaves the other
+ * unchecked.
+ */
+const TENANT_SCOPED: Array<{
+  module: string;
+  export: string;
+  label: string;
+  run: (tenant: string) => Promise<unknown>;
+}> = [
+  {
+    module: "accounts.js",
+    export: "createAccount",
+    label: "createAccount",
+    run: async (t) => {
+      const { createAccount } = await import("./accounts.js");
+      return createAccount(t, { name: "Acme" });
+    },
+  },
+  {
+    module: "accounts.js",
+    export: "listAccounts",
+    label: "listAccounts",
+    run: async (t) => {
+      const { listAccounts } = await import("./accounts.js");
+      return listAccounts(t);
+    },
+  },
+  {
+    module: "accounts.js",
+    export: "getAccount",
+    label: "getAccount",
+    run: async (t) => {
+      const { getAccount } = await import("./accounts.js");
+      return getAccount(t, ACCOUNT);
+    },
+  },
+  {
+    module: "accounts.js",
+    export: "assertAccountInTenant",
+    label: "assertAccountInTenant",
+    run: async (t) => {
+      const { assertAccountInTenant } = await import("./accounts.js");
+      return assertAccountInTenant({ query: mocks.query } as never, t, ACCOUNT);
+    },
+  },
+  {
+    module: "contacts.js",
+    export: "createContact",
+    label: "createContact",
+    run: async (t) => {
+      const { createContact } = await import("./contacts.js");
+      return createContact(t, {
+        account_id: ACCOUNT,
+        first_name: "Ada",
+        last_name: "Lovelace",
+      });
+    },
+  },
+  {
+    module: "contacts.js",
+    export: "listContacts",
+    label: "listContacts, no filter",
+    run: async (t) => {
+      const { listContacts } = await import("./contacts.js");
+      return listContacts(t);
+    },
+  },
+  {
+    module: "contacts.js",
+    export: "listContacts",
+    label: "listContacts, filtered by account",
+    run: async (t) => {
+      const { listContacts } = await import("./contacts.js");
+      return listContacts(t, ACCOUNT);
+    },
+  },
+  {
+    module: "contacts.js",
+    export: "getContact",
+    label: "getContact",
+    run: async (t) => {
+      const { getContact } = await import("./contacts.js");
+      return getContact(t, RECORD);
+    },
+  },
+  {
+    module: "opportunities.js",
+    export: "createOpportunity",
+    label: "createOpportunity",
+    run: async (t) => {
+      const { createOpportunity } = await import("./opportunities.js");
+      return createOpportunity(t, { account_id: ACCOUNT, name: "Renewal" });
+    },
+  },
+  {
+    module: "opportunities.js",
+    export: "createOpportunity",
+    label: "createOpportunity with an owner",
+    run: async (t) => {
+      const { createOpportunity } = await import("./opportunities.js");
+      return createOpportunity(t, {
+        account_id: ACCOUNT,
+        name: "Renewal",
+        owner_id: USER,
+      });
+    },
+  },
+  {
+    module: "opportunities.js",
+    export: "listOpportunities",
+    label: "listOpportunities, no filter",
+    run: async (t) => {
+      const { listOpportunities } = await import("./opportunities.js");
+      return listOpportunities(t);
+    },
+  },
+  {
+    module: "opportunities.js",
+    export: "listOpportunities",
+    label: "listOpportunities, filtered by stage",
+    run: async (t) => {
+      const { listOpportunities } = await import("./opportunities.js");
+      return listOpportunities(t, "qualification");
+    },
+  },
+  {
+    module: "opportunities.js",
+    export: "updateStage",
+    label: "updateStage",
+    run: async (t) => {
+      const { updateStage } = await import("./opportunities.js");
+      return updateStage(t, RECORD, "closed_won");
+    },
+  },
+  {
+    module: "activities.js",
+    export: "createActivity",
+    label: "createActivity",
+    run: async (t) => {
+      const { createActivity } = await import("./activities.js");
+      return createActivity(t, {
+        related_type: "account",
+        related_id: ACCOUNT,
+        subject: "Follow up",
+      });
+    },
+  },
+  {
+    module: "activities.js",
+    export: "listActivities",
+    label: "listActivities, no filter",
+    run: async (t) => {
+      const { listActivities } = await import("./activities.js");
+      return listActivities(t);
+    },
+  },
+  {
+    module: "activities.js",
+    export: "listActivities",
+    label: "listActivities, filtered by related record",
+    run: async (t) => {
+      const { listActivities } = await import("./activities.js");
+      return listActivities(t, RECORD);
+    },
+  },
+  {
+    module: "activities.js",
+    export: "completeActivitiesFor",
+    label: "completeActivitiesFor",
+    run: async (t) => {
+      const { completeActivitiesFor } = await import("./activities.js");
+      return completeActivitiesFor(t, RECORD);
+    },
+  },
+  {
+    module: "users.js",
+    export: "assertUserInTenant",
+    label: "assertUserInTenant",
+    run: async (t) => {
+      const { assertUserInTenant } = await import("./users.js");
+      return assertUserInTenant({ query: mocks.query } as never, t, USER);
+    },
+  },
+];
+
+describe("every tenant-scoped repository query filters on the tenant", () => {
+  beforeEach(() => {
+    // A row is returned so the in-tenant assertions pass and the writes that
+    // follow them actually run. rowCount 1 also ends the batch loop in
+    // completeActivitiesFor after a single pass.
+    mocks.query.mockResolvedValue({
+      rows: [{ "?column?": 1 }],
+      rowCount: 1,
+    });
+  });
+
+  for (const entry of TENANT_SCOPED) {
+    it(`${entry.module} ${entry.label}`, async () => {
+      await entry.run(TENANT);
+      expectTenantScoped(TENANT);
+    });
+
+    // Same call with a different tenant. If an implementation ever hardcoded a
+    // tenant, or took it from somewhere other than its argument, the sweep
+    // above would still pass and this would not.
+    it(`${entry.module} ${entry.label}, with a different tenant`, async () => {
+      await entry.run(OTHER_TENANT);
+      expectTenantScoped(OTHER_TENANT);
+    });
+  }
+});
+
+describe("coverage guard", () => {
+  /**
+   * Exports that are deliberately not in the sweep, with the reason. Anything
+   * else new has to be classified, which is the point: a repository function
+   * added without a tenant predicate cannot pass unnoticed.
+   */
+  const EXEMPT: Record<string, string> = {
+    "tenants.js createTenant": "tenant registry, creates the tenant itself",
+    "tenants.js listTenants": "tenant registry, administrative listing",
+    "tenants.js getTenant": "tenant registry, looks a tenant up by its own id",
+  };
+
+  const REPOSITORY_MODULES = [
+    "accounts.js",
+    "activities.js",
+    "contacts.js",
+    "opportunities.js",
+    "tenants.js",
+    "users.js",
+  ];
+
+  it("has every exported repository function either swept or exempted", async () => {
+    const covered = new Set(
+      TENANT_SCOPED.map((e) => `${e.module} ${e.export}`),
+    );
+    const unclassified: string[] = [];
+
+    for (const moduleName of REPOSITORY_MODULES) {
+      const mod: Record<string, unknown> = await import(`./${moduleName}`);
+      for (const [name, value] of Object.entries(mod)) {
+        if (typeof value !== "function") continue;
+        const key = `${moduleName} ${name}`;
+        if (covered.has(key) || key in EXEMPT) continue;
+        unclassified.push(key);
+      }
+    }
+
+    expect(
+      unclassified,
+      "add these to TENANT_SCOPED, or to EXEMPT with a reason",
+    ).toEqual([]);
+  });
+});

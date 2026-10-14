@@ -18,7 +18,6 @@
 #
 set -euo pipefail
 
-REGION="${AWS_REGION:-us-east-1}"
 APP_NAME="crm-dsql-poc"
 ECR_REPO="${APP_NAME}"
 # A unique tag per run. With a fixed "latest" tag, updating an existing service
@@ -33,6 +32,20 @@ STATE_FILE="$SCRIPT_DIR/.state.env"
 touch "$STATE_FILE"
 # shellcheck disable=SC1090
 source "$STATE_FILE"
+
+# The Region is resolved AFTER sourcing the state file, and the recorded
+# DEPLOY_REGION wins. The resources already exist in that Region, so a re-run
+# from a shell defaulting to a different one must keep operating on them rather
+# than overwrite DEPLOY_REGION and send cleanup.sh looking in the wrong place.
+# Same precedence as cleanup.sh, deliberately.
+#
+# To deploy a second, independent stack in another Region, use a separate
+# checkout or remove scripts/.state.env first.
+REGION="${DEPLOY_REGION:-${AWS_REGION:-us-east-1}}"
+if [[ -n "${DEPLOY_REGION:-}" && -n "${AWS_REGION:-}" && "$AWS_REGION" != "$DEPLOY_REGION" ]]; then
+  echo "WARNING: AWS_REGION=$AWS_REGION but this stack was deployed to $DEPLOY_REGION." >&2
+  echo "         Continuing in $DEPLOY_REGION, where the resources are." >&2
+fi
 
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 
