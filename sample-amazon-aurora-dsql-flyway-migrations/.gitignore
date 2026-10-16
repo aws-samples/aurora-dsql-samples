@@ -1,0 +1,6 @@
+# Local environment. Holds a cluster endpoint; copy .env.example instead.
+.env
+
+# Runtime artifacts: race logs from scripts/reproduce-occ-conflict.sh and
+# anything else the scripts write. `make clean` removes this directory.
+tmp/
