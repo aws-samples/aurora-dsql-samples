@@ -113,8 +113,7 @@ default: &default
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   username: <%= ENV.fetch("CLUSTER_USER") { "admin" } %>
   host: <%= ENV['CLUSTER_ENDPOINT'] %>
-  # Disable prepared statements and advisory locks for Aurora DSQL
-  prepared_statements: false
+  # Disable advisory locks for Aurora DSQL
   advisory_locks: false
   sslnegotiation: direct
   sslmode: verify-full
