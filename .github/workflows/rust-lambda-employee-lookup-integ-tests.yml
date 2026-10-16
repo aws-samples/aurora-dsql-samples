@@ -123,7 +123,7 @@ jobs:
             exit 1
           fi
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lambda-bootstrap-arm64
           path: rust/lambda-employee-lookup/target/lambda/dsql-employee-lookup/bootstrap.zip
