@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.DS_Store
+
+# Runtime deploy state: holds your account-specific resource IDs.
+# NEVER commit this (keeps account IDs out of the repository).
+scripts/.state.env
+
+# Diagram build venv (the rendered diagram itself IS committed).
+.diagrams-venv/
