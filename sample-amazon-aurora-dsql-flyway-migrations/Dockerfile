@@ -14,12 +14,18 @@
 # Flyway version. That release targets Flyway 11.9.0, and it loads correctly
 # on the 11.20.3 runtime below.
 #
-# The AWS SDK jar list includes sso, ssooidc and sts. They are not needed to
-# reach Aurora DSQL, but they are needed to resolve the credentials: an IAM
-# Identity Center profile (sso_session) needs sso and ssooidc, and a profile
-# with role_arn and source_profile needs sts. Without them those profiles fail
-# inside Flyway with a provider-chain error, even though the AWS CLI on the
-# same machine works fine.
+# The AWS SDK jar list includes sso, ssooidc, sts and aws-query-protocol, plus
+# commons-logging. None are needed to reach Aurora DSQL; all are needed to
+# resolve the credentials. An IAM Identity Center profile (sso_session) needs
+# sso and ssooidc, and a profile with role_arn and source_profile needs sts.
+#
+# sts and sso speak the AWS Query protocol rather than JSON, so they also need
+# aws-query-protocol, and the Apache HTTP client needs commons-logging. Adding
+# sso/ssooidc/sts without those two gets you a NoClassDefFoundError at the
+# moment the credential chain runs, which is a worse failure than not shipping
+# them at all: the profile looks supported and then dies mid-resolution.
+#
+# The jar count is checked below so a future trim cannot silently drop one.
 #
 # Helper tools (bash, psql, boto3, jq) are installed for the verification
 # scripts.
@@ -46,6 +52,13 @@ ARG FLYWAY_DSQL_MODULE_VERSION=10.26.0
 ARG DSQL_CONNECTOR_VERSION=1.5.0
 ARG AWS_SDK_VERSION=2.44.13
 ARG PGJDBC_VERSION=42.7.11
+# Pinned to 1.2 deliberately, and do not bump it casually. On this base image
+# 1.3.5 makes the Flyway CLI exit 1 with ZERO output on stdout and stderr, on
+# every command, including ones that never touch AWS. The image bundles
+# slf4j-nop, and the newer JCL appears to lose that discovery fight in a way
+# that kills the JVM before Flyway can log anything. jcl-over-slf4j, the usual
+# bridge when slf4j is present, fails the same silent way. 1.2 works.
+ARG COMMONS_LOGGING_VERSION=1.2
 
 # Each jar is downloaded separately rather than shaded into one, so every
 # META-INF/services descriptor survives. That matters for two reasons: Flyway
@@ -77,13 +90,18 @@ RUN set -eux; \
              apache-client netty-nio-client http-auth http-auth-spi \
              http-auth-aws checksums checksums-spi retries retries-spi \
              aws-json-protocol protocol-core third-party-jackson-core \
-             sso ssooidc sts; do \
+             sso ssooidc sts aws-query-protocol; do \
       fetch "software/amazon/awssdk/$a/${AWS_SDK_VERSION}/$a-${AWS_SDK_VERSION}.jar"; \
     done; \
     fetch "software/amazon/eventstream/eventstream/1.0.1/eventstream-1.0.1.jar"; \
     fetch "org/reactivestreams/reactive-streams/1.0.4/reactive-streams-1.0.4.jar"; \
+    fetch "commons-logging/commons-logging/${COMMONS_LOGGING_VERSION}/commons-logging-${COMMONS_LOGGING_VERSION}.jar"; \
     \
     test "$(ls -1 /flyway/drivers/postgresql-*.jar | wc -l)" -eq 1; \
+    for required in sso ssooidc sts aws-query-protocol commons-logging; do \
+      ls /flyway/drivers/ | grep -q "^${required}-" \
+        || { echo "missing required jar: ${required}" >&2; exit 1; }; \
+    done; \
     ls -1 /flyway/drivers/
 
 # Clear the base image's ENTRYPOINT so docker-compose's `command:` and

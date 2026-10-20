@@ -21,10 +21,14 @@
 # Connector, which mints a 15-minute token from the ambient AWS
 # credentials on every new connection.
 #
-# Usage:
-#   bash scripts/run-flyway.sh migrate            # apply pending migrations
-#   bash scripts/run-flyway.sh info               # show migration status
-#   bash scripts/run-flyway.sh validate
+# Usage: prefer `make migrate`, `make info` and `make validate`. They create
+# the schema first, via scripts/create-schema.sh, which this script does not
+# do. Invoked directly against a cluster where the schema does not exist yet,
+# Flyway fails with SQLSTATE 3F000, schema does not exist.
+#
+#   make migrate                                  # apply pending migrations
+#   make info                                     # show migration status
+#   make validate
 #
 # Required env:
 #   DSQL_ENDPOINT    - cluster endpoint hostname

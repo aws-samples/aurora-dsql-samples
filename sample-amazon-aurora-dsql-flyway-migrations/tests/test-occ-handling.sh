@@ -12,9 +12,8 @@
 # concurrent migration runs are unsafe here and no retry setting makes them
 # safe. Serialize them in your pipeline.
 #
-# What it does NOT prove: that a retry recovers the race. An earlier version
-# of this script claimed that, and it is not true. See limitation 2 in
-# KNOWN_LIMITATIONS.md.
+# What it does NOT prove: that a retry recovers the race. It does not. See
+# limitation 2 in KNOWN_LIMITATIONS.md.
 #
 # Required env:
 #   AWS_REGION

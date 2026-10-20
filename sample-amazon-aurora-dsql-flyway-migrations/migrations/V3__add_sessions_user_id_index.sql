@@ -13,12 +13,15 @@
 -- inside a migration would in fact fail, because Aurora DSQL rejects
 -- `CALL sys.wait_for_job` inside a transaction block.
 --
--- Note the IF NOT EXISTS below. It makes this migration re-runnable, which
--- matters because a failed migration leaves earlier statements applied. It
--- also interacts badly with awaitAsyncIndexes: if the index already exists,
--- Aurora DSQL skips the build, returns no job_id, and the module fails the
--- migration because it has nothing to wait on. See limitation 3 in
--- KNOWN_LIMITATIONS.md for both sides of that trade.
+-- Deliberately NOT `IF NOT EXISTS`, which is the opposite of the advice for
+-- every other migration here. `IF NOT EXISTS` makes Aurora DSQL skip the build
+-- when the index already exists, and a skipped build returns no job_id, so the
+-- module fails the migration with nothing to wait on. That failure is not
+-- recoverable by re-running: the index survives, so every retry skips again.
+--
+-- Without it, a re-run fails immediately and legibly with 42P07, "relation
+-- already exists", which tells you to drop the index. See limitation 3 in
+-- KNOWN_LIMITATIONS.md for the recovery procedure.
 
-CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_user_id
+CREATE INDEX ASYNC idx_sessions_user_id
   ON sessions (user_id);

@@ -16,5 +16,7 @@
 -- real data, run scripts/bulk-seed-sessions.sh before this migration. The
 -- seed scripts are not part of the migration path.
 
-CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_expires_at
+-- No IF NOT EXISTS here, for the reason given in V3.
+
+CREATE INDEX ASYNC idx_sessions_expires_at
   ON sessions (expires_at);

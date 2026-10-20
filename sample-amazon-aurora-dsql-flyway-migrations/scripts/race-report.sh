@@ -7,10 +7,9 @@
 #
 # This runs INSIDE the container, because that is where psql and the IAM token
 # minting live. reproduce-occ-conflict.sh itself runs on the host so it can
-# start two containers in parallel, and the host has no psql, so any psql call
-# made from there silently fails. An earlier version of the reproduction did
-# exactly that and reported "0 of 16 applied, 0 failed rows" for a race that
-# had plainly created a history table and left a failed migration in it.
+# start two containers in parallel, and the host has no psql, so a psql call
+# made from there silently fails and would report "0 of 16 applied, 0 failed
+# rows" for a race that had plainly left a failed migration behind.
 #
 # Output is one key=value pair per line, for the caller to read with `eval` or
 # grep:
@@ -59,8 +58,20 @@ fi
 APPLIED=0
 FAILED=0
 if (( HISTORY_EXISTS == 1 )); then
-  APPLIED=$(q "SELECT COUNT(*) FROM $DSQL_SCHEMA.flyway_schema_history WHERE success=TRUE;") || APPLIED=0
-  FAILED=$(q "SELECT COUNT(*) FROM $DSQL_SCHEMA.flyway_schema_history WHERE success=FALSE;") || FAILED=0
+  # No `|| APPLIED=0` fallbacks here. That is what the query_failed flag is
+  # for, and defaulting a failed query to zero defeated the entire point of
+  # having it: a connection error read as "nothing applied, nothing failed",
+  # which is indistinguishable from a clean empty schema.
+  if ! APPLIED=$(q "SELECT COUNT(*) FROM $DSQL_SCHEMA.flyway_schema_history WHERE success=TRUE;"); then
+    echo "race-report: could not count applied migrations" >&2
+    echo "query_failed=1"
+    exit 1
+  fi
+  if ! FAILED=$(q "SELECT COUNT(*) FROM $DSQL_SCHEMA.flyway_schema_history WHERE success=FALSE;"); then
+    echo "race-report: could not count failed migrations" >&2
+    echo "query_failed=1"
+    exit 1
+  fi
   {
     echo "    Schema history:"
     psql "$CONN" -tAc "
@@ -73,10 +84,14 @@ else
   echo "    Schema history: table does not exist" >&2
 fi
 
-INVALID=$(q "SELECT COUNT(*) FROM pg_index x
-               JOIN pg_class i ON i.oid = x.indexrelid
-               JOIN pg_namespace n ON n.oid = i.relnamespace
-              WHERE n.nspname = '$DSQL_SCHEMA' AND NOT x.indisvalid;") || INVALID=0
+if ! INVALID=$(q "SELECT COUNT(*) FROM pg_index x
+                    JOIN pg_class i ON i.oid = x.indexrelid
+                    JOIN pg_namespace n ON n.oid = i.relnamespace
+                   WHERE n.nspname = '$DSQL_SCHEMA' AND NOT x.indisvalid;"); then
+  echo "race-report: could not count invalid indexes" >&2
+  echo "query_failed=1"
+  exit 1
+fi
 
 echo "query_failed=0"
 echo "history_exists=$HISTORY_EXISTS"

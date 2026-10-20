@@ -133,15 +133,18 @@ assert_no_column() {
 
 # Assert an index exists AND is usable.
 #
-# pg_indexes alone is not enough, and checking only that was the weak point in
-# this test. Aurora DSQL builds secondary indexes asynchronously: the index row
-# appears as soon as CREATE INDEX ASYNC is accepted, and a build that later
-# fails leaves it in place with indisvalid = false. So a presence check passes
-# whether the build succeeded or not, which means it could not tell whether
-# flyway.dsql.awaitAsyncIndexes was doing anything at all.
+# pg_indexes alone is not enough. Aurora DSQL builds secondary indexes
+# asynchronously: the index row appears as soon as CREATE INDEX ASYNC is
+# accepted, and a build that later fails leaves it in place with
+# indisvalid = false. A presence check therefore passes whether the build
+# succeeded or not. Checking indisvalid catches a FAILED BUILD.
 #
-# indisvalid true is the evidence that the await worked: the migration did not
-# return until the build finished. indisready is checked alongside it.
+# What this does NOT prove is that flyway.dsql.awaitAsyncIndexes did the
+# waiting. V16 runs SELECT pg_sleep(60) after the last index migration, so by
+# the time these assertions run the builds have had a minute to finish
+# regardless of whether anything waited for them. Proving the await means
+# observing the index state immediately after the migration that creates it,
+# which is a different test than this one.
 assert_index_valid() {
   local idx="$1"
   local row
@@ -171,9 +174,9 @@ assert_index_valid() {
       ;;
     *)
       echo "    FAIL index $idx present but not usable ($row)"
-      echo "         An async build that failed leaves the index INVALID. With"
-      echo "         awaitAsyncIndexes=true the migration should not have"
-      echo "         returned until the build completed."
+      echo "         An async build that failed leaves the index INVALID."
+      echo "         Drop it before re-running; see limitation 3 in"
+      echo "         KNOWN_LIMITATIONS.md."
       fail=1
       ;;
   esac

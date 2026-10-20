@@ -1,8 +1,15 @@
 # Flyway configuration for Amazon Aurora DSQL.
 #
-# Copy to flyway.conf and edit the host. No password is set: the Aurora DSQL
-# JDBC Connector generates a short-lived IAM token on every new connection
-# from the ambient AWS credentials.
+# This file is the template the sample actually uses. docker-compose.yml
+# mounts it read-only at /flyway/conf/flyway.conf.example, and
+# scripts/run-flyway.sh copies it to /tmp and substitutes DSQL_ENDPOINT and
+# DSQL_SCHEMA at run time. Copying it to flyway.conf has no effect, because
+# that path is not mounted.
+#
+# Edit this file to change the configuration, or point FLYWAY_CONF at your own.
+#
+# No password is set: the Aurora DSQL JDBC Connector generates a short-lived
+# IAM token on every new connection from the ambient AWS credentials.
 #
 # Aurora DSQL behaviour comes from the org.flywaydb:flyway-database-dsql
 # community module, installed in /flyway/drivers/ by the Dockerfile.
@@ -43,8 +50,8 @@ flyway.defaultSchema=REPLACE-WITH-YOUR-SCHEMA
 # inserts the marker row in one transaction, which mixes DDL and DML, so
 # Aurora DSQL rejects it.
 #
-# flyway.baselineOnMigrate=true is NOT a substitute, and this sample used to
-# set it. On a non-empty schema it logs "Successfully baselined schema with
+# flyway.baselineOnMigrate=true is NOT a substitute.
+# On a non-empty schema it logs "Successfully baselined schema with
 # version: 1", writes no baseline row, and then runs every migration from V1
 # over the existing tables. If those migrations use IF NOT EXISTS they are
 # skipped individually but still recorded as applied, which leaves the history

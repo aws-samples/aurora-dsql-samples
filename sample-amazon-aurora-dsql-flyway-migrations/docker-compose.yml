@@ -6,10 +6,18 @@
 #                  mounted so the runner script can substitute
 #                  DSQL_ENDPOINT at run time.
 #
-# Usage:
+# Usage: prefer the Makefile, which creates the schema first. Calling
+# run-flyway.sh directly skips `make create-schema`, and Flyway then fails
+# with SQLSTATE 3F000, schema does not exist.
+#
+#   make migrate
+#   make info
+#   make test-happy
+#
+# The equivalent long forms, for reference:
+#
+#   docker compose run --rm flyway bash scripts/create-schema.sh
 #   docker compose run --rm flyway bash scripts/run-flyway.sh migrate
-#   docker compose run --rm flyway bash scripts/run-flyway.sh info
-#   docker compose run --rm flyway bash tests/test-happy-path.sh
 #
 # Prerequisites on the host:
 #   - AWS_REGION    exported in your shell (or in a .env file)

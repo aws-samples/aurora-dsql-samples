@@ -42,6 +42,23 @@ if [[ ! "$DSQL_SCHEMA" =~ ^[a-z_][a-z0-9_]*$ ]]; then
   exit 1
 fi
 
+# Refuse the shared and system schemas, matching scripts/reset-db.sh exactly.
+#
+# The guard belongs here as well as in reset-db.sh: `make migrate` depends on
+# this script, so without it `DSQL_SCHEMA=public make migrate` would migrate
+# into public and put the sample's generic table names where they collide with
+# other samples. Guarding only the destructive script does not help if the
+# creating script lets you get there.
+case "$DSQL_SCHEMA" in
+  public|pg_catalog|information_schema|sys)
+    echo "ERROR: refusing to use the '$DSQL_SCHEMA' schema." >&2
+    echo "       This sample creates generic table names (users, sessions)" >&2
+    echo "       that collide with other samples, and \`make reset\` drops the" >&2
+    echo "       whole schema. Set DSQL_SCHEMA to a dedicated schema." >&2
+    exit 1
+    ;;
+esac
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Assign first, then export. `export PGPASSWORD="$(cmd)"` makes the shell see

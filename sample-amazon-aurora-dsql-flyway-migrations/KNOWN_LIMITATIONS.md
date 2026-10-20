@@ -4,9 +4,8 @@ Constraints we hit running Flyway against Amazon Aurora DSQL with the
 official `org.flywaydb:flyway-database-dsql` module. Read before adopting
 this in production.
 
-Everything below is a property of Aurora DSQL or of the module, not of
-this sample, and none of it is avoided by writing a database-type
-extension of your own. These are the real edges.
+Everything below is a property of Aurora DSQL or of the module rather than of
+this sample.
 
 ## 1. One statement per migration file, unless you opt out of the transaction
 
@@ -21,9 +20,9 @@ BEGIN; CREATE TABLE a (...); INSERT INTO a ...; COMMIT;
   -> ERROR: ddl and dml are not supported in the same transaction
 ```
 
-Flyway runs each migration **file** in one transaction by default. It does not
-autocommit statement by statement, which an earlier version of this document
-claimed. Putting two DDL statements in one file therefore fails:
+Flyway runs each migration **file** in one transaction by default, rather than
+autocommitting statement by statement. Putting two DDL statements in one file
+therefore fails:
 
 ```
 Migrating schema "demo" to version "1 - two ddl in one file"
@@ -35,9 +34,16 @@ and neither table is created. That is the rule behind "one logical change per
 migration file": it is not a style preference, it is the only thing that fits
 in a transaction.
 
-The module does report `supportsDdlTransactions() == false`, which is why
-Flyway does not try to roll a failed DDL migration back. That is a separate
-point from how the statements are grouped.
+Flyway does roll a failed migration back. The module reports
+`supportsDdlTransactions() == false`, which affects what Flyway tells you
+afterwards, not whether the transaction is rolled back. Measured on a cluster
+with a transactional file whose second `INSERT` violated a primary key: the
+first `INSERT` did not survive, so the rollback happened.
+
+What the flag does change is the cleanup you owe afterwards. Flyway records a
+`success=false` row in `flyway_schema_history` either way, and that row blocks
+the next `migrate`, so **run `flyway repair` before re-migrating** regardless
+of whether anything was left behind in the schema.
 
 To put several statements in one file, opt that file out of the transaction
 with a script config file beside it:
@@ -50,10 +56,11 @@ executeInTransaction=false
 Flyway then logs `[non-transactional]` and each statement commits on its own,
 so both of the files above apply. Two trade-offs come with it:
 
-- **This is where you lose atomicity.** A file that fails on statement 3 of 5
-  leaves statements 1 and 2 applied, with no rollback. In the default
-  transactional mode that situation cannot arise, because the file would not
-  have run at all.
+- **This is where you lose the rollback.** A file that fails on statement 3 of
+  5 leaves statements 1 and 2 committed, because each one committed as it ran.
+  In the default transactional mode the transaction is rolled back instead.
+  Either way you still need `flyway repair`, because the `success=false` row
+  is written in both modes.
 - OCC retry does not apply to a migration running outside a transaction, so
   the file is also opted out of `flyway.dsql.occMaxRetries`.
 
@@ -64,7 +71,8 @@ Mitigation, in order of preference:
   - `CREATE TABLE IF NOT EXISTS`
   - `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
   - `UPDATE ... WHERE ... IS DISTINCT FROM ...` to guard against double-apply
-  - See limitation 3 before reaching for `CREATE INDEX ASYNC IF NOT EXISTS`
+  - Index migrations are the exception: do NOT use `IF NOT EXISTS` there.
+    See limitation 3.
 - Reach for `executeInTransaction=false` only when the statements genuinely
   belong together and you accept partial application.
 
@@ -89,47 +97,28 @@ migrations from an empty schema, `occMaxRetries=3`,
 Run A fails on the index migration and leaves a failed row behind:
 
 ```
-| job_id 7iojselbl5evxhbj2rtbktir3i |
-ERROR: Schema "public" contains a failed migration to version 3 !
+| job_id                     |
+| pdcorvgeobaoxp3rc6eh7uxtau |
+ERROR: Schema "flyway_sample" contains a failed migration to version 3 !
 ```
 
 Run B hits the OCC retry, then fails differently:
 
 ```
 Retrying migration transaction after Aurora DSQL OCC conflict (attempt 1 of 3)
+Migrating schema "flyway_sample" to version "3 - add sessions user id index"
 WARNING: DB: relation "idx_sessions_user_id" already exists, skipping (SQL State: 42P07)
 | No row |
 ERROR: Aurora DSQL async index build could not be awaited: awaitAsyncIndexes is
        enabled and this statement matched CREATE INDEX ASYNC, but no job_id was
-       found in its result: CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_user_id
+       found in its result
 ```
 
-Recovery is **not** just `flyway repair` followed by `flyway migrate`, which
-is what this document used to say. That sequence loops on the same failure.
+The schema history afterwards held two rows for version 3, one failed and one
+successful, with 3 of the 16 migrations applied.
 
-`repair` clears the failed row from `flyway_schema_history`, so `migrate`
-retries migration 3. The index that Run B created is still there, so
-`CREATE INDEX ASYNC IF NOT EXISTS` skips the build again, returns no `job_id`
-again, and `awaitAsyncIndexes` fails the migration again. The module commits
-the `CREATE INDEX ASYNC` before it waits, so the index outlives the failed
-migration and the retry is stuck.
-
-The index has to go first:
-
-```sql
--- check what state it is in, and whether it is valid
-SELECT i.relname, x.indisvalid, x.indisready
-  FROM pg_index x
-  JOIN pg_class i ON i.oid = x.indexrelid
-  JOIN pg_namespace n ON n.oid = i.relnamespace
- WHERE n.nspname = 'flyway_sample';
-
-DROP INDEX idx_sessions_user_id;
-```
-
-then `flyway repair` and `flyway migrate`. `make verify-schema` prints
-`indisvalid` and `indisready` for every index so you can see which one is the
-problem. The underlying `IF NOT EXISTS` interaction is limitation 3.
+Recovering from a failed index migration is limitation 3, which is the single
+place that procedure is written down.
 
 Mitigation: serialize migration runs outside Flyway. Treat this as
 mandatory, not as a hardening step.
@@ -138,7 +127,7 @@ mandatory, not as a hardening step.
 - CodeDeploy: a deployment group configured one-at-a-time
 - Anything else: a single designated runner per environment
 
-## 3. `CREATE INDEX ASYNC IF NOT EXISTS` and `awaitAsyncIndexes` conflict
+## 3. A failed index migration cannot be recovered by re-running it
 
 `flyway.dsql.awaitAsyncIndexes=true` is the setting you want, and it is not
 the default. Upstream it defaults to `false`, on the reasoning that
@@ -159,23 +148,57 @@ ERROR: Aurora DSQL async index build could not be awaited: awaitAsyncIndexes is
        found in its result
 ```
 
-So the two idempotency tools pull against each other. `IF NOT EXISTS` is
-what makes a migration safe to re-run after a partial failure
-(limitation 1), and it is exactly what breaks the await.
+The module commits the `CREATE INDEX ASYNC` before it waits, so the index
+survives the failed migration. That is what makes the failure sticky: the
+index is there, the history says the migration failed, and re-running walks
+into the same wall. `IF NOT EXISTS` makes it worse, because the retry skips
+the build silently instead of complaining that the index exists.
 
-There is a second edge in the same area: a failed async build leaves an
-`INVALID` index behind, and `IF NOT EXISTS` will accept that invalid index
-on a re-run rather than rebuilding it. Check `pg_index.indisvalid` and drop
-explicitly before retrying.
+This is a module bug rather than an Aurora DSQL limitation, and it has been
+raised upstream. Until a fix ships, the workaround below is the one to use.
 
-This sample keeps `IF NOT EXISTS` on its index migrations (V3, V7, V15)
-because re-runnability matters more here, and documents the failure rather
-than hiding it. In your own project, pick one:
+### Do not put `IF NOT EXISTS` on an index migration
 
-- Drop `IF NOT EXISTS` on index migrations and rely on `flyway repair` plus
-  a manual index drop when a run fails partway.
-- Keep `IF NOT EXISTS` and set `awaitAsyncIndexes=false`, then wait for the
-  index yourself in a Java migration where you control the `job_id`.
+`IF NOT EXISTS` looks like the re-runnable choice and is the opposite here: it
+turns a recoverable failure into an unrecoverable one, because every retry
+skips the build and fails the same way.
+
+V3, V7 and V15 therefore use a bare `CREATE INDEX ASYNC`. A re-run then fails
+immediately with `42P07`, `relation already exists`, which is a clear
+instruction to drop the index rather than a confusing one about a missing
+`job_id`.
+
+### Recovering a failed index migration
+
+This is the only copy of this procedure; everywhere else links here.
+
+1. Find the index named in the error and confirm its state:
+
+   ```sql
+   SELECT i.relname, x.indisvalid, x.indisready
+     FROM pg_index x
+     JOIN pg_class i ON i.oid = x.indexrelid
+     JOIN pg_namespace n ON n.oid = i.relnamespace
+    WHERE n.nspname = 'flyway_sample';
+   ```
+
+   `make verify-schema` prints the same thing for every index.
+
+2. Drop it, whatever its state. A valid index left behind by a half-finished
+   migration blocks the retry just as surely as an invalid one, so do not make
+   this conditional on `indisvalid`:
+
+   ```sql
+   DROP INDEX flyway_sample.idx_sessions_user_id;
+   ```
+
+3. Confirm it is gone, by re-running the query from step 1.
+
+4. `make repair` to clear the `success=false` row, then `make migrate`.
+
+Step 2 is the step people skip. `repair` plus `migrate` on its own loops: the
+module commits the `CREATE INDEX ASYNC` before it waits, so the index outlives
+the failed migration and the retry hits the same wall.
 
 A `BaseJavaMigration` gives you full control of both. Two things the obvious
 version of this gets wrong: it waits on an index build that has not been
@@ -224,9 +247,12 @@ public class V17__add_sessions_last_seen_index extends BaseJavaMigration {
                     // finished successfully, and a unique index over
                     // duplicate values comes back succeeded = false with the
                     // index left indisvalid = false.
-                    if (rs.next() && !rs.getBoolean("succeeded")) {
+                    // No row is a failure too, not a pass. `rs.next() &&`
+                    // would have treated an empty result as success.
+                    if (!rs.next() || !rs.getBoolean("succeeded")) {
                         throw new FlywayException(
-                            "async index build failed for job " + jobId);
+                            "async index build failed or reported nothing "
+                            + "for job " + jobId);
                     }
                 }
             }
@@ -238,31 +264,29 @@ public class V17__add_sessions_last_seen_index extends BaseJavaMigration {
 This sample does not ship a `BaseJavaMigration` example; it would need a
 JDK and a build step, which the Docker-only setup here deliberately avoids.
 
-## 4. How long a migration may run: 5 minutes, not 1 hour
-
-Two different limits get confused here, and this document previously quoted
-the wrong one as the migration limit.
+## 4. Two time limits, and both of them bind
 
 | Limit | Value | What it applies to |
 |---|---|---|
 | Transaction duration | 5 minutes | One migration file, since Flyway runs each file in one transaction |
-| Connection lifetime | 1 hour | The session, across all the statements on it |
+| Connection lifetime | 1 hour | The whole `migrate` run, because Flyway holds its connections open from start to finish |
 
-**5 minutes is the one that binds.** A migration file is one transaction
-(limitation 1), so a statement that runs past 5 minutes fails there, with the
-1-hour connection cap nowhere near. Quoting 1 hour as the ceiling for a
-migration is wrong by a factor of twelve.
+So there are two deadlines to design against:
 
-The 1-hour figure matters only for something holding a single connection open
-across many statements, which Flyway does not do within one `migrate`.
+- **Each migration file must finish within 5 minutes.** A file is one
+  transaction (limitation 1), so a single long statement fails here first.
+- **The whole `migrate` must finish within 1 hour.** Flyway does not open and
+  close a connection per migration; it holds on for the duration of the run,
+  so a long enough sequence of individually legal migrations can still run the
+  connection out.
 
 Observed: `SELECT pg_sleep(60)` in V16 runs cleanly, well inside the
-5-minute cap. We did not test at the boundary.
+5-minute cap. We did not test at either boundary.
 
-Mitigation: break genuinely long work into smaller migrations, or move it out
-of Flyway into a script that commits in batches and reconnects. A migration
-file that cannot finish in 5 minutes does not belong in Flyway on this
-database.
+Mitigation: break genuinely long work into smaller migrations, and if the full
+suite is long enough to approach an hour, split it across more than one
+`migrate` invocation. Work that cannot fit either deadline belongs in a script
+that commits in batches and reconnects, not in Flyway.
 
 ## 5. IAM token lifetime: 15 minutes
 
@@ -270,13 +294,14 @@ Aurora DSQL IAM auth tokens live 15 minutes. The Aurora DSQL JDBC
 Connector mints a fresh token when a connection is established, and the
 token is not re-checked after that.
 
-- Flyway opens one connection per `migrate` invocation.
-- A `migrate` that takes longer than 15 minutes in total is not cut off,
-  because the token is only checked when the connection is opened.
-- Any single migration inside it still has to finish within the 5-minute
-  transaction cap (limitation 4). The token lifetime is never the binding
-  limit on a migration.
+- Tokens are minted when a connection is opened, and Flyway holds its
+  connections for the whole `migrate` run.
+- A `migrate` that takes longer than 15 minutes is therefore not cut off, as
+  the token is not re-checked on an open connection.
 - The next `migrate` gets a fresh token.
+- The token lifetime is never the limit that bites. The 5-minute transaction
+  cap and the 1-hour connection lifetime are the ones to design against; see
+  limitation 4.
 
 No action needed. Recorded here for the reader who wonders whether a long
 migration will be cut off mid-run.
@@ -317,6 +342,8 @@ Checked directly against a `us-east-1` cluster, outside the migrations.
 | `CREATE TRIGGER` | `ERROR: CREATE TRIGGER not supported` |
 | `CREATE TABLE ... PARTITION BY RANGE` | `ERROR: PARTITION BY clause not supported for CREATE TABLE` |
 | `ALTER TABLE ADD CONSTRAINT`, validating form | `ERROR: unsupported ALTER TABLE ADD CONSTRAINT statement` |
+| `ALTER TABLE ... VALIDATE CONSTRAINT`, without `ASYNC` | `ERROR: unsupported ALTER TABLE VALIDATE CONSTRAINT statement` |
+| `ALTER TABLE ALTER COLUMN ... TYPE` | `ERROR: unsupported ALTER TABLE ALTER COLUMN ... SET DATA TYPE statement` |
 | An inline constraint on `ALTER TABLE ADD COLUMN` | rejected; V4, V5, V6 are the three-step workaround |
 | Two DDL statements in one transaction | `ERROR: multiple ddl statements not supported in a transaction` |
 | DDL and DML in one transaction | `ERROR: ddl and dml are not supported in the same transaction` |
@@ -334,14 +361,20 @@ edges to be careful of, they are unavailable.
 | `CREATE SCHEMA` | accepted |
 | `DROP SCHEMA ... CASCADE` | accepted |
 | Generated column, `GENERATED ALWAYS AS (...) STORED` | accepted |
-| `ALTER TABLE ADD CONSTRAINT ... CHECK (...) NOT VALID` | accepted; existing rows never checked |
-| `ALTER TABLE ADD CONSTRAINT ... FOREIGN KEY ... NOT VALID` | accepted; existing rows never checked |
+| `ALTER TABLE ADD CONSTRAINT ... CHECK (...) NOT VALID` | accepted |
+| `ALTER TABLE ADD CONSTRAINT ... FOREIGN KEY ... NOT VALID` | accepted |
+| `ALTER TABLE ASYNC ... VALIDATE CONSTRAINT` | accepted, returns a `job_id`; `convalidated` becomes true once the job succeeds |
+| `CREATE UNIQUE INDEX ASYNC` then `ADD CONSTRAINT ... UNIQUE USING INDEX` | accepted once the index is `VALID`, and the constraint enforces |
+
+So a constraint **can** be added to a populated table and then validated
+against the rows already in it. It takes two statements, and the second is an
+async job, which puts it in the same category as an index build
+(limitation 3).
 
 Still not tested:
 
 - JSON and JSONB operations
 - Full-text search
-- `ALTER TABLE ALTER COLUMN TYPE`
 
 ## 8. `make reset` is destructive
 
@@ -353,12 +386,10 @@ confirmation; `RESET_DB_ASSUME_YES=true` skips the prompt for CI.
 The blast radius is one schema. Objects in other schemas, including `public`,
 are untouched, and the script refuses to run against `public` at all.
 
-That was not previously true. Everything used to live in `public` and reset
-dropped a hard-coded list of table names, including `users` and `sessions`,
-which are also created by the `aurora-dsql-auth-session-mgmt` sample. Running
-this sample's reset or tests on a shared cluster destroyed that sample's data.
-The list had also drifted out of step with the migrations. Both problems are
-why the sample now migrates into `$DSQL_SCHEMA`, default `flyway_sample`.
+That matters on a shared cluster, because `users` and `sessions` are also
+created by the `aurora-dsql-auth-session-mgmt` sample. Dropping one schema
+cannot reach them, and it cannot drift out of step with the migrations the way
+a hard-coded table list would.
 
 If you run it by accident, `make migrate` recreates the schema and rebuilds
 everything from V1.

@@ -26,11 +26,12 @@ those rules.
   builds, constraint patterns, and a long-running statement.
 - The migration-authoring rules Aurora DSQL imposes, one per file, with
   the error you get when you break each one.
-- `flyway.dsql.awaitAsyncIndexes` blocking a migration until a
+- `flyway.dsql.awaitAsyncIndexes` configured so a migration blocks until a
   `CREATE INDEX ASYNC` build reaches `VALID`, rather than returning while
   the index is still building.
-- `flyway.dsql.occMaxRetries` retrying a migration transaction that loses
-  an optimistic concurrency check.
+- `flyway.dsql.occMaxRetries` configured to retry a migration transaction
+  that loses an optimistic concurrency check. The sample sets it; no test
+  asserts it, because it only fires under contention.
 - Why you still need to serialize migration runs in your pipeline, with a
   reproduction of what happens when you don't
   ([`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md), limitation 2).
@@ -251,8 +252,7 @@ statement instead, and `make migrate` depends on it.
 transaction, so Aurora DSQL rejects it. `flyway.baselineOnMigrate=true` is not
 a substitute: on a non-empty schema it logs a successful baseline, writes no
 baseline row, and migrates from V1 over your existing tables, leaving the
-history claiming a version the schema does not match. This sample used to set
-it. See limitation 10 in [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for
+history claiming a version the schema does not match. See limitation 10 in [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for
 the full output.
 
 ## Running the test suite
@@ -265,9 +265,14 @@ make test-occ                # concurrent-migrate race; run this one on its own
 
 `make test` runs `test-happy` only. It resets the schema, applies all 16
 migrations, and asserts 25 post-conditions, including that each
-`CREATE INDEX ASYNC` index came out `indisvalid`. That last one is the
-evidence that `awaitAsyncIndexes` did its job, since checking only that the
-index exists would pass even when the build had failed.
+`CREATE INDEX ASYNC` index came out `indisvalid`. That catches a **failed
+index build**, which a presence check in `pg_indexes` would not: a failed
+build leaves the index listed but invalid.
+
+It does not prove that `awaitAsyncIndexes` did the waiting. V16 sleeps for 60
+seconds after the last index migration, so the builds have time to finish
+either way. Showing the await itself works means checking the index state
+immediately after the migration that creates it.
 
 `test-occ` is deliberately **not** part of `make test`. It starts two
 `migrate` runs in parallel and the outcome is not deterministic: sometimes one
@@ -301,31 +306,35 @@ previous run left a failed row in `flyway_schema_history`. Run
 are calling it by hand inside a migration script. Let
 `flyway.dsql.awaitAsyncIndexes=true` handle the wait instead.
 
-**`no job_id was found in its result`** after a `CREATE INDEX ASYNC IF NOT
-EXISTS` on an index that already exists. This is a real interaction between
-`IF NOT EXISTS` and `awaitAsyncIndexes`; see limitation 3 in
+**`no job_id was found in its result`** after a `CREATE INDEX ASYNC` on an
+index that already exists. This is a module bug, raised upstream, and it is
+why the index migrations here do not use `IF NOT EXISTS`. See limitation 3 in
 [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md).
 
 **A failed index migration that `repair` will not fix.** `make repair` plus
-`make migrate` loops on the same error here, because the module commits the
-`CREATE INDEX ASYNC` before it waits. The index survives the failed
-migration, so the retry hits `IF NOT EXISTS`, Aurora DSQL skips the build, no
-`job_id` comes back, and the await fails again. Drop the index first:
-
-```bash
-make verify-schema            # shows indisvalid / indisready per index
-# then, against the cluster, for the index named in the error:
-#   DROP INDEX idx_sessions_user_id;
-make repair
-make migrate
-```
+`make migrate` loops on the same error, because the module commits the
+`CREATE INDEX ASYNC` before it waits, so the index survives the failed
+migration. You have to drop the index first, whatever state it is in. The
+procedure is in limitation 3 of
+[`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md), which is the only place it
+is written down.
 
 **`Unable to load credentials` or an SSO error inside Flyway** while the AWS
-CLI works on the same machine. The image carries the `sso`, `ssooidc` and
-`sts` SDK jars so IAM Identity Center profiles and `role_arn` profiles
-resolve. If you build a trimmed image and drop them, those profile types stop
-working on the Flyway path even though the Aurora DSQL connection itself needs
-neither.
+CLI works on the same machine. Resolving an IAM Identity Center profile
+(`sso_session`) or an assume-role profile (`role_arn` with `source_profile`)
+needs five jars that have nothing to do with Aurora DSQL: `sso`, `ssooidc`,
+`sts`, `aws-query-protocol`, and `commons-logging`. The Dockerfile installs
+all five and asserts at build time that they are present. Drop any of them
+from a trimmed image and those profile types fail at the moment the credential
+chain runs, with a `NoClassDefFoundError` rather than anything that mentions
+credentials.
+
+**The Flyway CLI exits 1 with no output at all**, on every command, including
+ones that never reach AWS. If you have changed the jars, suspect
+`commons-logging`. This image pins 1.2; version 1.3.5 and the `jcl-over-slf4j`
+bridge both kill the JVM before Flyway logs a single line, because the base
+image already bundles `slf4j-nop`. There is no error message to search for,
+which is what makes it worth knowing.
 
 **`SSL SYSCALL error: EOF detected` from psql** is a transient at the
 Aurora DSQL frontend. The sample's psql helpers retry. Flyway's own JDBC

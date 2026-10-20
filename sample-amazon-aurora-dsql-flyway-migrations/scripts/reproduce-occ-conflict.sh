@@ -32,6 +32,19 @@
 
 set -euo pipefail
 
+# Any unhandled failure during setup exits 2, not 1.
+#
+# This matters because the caller reads the exit code as the race outcome: 1
+# means "the race ran and left work undone", which is the interesting result.
+# Without this trap, a setup step dying under `set -e` (a failed token mint, an
+# unwritable log directory) exited 1 and was reported as a successfully
+# demonstrated race that never actually happened. The explicit `exit 2` paths
+# below cover the failures that were anticipated; this covers the rest.
+#
+# The trap is removed once setup is done, so the race's own non-zero exits are
+# reported normally.
+trap 'rc=$?; echo "ERROR: setup failed (exit $rc) before the race started." >&2; exit 2' ERR
+
 AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
 DSQL_SCHEMA="${DSQL_SCHEMA:-flyway_sample}"
@@ -106,6 +119,10 @@ if (( applied > 0 )); then
   exit 2
 fi
 
+# Setup is complete. From here a non-zero exit is a race outcome, not a setup
+# failure, so stop converting errors to exit 2.
+trap - ERR
+
 (
   cd "$SAMPLE_ROOT"
   make migrate
@@ -170,12 +187,12 @@ if (( failed != 0 )); then
   echo "    There is a failed row in flyway_schema_history, so the next"
   echo "    migrate will refuse to run until you \`make repair\`."
 fi
-if (( invalid_indexes != 0 )); then
-  echo "    An index is INVALID. repair + migrate alone will NOT fix this:"
-  echo "    the re-run hits CREATE INDEX ASYNC IF NOT EXISTS, Aurora DSQL"
-  echo "    skips the build because the invalid index already exists, no"
-  echo "    job_id comes back, and awaitAsyncIndexes fails the migration"
-  echo "    again. Drop the index explicitly first. See limitation 3."
+if (( failed != 0 || invalid_indexes != 0 )); then
+  echo "    If an index migration failed, repair + migrate alone will NOT fix"
+  echo "    it: the module commits CREATE INDEX ASYNC before waiting, so the"
+  echo "    index survives and the retry hits the same wall. Drop the index"
+  echo "    first, whatever its state. Full procedure in limitation 3 of"
+  echo "    KNOWN_LIMITATIONS.md."
 fi
 echo "    Serialize migration runs in your pipeline. See limitation 2 in"
 echo "    KNOWN_LIMITATIONS.md."

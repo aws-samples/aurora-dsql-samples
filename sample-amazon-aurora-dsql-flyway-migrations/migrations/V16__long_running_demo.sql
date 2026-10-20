@@ -11,14 +11,12 @@
 --     the token is not re-validated for subsequent statements on that
 --     connection, so a 15-minute token does not cut off a longer run.
 --
--- The limit that actually binds here is 5 MINUTES, not the 1-hour connection
--- lifetime. Aurora DSQL caps a single transaction at 5 minutes of wall clock,
--- and Flyway runs each migration file in one transaction, so a statement that
--- runs past 5 minutes fails long before the connection cap is anywhere near.
--- An earlier version of this comment named the 1-hour figure, which is the
--- connection lifetime and the wrong number for a migration.
+-- The limit on THIS FILE is 5 minutes, the per-transaction cap, because
+-- Flyway runs each migration file in one transaction. Separately, the whole
+-- `migrate` run must finish within the 1-hour connection lifetime. Both apply,
+-- at different scopes; see limitation 4 in KNOWN_LIMITATIONS.md.
 --
--- 60 seconds is therefore well inside the limit. Anything approaching 5
+-- 60 seconds is well inside the per-file limit. Anything approaching 5
 -- minutes needs splitting into smaller migrations, or moving out of Flyway
 -- into something that commits in batches.
 --
