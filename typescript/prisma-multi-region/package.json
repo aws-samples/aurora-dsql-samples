@@ -41,7 +41,7 @@
     "@types/node": "^26.6.5",
     "jest": "^30.5.2",
     "prettier": "^3.9.10",
-    "prisma": "^7.10.0",
+    "prisma": "^7.10.1",
     "ts-node": "^10.9.0",
     "typescript": "^7.0.2"
   },
