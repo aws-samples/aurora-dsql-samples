@@ -41,8 +41,7 @@ echo "==> [test-happy] Resetting schema '$DSQL_SCHEMA' on $DSQL_ENDPOINT"
 # test is ever pointed at the wrong cluster. Only the interactive prompt is
 # skipped, because a test run is non-interactive by definition.
 #
-# The blast radius is now one DROP SCHEMA CASCADE against this sample's own
-# schema, so a shared cluster no longer loses another sample's tables.
+# The blast radius is one DROP SCHEMA CASCADE against this sample's own schema.
 RESET_DB_ASSUME_YES=true bash "$SAMPLE_ROOT/scripts/reset-db.sh"
 
 echo "==> [test-happy] Creating schema"

@@ -58,10 +58,8 @@ fi
 APPLIED=0
 FAILED=0
 if (( HISTORY_EXISTS == 1 )); then
-  # No `|| APPLIED=0` fallbacks here. That is what the query_failed flag is
-  # for, and defaulting a failed query to zero defeated the entire point of
-  # having it: a connection error read as "nothing applied, nothing failed",
-  # which is indistinguishable from a clean empty schema.
+  # No `|| APPLIED=0` fallback: a failed query must report query_failed=1, not
+  # a count of zero, which would be indistinguishable from a clean schema.
   if ! APPLIED=$(q "SELECT COUNT(*) FROM $DSQL_SCHEMA.flyway_schema_history WHERE success=TRUE;"); then
     echo "race-report: could not count applied migrations" >&2
     echo "query_failed=1"

@@ -8,13 +8,8 @@
 # DANGEROUS: this destroys every object in the schema and all its data.
 # Prompts for confirmation first.
 #
-# This used to drop a hard-coded list of table names from the public schema,
-# which was a sharp edge: users and sessions are also created by the
-# aurora-dsql-auth-session-mgmt sample, so resetting this sample on a shared
-# cluster destroyed that one's data. The list also had to be kept in step with
-# the migrations by hand, and had drifted, naming tables the sample no longer
-# creates. One DROP SCHEMA CASCADE fixes both problems: the blast radius is
-# exactly what this sample created, and it cannot go stale.
+# One DROP SCHEMA CASCADE, so the blast radius is exactly what this sample
+# created, and it cannot drift from the migrations.
 #
 # Required env:
 #   DSQL_ENDPOINT

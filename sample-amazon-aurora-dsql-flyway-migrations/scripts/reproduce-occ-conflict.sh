@@ -36,17 +36,23 @@ set -euo pipefail
 #
 # This matters because the caller reads the exit code as the race outcome: 1
 # means "the race ran and left work undone", which is the interesting result.
-# Without this trap, a setup step dying under `set -e` (a failed token mint, an
-# unwritable log directory) exited 1 and was reported as a successfully
-# demonstrated race that never actually happened. The explicit `exit 2` paths
-# below cover the failures that were anticipated; this covers the rest.
+# Without this, a setup step dying under `set -e` would exit 1 and be reported
+# as a race outcome. The explicit `exit 2` paths below cover the anticipated
+# failures; this covers the rest.
 #
 # The trap is removed once setup is done, so the race's own non-zero exits are
 # reported normally.
 trap 'rc=$?; echo "ERROR: setup failed (exit $rc) before the race started." >&2; exit 2' ERR
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
-: "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
+# Checked explicitly rather than with ${DSQL_ENDPOINT:?}. That form raises a
+# parameter expansion error, and bash does not run the ERR trap for those, so
+# it exits 1 and the caller reads 1 as a race outcome rather than a setup
+# failure.
+if [[ -z "${DSQL_ENDPOINT:-}" ]]; then
+  echo "ERROR: DSQL_ENDPOINT must be set" >&2
+  exit 2
+fi
 DSQL_SCHEMA="${DSQL_SCHEMA:-flyway_sample}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -69,10 +75,7 @@ echo
 
 echo "==> Resetting schema so both runs have real work to do"
 # A failed reset must abort, with exit 2 to mark it as a setup failure rather
-# than a raced outcome. This previously ended in `>/dev/null 2>&1 || true`,
-# which meant a reset that could not connect left the schema fully migrated.
-# Both runs then had nothing to do, both exited 0, and the script reported
-# success without ever racing anything.
+# than a raced outcome.
 if ! ( cd "$SAMPLE_ROOT" && RESET_DB_ASSUME_YES=true make reset ) >/tmp/occ-reset.log 2>&1; then
   echo "ERROR: reset failed, so there is no pending work to race." >&2
   echo "       Not reporting a result from a race that did not happen." >&2

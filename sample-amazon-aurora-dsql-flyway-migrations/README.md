@@ -306,10 +306,14 @@ previous run left a failed row in `flyway_schema_history`. Run
 are calling it by hand inside a migration script. Let
 `flyway.dsql.awaitAsyncIndexes=true` handle the wait instead.
 
-**`no job_id was found in its result`** after a `CREATE INDEX ASYNC` on an
-index that already exists. This is a module bug, raised upstream, and it is
-why the index migrations here do not use `IF NOT EXISTS`. See limitation 3 in
+**`no job_id was found in its result`** after `CREATE INDEX ASYNC IF NOT
+EXISTS` on an index that already exists. This is a module bug, and it is why
+the index migrations here do not use `IF NOT EXISTS`. See limitation 3 in
 [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md).
+
+**`42P07 relation already exists`** on an index migration. This is what a
+re-run of a bare `CREATE INDEX ASYNC` reports when the index survived a
+failed migration. Drop the index, then repair and migrate; see limitation 3.
 
 **A failed index migration that `repair` will not fix.** `make repair` plus
 `make migrate` loops on the same error, because the module commits the

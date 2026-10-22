@@ -94,25 +94,29 @@ containers started in parallel against one `us-east-1` cluster, 16
 migrations from an empty schema, `occMaxRetries=3`,
 `awaitAsyncIndexes=true`.
 
-Run A fails on the index migration and leaves a failed row behind:
+Run A starts the index build, then finds the migration failed:
 
 ```
+Migrating schema "flyway_sample" to version "3 - add sessions user id index"
 | job_id                     |
-| pdcorvgeobaoxp3rc6eh7uxtau |
-ERROR: Schema "flyway_sample" contains a failed migration to version 3 !
+| l26emsdijnehzibsd77mx35trq |
+SEVERE: Schema "flyway_sample" contains a failed migration to version 3 !
 ```
 
-Run B hits the OCC retry, then fails differently:
+Run B hits the OCC retry, then collides on the index itself:
 
 ```
 Retrying migration transaction after Aurora DSQL OCC conflict (attempt 1 of 3)
 Migrating schema "flyway_sample" to version "3 - add sessions user id index"
-WARNING: DB: relation "idx_sessions_user_id" already exists, skipping (SQL State: 42P07)
-| No row |
-ERROR: Aurora DSQL async index build could not be awaited: awaitAsyncIndexes is
-       enabled and this statement matched CREATE INDEX ASYNC, but no job_id was
-       found in its result
+SQL State  : 42P07
+Message    : ERROR: relation "idx_sessions_user_id" already exists
 ```
+
+The `42P07` is the point. Because the index migrations here use a bare
+`CREATE INDEX ASYNC`, the losing run fails on the index statement and says so.
+With `IF NOT EXISTS` it would instead skip the build, get no `job_id` back, and
+fail with the module's "no job_id was found in its result", which says nothing
+about the real problem. See limitation 3.
 
 The schema history afterwards held two rows for version 3, one failed and one
 successful, with 3 of the 16 migrations applied.
@@ -155,7 +159,9 @@ into the same wall. `IF NOT EXISTS` makes it worse, because the retry skips
 the build silently instead of complaining that the index exists.
 
 This is a module bug rather than an Aurora DSQL limitation, and it has been
-raised upstream. Until a fix ships, the workaround below is the one to use.
+raised upstream
+([flyway-community-db-support#151](https://github.com/flyway/flyway-community-db-support/issues/151)).
+Until a fix ships, the workaround below is the one to use.
 
 ### Do not put `IF NOT EXISTS` on an index migration
 
@@ -349,8 +355,7 @@ Checked directly against a `us-east-1` cluster, outside the migrations.
 | DDL and DML in one transaction | `ERROR: ddl and dml are not supported in the same transaction` |
 
 Triggers are worth calling out: they are unsupported twice over, since
-`plpgsql` is unavailable as well as `CREATE TRIGGER` itself. These were
-previously listed as "not tested", which understated things. They are not
+`plpgsql` is unavailable as well as `CREATE TRIGGER` itself. They are not
 edges to be careful of, they are unavailable.
 
 **Accepted** in the same checks:
@@ -431,8 +436,8 @@ in it works on Aurora DSQL.
 inserts the marker row in one transaction. That mixes DDL and DML, which
 Aurora DSQL rejects (limitation 1).
 
-**`flyway.baselineOnMigrate=true`** looks like the workaround, and this sample
-used to set it. It is worse than not working, because it fails silently. Run
+**`flyway.baselineOnMigrate=true`** looks like the workaround. It is worse than
+not working, because it fails silently. Run
 against a schema that already contains a `users` table:
 
 ```
