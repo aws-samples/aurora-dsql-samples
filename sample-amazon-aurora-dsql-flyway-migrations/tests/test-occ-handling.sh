@@ -32,9 +32,8 @@ echo "==> [test-occ] Racing two parallel \`flyway migrate\` runs"
 echo "    Non-deterministic by design. Read the summary below, not the exit code."
 echo
 
-# `|| rc=$?` is required. Under `set -e` a non-zero exit from the script below
-# would terminate this one immediately, so the reporting after it never ran and
-# the branch that handles failure was dead code.
+# `|| rc=$?` is required: under `set -e` a non-zero exit from the script below
+# would end this one before the result is reported.
 rc=0
 bash "$SAMPLE_ROOT/scripts/reproduce-occ-conflict.sh" || rc=$?
 

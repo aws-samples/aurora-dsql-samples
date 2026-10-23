@@ -7,9 +7,8 @@
 #     flyway.conf.example if not present), with the cluster hostname
 #     substituted from DSQL_ENDPOINT.
 #   - Points at the migrations volume at /flyway/migrations.
-#   - Retries the whole Flyway invocation on the two transient failures a
-#     retry can actually fix: an expired IAM token, and the schema-history
-#     primary key race between two parallel runs.
+#   - Retries the whole Flyway invocation on the one failure a retry can
+#     fix: the schema-history primary key race between two parallel runs.
 #
 # Transaction-level OCC conflicts are handled inside Flyway by the Aurora
 # DSQL module via flyway.dsql.occMaxRetries, not here. See limitation 2 in
@@ -21,10 +20,10 @@
 # Connector, which mints a 15-minute token from the ambient AWS
 # credentials on every new connection.
 #
-# Usage: prefer `make migrate`, `make info` and `make validate`. They create
-# the schema first, via scripts/create-schema.sh, which this script does not
-# do. Invoked directly against a cluster where the schema does not exist yet,
-# Flyway fails with SQLSTATE 3F000, schema does not exist.
+# Usage: prefer `make migrate`. It creates the schema first, via
+# scripts/create-schema.sh, which this script does not do. Invoked directly
+# against a cluster where the schema does not exist yet, Flyway fails with
+# SQLSTATE 3F000, schema does not exist.
 #
 #   make migrate                                  # apply pending migrations
 #   make info                                     # show migration status
@@ -35,12 +34,14 @@
 #
 # Optional env:
 #   AWS_REGION       - default: us-east-1 (also encoded in the hostname)
-#   FLYWAY_RETRY     - shell-level retry budget on OCC errors (default: 3)
+#   FLYWAY_RETRY     - total attempts on the schema-history PK race (default: 3)
 set -euo pipefail
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 : "${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}"
 FLYWAY_RETRY="${FLYWAY_RETRY:-3}"
+# A budget below 1 would skip the loop entirely and never invoke Flyway.
+(( FLYWAY_RETRY >= 1 )) || FLYWAY_RETRY=1
 DSQL_SCHEMA="${DSQL_SCHEMA:-flyway_sample}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -64,16 +65,20 @@ if [[ -z "${FLYWAY_CONF:-}" ]]; then
          -e "s/REPLACE-WITH-YOUR-SCHEMA/$DSQL_SCHEMA/g" "$FLYWAY_CONF" 2>/dev/null || true
 fi
 
-# Only retry on errors Flyway + Aurora DSQL raises transiently:
-#   - SQLSTATE 40001          OCC serialization conflict (OC000, OC001).
-#                             The module already retries these inside the
-#                             transaction via flyway.dsql.occMaxRetries. This
-#                             match catches the case where it exhausted those
-#                             retries; a fresh invocation re-reads the schema
-#                             history and can then succeed.
-#   - SQLSTATE 23505, but ONLY on the flyway_schema_history primary key
-#                             (installed_rank race between parallel runs)
-#   - "security token ... is expired"  IAM token aged out between retries
+# Retry only the schema-history PK race between parallel runs: the loser's
+# history insert fails before its transaction commits, so it leaves no row,
+# and a fresh invocation re-reads the history and carries on.
+#
+# A 40001 is not retried. The module records the migration before it commits,
+# so a failed commit can leave it marked successful, and a re-run would report
+# "up to date" over a change that never committed. Observed on a live cluster:
+# a migration doing `UPDATE t SET v = v + 1000` then `pg_sleep(8)`, raced by a
+# writer touching the same row, exhausted occMaxRetries and exited 1 with
+# SQLSTATE 40001; the retry here then reported "up to date" and exited 0, while
+# flyway_schema_history held that version with success = t and the +1000 was
+# never applied. An expired-credentials error is not retried either: the same
+# credentials fail the same way.
+#
 # Anything else (syntax errors, unsupported SQL, missing migration file,
 # config error) is terminal; retrying just wastes time and clutters output.
 #
@@ -81,13 +86,12 @@ fi
 # failed migration that needs `flyway repair`, which no retry here will fix.
 # See limitation 2 in KNOWN_LIMITATIONS.md.
 #
-# The 23505 match is deliberately narrow. A bare "SQL State : 23505" would
-# also match a genuine unique-constraint violation in a migration, for example
-# a seed insert colliding on a user table's unique index. That is a defect in
-# the migration, not a transient conflict, and retrying it hides the cause.
+# The match is deliberately narrow. A bare "SQL State : 23505" would also match
+# a genuine unique-constraint violation in a migration, for example a seed
+# insert colliding on a user table's unique index. That is a defect in the
+# migration, not a transient conflict, and retrying it hides the cause.
 is_retryable() {
-  local log="$1"
-  grep -qE 'SQL State  : 40001|change conflicts with another transaction|duplicate key value violates unique constraint "flyway_schema_history_pkey"|security token.*is expired' "$log"
+  grep -q 'duplicate key value violates unique constraint "flyway_schema_history_pkey"' "$1"
 }
 
 LOG_DIR="${LOG_DIR:-/tmp/flyway-logs}"

@@ -13,8 +13,10 @@
 --
 -- Note on table contents: `make migrate` runs against an empty schema, so
 -- sessions is empty here and the build is near-instant. To index a table with
--- real data, run scripts/bulk-seed-sessions.sh before this migration. The
--- seed scripts are not part of the migration path.
+-- real data, run scripts/seed-data.sh, then scripts/bulk-seed-sessions.sh,
+-- before this migration. bulk-seed-sessions.sh derives its rows from the
+-- users table, so on its own it inserts nothing. The seed scripts are not
+-- part of the migration path.
 
 -- No IF NOT EXISTS here, for the reason given in V3.
 

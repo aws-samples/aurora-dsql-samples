@@ -38,6 +38,14 @@ PGPASSWORD="$(bash "$SCRIPT_DIR/mint-token.sh")"
 export PGPASSWORD
 PSQL_CONNINFO="host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=verify-full sslrootcert=system options=-csearch_path=$DSQL_SCHEMA"
 
+# Every batch derives its rows from the users table, so with no users this
+# inserts nothing and would otherwise report success.
+USERS=$(psql "$PSQL_CONNINFO" -tAc "SELECT COUNT(*) FROM users")
+if (( USERS == 0 )); then
+  echo "ERROR: no users in $DSQL_SCHEMA; run scripts/seed-data.sh first" >&2
+  exit 1
+fi
+
 echo "==> Bulk-seeding $TOTAL_ROWS session rows ($BATCH_SIZE per batch)"
 
 NUM_BATCHES=$(( TOTAL_ROWS / BATCH_SIZE ))
@@ -51,10 +59,8 @@ for ((batch = 1; batch <= NUM_BATCHES; batch++)); do
   LAST_ERR=""
   while (( attempt <= 5 )); do
     # The assignment has to be the `if` condition. A bare
-    # `LAST_ERR=$(psql ...)` takes the command's exit status as the status of
-    # the assignment, which under `set -e` ends the script on the very first
-    # failure. The retry loop below it then never ran, which defeated the
-    # point of having one.
+    # `LAST_ERR=$(psql ...)` takes psql's exit status, which under `set -e`
+    # ends the script on the first failure, before the retry can run.
     if LAST_ERR=$(psql "$PSQL_CONNINFO" -v ON_ERROR_STOP=1 -q <<SQL 2>&1
 INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at)
 SELECT

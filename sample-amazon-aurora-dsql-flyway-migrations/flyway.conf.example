@@ -46,9 +46,9 @@ flyway.defaultSchema=REPLACE-WITH-YOUR-SCHEMA
 
 # Baselining is not available on Aurora DSQL.
 #
-# The standalone `flyway baseline` command creates the history table and
-# inserts the marker row in one transaction, which mixes DDL and DML, so
-# Aurora DSQL rejects it.
+# The standalone `flyway baseline` command does not fail, but with this
+# module it writes no baseline row: it logs "Successfully baselined" and
+# leaves the history table empty, so the next migrate runs from V1.
 #
 # flyway.baselineOnMigrate=true is NOT a substitute.
 # On a non-empty schema it logs "Successfully baselined schema with
@@ -71,8 +71,8 @@ flyway.validateOnMigrate=true
 # reports success while the index is still building, and a later migration or
 # query can run against an index that is not ready.
 #
-# Note: a failed build leaves an INVALID index behind, and IF NOT EXISTS will
-# silently accept it on a re-run. Drop such an index explicitly before retrying.
+# Note: a failed build leaves an INVALID index behind. Drop it before
+# retrying; see limitation 3 in KNOWN_LIMITATIONS.md.
 flyway.dsql.awaitAsyncIndexes=true
 
 # Retry a migration transaction that fails with an OCC conflict. Aurora DSQL

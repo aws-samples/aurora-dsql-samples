@@ -131,6 +131,14 @@ mandatory, not as a hardening step.
 - CodeDeploy: a deployment group configured one-at-a-time
 - Anything else: a single designated runner per environment
 
+If a run fails with `Unable to commit transaction` and SQL state `40001`,
+check that the migration's changes are actually there before trusting
+`flyway_schema_history`. The module records the migration before it commits,
+so the history can show a migration that was rolled back. Observed on a live
+cluster: a losing migration left its version in the history with
+`success = t` while none of its writes had been applied. This is why
+`scripts/run-flyway.sh` does not retry a `40001`.
+
 ## 3. A failed index migration cannot be recovered by re-running it
 
 `flyway.dsql.awaitAsyncIndexes=true` is the setting you want, and it is not
@@ -253,8 +261,7 @@ public class V17__add_sessions_last_seen_index extends BaseJavaMigration {
                     // finished successfully, and a unique index over
                     // duplicate values comes back succeeded = false with the
                     // index left indisvalid = false.
-                    // No row is a failure too, not a pass. `rs.next() &&`
-                    // would have treated an empty result as success.
+                    // No row is a failure too, not a pass.
                     if (!rs.next() || !rs.getBoolean("succeeded")) {
                         throw new FlywayException(
                             "async index build failed or reported nothing "
@@ -322,8 +329,10 @@ modified data, and 5 minutes of wall clock. A backfill written as one
 reason, and refuses a `BATCH_SIZE` at or above 3,000.
 
 Mitigation: batch backfills in your own code, or move them out of Flyway.
-A backfill migration is DML, so it is already in its own file
-(limitation 1); make it loop.
+A SQL migration cannot loop, because Aurora DSQL rejects PL/pgSQL (`DO with
+language plpgsql not supported`), and the row cap is per transaction rather
+than per statement. Use a Java migration whose `canExecuteInTransaction()`
+returns false and commits each batch, or a script outside Flyway.
 
 ## 7. What this sample exercised, and what it did not
 
@@ -373,8 +382,9 @@ edges to be careful of, they are unavailable.
 
 So a constraint **can** be added to a populated table and then validated
 against the rows already in it. It takes two statements, and the second is an
-async job, which puts it in the same category as an index build
-(limitation 3).
+async job. `awaitAsyncIndexes` does not wait on it, because the module only
+waits on `CREATE [UNIQUE] INDEX ASYNC`, so follow the job in `sys.jobs`
+outside the SQL migration.
 
 Still not tested:
 
@@ -432,13 +442,22 @@ bump either side:
 Neither mechanism Flyway offers for adopting a schema that already has objects
 in it works on Aurora DSQL.
 
-**`flyway baseline`**, the standalone command, creates the history table and
-inserts the marker row in one transaction. That mixes DDL and DML, which
-Aurora DSQL rejects (limitation 1).
+**`flyway baseline`**, the standalone command, does not fail. It logs
+`Successfully baselined schema with version: 1` and writes no `BASELINE` row,
+because the module's history-table create script drops the marker. The next
+`migrate` then runs from V1.
 
-**`flyway.baselineOnMigrate=true`** looks like the workaround. It is worse than
-not working, because it fails silently. Run
-against a schema that already contains a `users` table:
+```
+Creating Schema History table "demo"."flyway_schema_history" with baseline ...
+Successfully baselined schema with version: 1
+```
+
+The command exits 0, the history table exists, and it is empty. `flyway info`
+afterwards reports `Schema version: << Empty Schema >>` with every migration
+still `Pending`.
+
+**`flyway.baselineOnMigrate=true`** looks like the workaround and fails the
+same silent way. Run against a schema that already contains a `users` table:
 
 ```
 Schema history table "demo"."flyway_schema_history" does not exist yet
@@ -481,7 +500,7 @@ hand and verify the result against the migrations.
 The module source lives in the Flyway community database support project,
 and AWS republishes it as
 [`software.amazon.dsql:aurora-dsql-flyway-support`](https://github.com/awslabs/aurora-dsql-tools/tree/main/flyway).
-Bugs in the module itself, including limitations 2 and 3 above, belong
+Bugs in the module itself, including limitations 3 and 10 above, belong
 upstream rather than in this sample's issue tracker.
 
 Load one artifact, not both. The two carry the same `DatabaseType`, and the

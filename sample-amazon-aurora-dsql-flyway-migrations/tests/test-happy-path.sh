@@ -149,9 +149,7 @@ assert_index_valid() {
   local row
   # The two flags are emitted as explicit words rather than relying on how
   # psql renders a boolean. Concatenating a boolean to text yields
-  # 'true'/'false', while a bare boolean column prints 't'/'f', and depending
-  # on the wrong one of those is how this assertion got written incorrectly
-  # the first time.
+  # 'true'/'false', while a bare boolean column prints 't'/'f'.
   if ! row=$(psql_retry "
     SELECT CASE WHEN x.indisvalid THEN 'VALID' ELSE 'INVALID' END || '/' ||
            CASE WHEN x.indisready THEN 'READY' ELSE 'NOTREADY' END

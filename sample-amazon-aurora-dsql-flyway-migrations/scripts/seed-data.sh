@@ -3,7 +3,8 @@
 # seed-data.sh
 #
 # Populate users and sessions with representative data so later migrations
-# can be tested against a non-empty schema. Idempotent -- re-running is safe.
+# can be tested against a non-empty schema. Users are idempotent (ON CONFLICT
+# on email); each run adds another ~200 sessions.
 #
 # Required env:
 #   AWS_REGION

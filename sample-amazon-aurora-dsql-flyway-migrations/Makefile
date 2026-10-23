@@ -88,7 +88,7 @@ verify-schema: ## Inspect the cluster: tables, flyway_schema_history, indexes
 reset: ## Drop the sample's schema and everything in it (DANGEROUS; dev only)
 	$(COMPOSE) run --rm -e RESET_DB_ASSUME_YES flyway bash scripts/reset-db.sh
 
-reproduce-occ: ## Run two concurrent migrate against one cluster
+reproduce-occ: ## Race two concurrent migrate runs (drops $DSQL_SCHEMA first, no prompt)
 	bash scripts/reproduce-occ-conflict.sh
 
 # test-occ is deliberately NOT part of `make test`. It races two migrate runs,
@@ -96,14 +96,14 @@ reproduce-occ: ## Run two concurrent migrate against one cluster
 # sometimes both fail and the schema needs repair. A suite that is expected to
 # pass cannot include a target whose whole point is an unpredictable failure.
 # Run it on its own when you want to see the race.
-test: test-happy ## Run the deterministic test suite
+test: test-happy ## Run the deterministic test suite (drops $DSQL_SCHEMA, no prompt)
 
-test-happy: ## End-to-end apply + verify
+test-happy: ## End-to-end apply + verify (drops $DSQL_SCHEMA, no prompt)
 	$(RUN) bash tests/test-happy-path.sh
 
-test-occ: ## Demonstrate a concurrent-migrate race; non-deterministic, not part of `make test`
+test-occ: ## Concurrent-migrate race; non-deterministic, not part of `make test` (drops $DSQL_SCHEMA, no prompt)
 	bash tests/test-occ-handling.sh
 
 clean: ## Remove local Docker image and tmp files
-	-$(COMPOSE) down --rmi local --volumes
+	-$(COMPOSE) down --rmi all --volumes
 	rm -rf tmp/

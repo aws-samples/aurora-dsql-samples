@@ -14,7 +14,9 @@
 -- Note on table contents: `make migrate` runs against an empty schema, so
 -- both users and sessions are empty here and this UPDATE touches zero rows.
 -- The seed scripts are not part of the migration path. To see it do real
--- work, run scripts/seed-data.sh after V2 and before this migration.
+-- work, run scripts/seed-data.sh after V9 and before this migration
+-- (migrate -target=9, seed, then migrate). Seeding earlier does nothing
+-- visible here, because V9 already sets the same values.
 
 UPDATE users u
    SET last_login_at = s.max_created_at

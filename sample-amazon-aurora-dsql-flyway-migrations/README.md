@@ -133,10 +133,10 @@ $ make help
   validate           Validate applied migrations against the migration files
   verify-schema      Inspect the cluster: tables, flyway_schema_history, indexes
   reset              Drop the sample's schema and everything in it (DANGEROUS; dev only)
-  reproduce-occ      Run two concurrent migrate against one cluster
-  test               Run the deterministic test suite
-  test-happy         End-to-end apply + verify
-  test-occ           Demonstrate a concurrent-migrate race; non-deterministic, not part of `make test`
+  reproduce-occ      Race two concurrent migrate runs (drops $DSQL_SCHEMA first, no prompt)
+  test               Run the deterministic test suite (drops $DSQL_SCHEMA, no prompt)
+  test-happy         End-to-end apply + verify (drops $DSQL_SCHEMA, no prompt)
+  test-occ           Concurrent-migrate race; non-deterministic, not part of `make test` (drops $DSQL_SCHEMA, no prompt)
   clean              Remove local Docker image and tmp files
 ```
 
@@ -170,7 +170,7 @@ sample-amazon-aurora-dsql-flyway-migrations/
 │   └── V16__long_running_demo.sql          <- long-running statement
 ├── scripts/
 │   ├── create-schema.sh          <- create $DSQL_SCHEMA; migrate depends on it
-│   ├── run-flyway.sh             <- Flyway wrapper; retries token expiry
+│   ├── run-flyway.sh             <- Flyway wrapper; retries the history-row race
 │   ├── mint-token.sh             <- mint a DSQL IAM auth token for psql
 │   ├── reset-db.sh               <- DANGEROUS; DROP SCHEMA $DSQL_SCHEMA CASCADE
 │   ├── verify-schema.sh          <- inspect tables / history / index validity
@@ -248,11 +248,11 @@ retries it fails with `SQLSTATE 3F000, schema does not exist`, which points
 nowhere near the cause. `make create-schema` creates the schema in its own
 statement instead, and `make migrate` depends on it.
 
-**Baselining is unavailable.** `flyway baseline` mixes DDL and DML in one
-transaction, so Aurora DSQL rejects it. `flyway.baselineOnMigrate=true` is not
-a substitute: on a non-empty schema it logs a successful baseline, writes no
-baseline row, and migrates from V1 over your existing tables, leaving the
-history claiming a version the schema does not match. See limitation 10 in [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for
+**Baselining is unavailable.** Neither `flyway baseline` nor
+`flyway.baselineOnMigrate=true` writes a baseline row with this module. Both
+log a successful baseline, and the next `migrate` runs from V1 over your
+existing tables, leaving the history claiming a version the schema does not
+match. See limitation 10 in [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for
 the full output.
 
 ## Running the test suite
@@ -295,8 +295,12 @@ separate files, one logical change each. V4, V5, and V6 are the canonical
 example: add the column, backfill it, then set the default.
 
 **`ALTER TABLE ADD COLUMN with constraint not supported`** means an inline
-constraint on `ADD COLUMN`. Aurora DSQL rejects those. Use the same
-three-step split as above.
+constraint on `ADD COLUMN`. Aurora DSQL rejects those. For a `DEFAULT`, use
+the V4 → V5 → V6 split above. For `CHECK` or a foreign key, add the column,
+then `ADD CONSTRAINT … NOT VALID` and `ALTER TABLE ASYNC … VALIDATE
+CONSTRAINT` (V11). For `UNIQUE`, build a unique index and attach it with
+`UNIQUE USING INDEX` (V12). `SET NOT NULL` is not supported;
+`CHECK (col IS NOT NULL) NOT VALID` plus validation enforces the same rule.
 
 **`Validate failed: Detected failed migration to version N`** means a
 previous run left a failed row in `flyway_schema_history`. Run
@@ -341,8 +345,9 @@ image already bundles `slf4j-nop`. There is no error message to search for,
 which is what makes it worth knowing.
 
 **`SSL SYSCALL error: EOF detected` from psql** is a transient at the
-Aurora DSQL frontend. The sample's psql helpers retry. Flyway's own JDBC
-path does not see it.
+Aurora DSQL frontend. Most of the sample's psql helpers retry;
+`make verify-schema` does not, so re-run it. Flyway's own JDBC path does not
+see it.
 
 For the full set of constraints this sample ran into, see
 [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md).

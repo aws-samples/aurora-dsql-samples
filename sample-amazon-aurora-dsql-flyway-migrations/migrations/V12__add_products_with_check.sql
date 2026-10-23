@@ -19,13 +19,13 @@
 --   ALTER TABLE products ADD CONSTRAINT c_sku UNIQUE (sku);
 --     -> ERROR: unsupported ALTER TABLE ADD CONSTRAINT statement
 --   CREATE UNIQUE INDEX ASYNC idx_sku ON products (sku);
---     -> returns a job_id; wait for it with CALL sys.wait_for_job(...)
+--     -> returns a job_id; with awaitAsyncIndexes=true the module waits for it
 --   ALTER TABLE products ADD CONSTRAINT c_sku UNIQUE USING INDEX idx_sku;
 --     -> accepted, and enforces: a duplicate INSERT then fails with 23505
 --
 -- The index must be VALID before you attach it. Attaching one that is still
--- building fails with "index <name> is not valid", which is a complaint about
--- the index state rather than the syntax, so give the job time to finish.
+-- building fails with "index <name> is not valid", so put the ADD CONSTRAINT
+-- in a later migration than the index.
 
 CREATE TABLE IF NOT EXISTS products (
   id          UUID         PRIMARY KEY,

@@ -19,8 +19,10 @@
 --
 -- Note ALTER TABLE ASYNC, not plain ALTER TABLE: the plain form is rejected
 -- with "unsupported ALTER TABLE VALIDATE CONSTRAINT statement". Validation
--- scans the table, so like an index build it runs as an async job, with the
--- same waiting problem described in limitation 3.
+-- scans the table, so it runs as an async job. awaitAsyncIndexes does not
+-- cover it: the module only waits on CREATE [UNIQUE] INDEX ASYNC, so the
+-- migration returns while validation is still running. Follow the job in
+-- sys.jobs, or with sys.wait_for_job, outside the SQL migration.
 --
 -- The same two steps work for CHECK (see V12). UNIQUE needs a different
 -- route, also in V12.
