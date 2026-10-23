@@ -291,7 +291,8 @@ async function createBooking(
         // Write-skew caveat: two concurrent transactions inserting
         // overlapping-but-distinct windows (e.g., 9:00–10:00 and
         // 9:30–10:30) may both pass this SELECT and both commit —
-        // DSQL's OCC only conflicts writes to the same physical rows,
+        // In this overlap-check pattern, writes to distinct booking rows
+        // do not conflict merely because their time ranges overlap,
         // and the unique index on (resource_name, start_time, end_time)
         // catches only identical windows. For strict serialization,
         // maintain a `resources` table and `SELECT ... FOR UPDATE` on

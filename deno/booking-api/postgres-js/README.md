@@ -178,15 +178,16 @@ This sample uses a layered defense against double-booking:
    Blog post [Concurrency control in Amazon Aurora DSQL](https://aws.amazon.com/blogs/database/concurrency-control-in-amazon-aurora-dsql/)
    for details.
 
-**Write-skew caveat.** Aurora DSQL provides strong snapshot isolation and
-OCC only conflicts writes to the same physical rows. Two concurrent
-transactions inserting *overlapping but distinct* windows (e.g.,
-`[9:00–10:00]` and `[9:30–10:30]`) may both pass the SELECT above and
-both commit — the unique index catches only identical windows. This is
-the classic *write skew* anomaly. For strict serialization of overlapping
-writes, maintain a parent `resources` table and acquire
-`SELECT ... FOR UPDATE` on the resource row (keyed by its primary key)
-before the overlap check. See the AWS Database Blog post
+**Write-skew caveat.** Aurora DSQL provides strong snapshot isolation. In this
+overlap-check pattern, two concurrent transactions can insert *overlapping but
+distinct* windows without conflicting when `SELECT ... FOR UPDATE` is not used.
+For example, transactions for `[9:00–10:00]` and `[9:30–10:30]` may both pass
+the SELECT above and both commit — the unique index catches only identical
+windows. This is the classic *write skew* anomaly. For strict serialization of
+overlapping writes, maintain a parent `resources` table and acquire
+`SELECT ... FOR UPDATE` on the resource row (keyed by its primary key) before
+the overlap check. Each targeted row's primary key counts toward the 10 MiB
+transaction-size limit. See the AWS Database Blog post
 [Concurrency control in Amazon Aurora DSQL](https://aws.amazon.com/blogs/database/concurrency-control-in-amazon-aurora-dsql/)
 (Example 2: `SELECT FOR UPDATE` to manage write skew) and the user-guide
 page [Concurrency control in Aurora DSQL](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html)

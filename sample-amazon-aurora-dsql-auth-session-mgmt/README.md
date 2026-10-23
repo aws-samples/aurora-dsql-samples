@@ -141,7 +141,7 @@ SELECT id, user_id, created_at, expires_at, revoked_at FROM sessions;
 - IAM-based database authentication (no static passwords)
 - UUIDs generated app-side
 - 1 DDL per transaction
-- 3,000 row limit per DML transaction
+- 3,000 row-modification limit per DML transaction
 
 ## Operational Notes
 
