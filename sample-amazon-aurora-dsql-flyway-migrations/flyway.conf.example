@@ -1,0 +1,86 @@
+# Flyway configuration for Amazon Aurora DSQL.
+#
+# This file is the template the sample actually uses. docker-compose.yml
+# mounts it read-only at /flyway/conf/flyway.conf.example, and
+# scripts/run-flyway.sh copies it to /tmp and substitutes DSQL_ENDPOINT and
+# DSQL_SCHEMA at run time. Copying it to flyway.conf has no effect, because
+# that path is not mounted.
+#
+# Edit this file to change the configuration, or point FLYWAY_CONF at your own.
+#
+# No password is set: the Aurora DSQL JDBC Connector generates a short-lived
+# IAM token on every new connection from the ambient AWS credentials.
+#
+# Aurora DSQL behaviour comes from the org.flywaydb:flyway-database-dsql
+# community module, installed in /flyway/drivers/ by the Dockerfile.
+
+# JDBC URL for the Aurora DSQL JDBC Connector. The connector accepts only
+# jdbc:aws-dsql:postgresql://<host>/<database>; omitting the postgresql://
+# segment produces "No database found to handle jdbc:aws-dsql:".
+#
+# Query parameters:
+#   user=admin         Database role to connect as.
+#   sslmode=verify-full
+#                      Validates the server certificate end to end.
+#   sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory
+#                      Use the JVM default trust store, which carries the
+#                      Amazon Trust Services CAs that signed the cluster cert.
+flyway.url=jdbc:aws-dsql:postgresql://REPLACE-WITH-YOUR-CLUSTER.dsql.us-east-1.on.aws/postgres?user=admin&sslmode=verify-full&sslfactory=org.postgresql.ssl.DefaultJavaSSLFactory
+flyway.user=admin
+
+# Migration locations
+flyway.locations=filesystem:/flyway/migrations
+
+# Schema. Everything this sample creates goes in one dedicated schema, so its
+# generic table names (users, sessions, products) cannot collide with another
+# sample's. The runner script substitutes DSQL_SCHEMA here.
+#
+# The schema must already exist. flyway.createSchemas=true does NOT work on
+# Aurora DSQL: Flyway issues the CREATE SCHEMA and the CREATE TABLE for the
+# history table in one transaction, Aurora DSQL rejects two DDL statements in
+# a transaction, and nothing commits. Flyway then retries and finally fails
+# with SQLSTATE 3F000, schema does not exist. `make create-schema` creates it
+# in its own statement first.
+flyway.schemas=REPLACE-WITH-YOUR-SCHEMA
+flyway.defaultSchema=REPLACE-WITH-YOUR-SCHEMA
+
+# Baselining is not available on Aurora DSQL.
+#
+# The standalone `flyway baseline` command does not fail, but with this
+# module it writes no baseline row: it logs "Successfully baselined" and
+# leaves the history table empty, so the next migrate runs from V1.
+#
+# flyway.baselineOnMigrate=true is NOT a substitute.
+# On a non-empty schema it logs "Successfully baselined schema with
+# version: 1", writes no baseline row, and then runs every migration from V1
+# over the existing tables. If those migrations use IF NOT EXISTS they are
+# skipped individually but still recorded as applied, which leaves the history
+# claiming a version the schema does not actually match, and `validate` passes
+# on it. That is worse than a clean failure, so it is left off here.
+#
+# To adopt a schema that already has objects in it, create a fresh schema and
+# migrate into that, or reconcile by hand.
+
+# Validation
+flyway.validateOnMigrate=true
+
+# --- Aurora DSQL module settings (flyway.dsql.*) ------------------------
+#
+# Wait for CREATE INDEX ASYNC builds to finish before the migration returns.
+# Aurora DSQL has no synchronous index creation, so without this a migration
+# reports success while the index is still building, and a later migration or
+# query can run against an index that is not ready.
+#
+# Note: a failed build leaves an INVALID index behind. Drop it before
+# retrying; see limitation 3 in KNOWN_LIMITATIONS.md.
+flyway.dsql.awaitAsyncIndexes=true
+
+# Retry a migration transaction that fails with an OCC conflict. Aurora DSQL
+# uses optimistic concurrency control rather than advisory locks, so Flyway
+# cannot serialize concurrent runs the way it does on PostgreSQL.
+#
+# This is a safety net, not a concurrency strategy: run migrations from a
+# single runner and enforce that in your pipeline. Retry also does not apply
+# to a migration running with executeInTransaction=false.
+flyway.dsql.occMaxRetries=3
+flyway.dsql.occMaxRetryDelaySeconds=5

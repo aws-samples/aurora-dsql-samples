@@ -1,0 +1,58 @@
+# docker-compose.yml for the Flyway on Aurora DSQL sample.
+#
+# Services:
+#   flyway       - runs the Flyway CLI with the official Aurora DSQL
+#                  module on its classpath. flyway.conf.example is
+#                  mounted so the runner script can substitute
+#                  DSQL_ENDPOINT at run time.
+#
+# Usage: prefer the Makefile, which creates the schema first. Calling
+# run-flyway.sh directly skips `make create-schema`, and Flyway then fails
+# with SQLSTATE 3F000, schema does not exist.
+#
+#   make migrate
+#   make info
+#   make test-happy
+#
+# The equivalent long forms, for reference:
+#
+#   docker compose run --rm flyway bash scripts/create-schema.sh
+#   docker compose run --rm flyway bash scripts/run-flyway.sh migrate
+#
+# Prerequisites on the host:
+#   - AWS_REGION    exported in your shell (or in a .env file)
+#   - DSQL_ENDPOINT exported in your shell (or in a .env file)
+#   - AWS credentials available via ~/.aws, env vars, or instance role
+
+services:
+  flyway:
+    build: .
+    image: flyway-dsql-sample:latest
+    # List syntax is used deliberately. An entry with no "=" is passed through
+    # only when it is set on the host, and omitted entirely otherwise.
+    #
+    # That distinction matters for the AWS credential variables. Setting them
+    # to an empty string is not the same as leaving them unset: the SDK sees
+    # an empty AWS_PROFILE as a request for a profile named "", fails to find
+    # it, and never falls back to the default profile in ~/.aws. Defaulting
+    # AWS_PROFILE to "default" is equally wrong, because it breaks when the
+    # credentials come from environment variables and no [default] profile
+    # exists. Passing through only what is actually set lets the SDK's own
+    # provider chain do its job.
+    environment:
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_PROFILE
+      - DSQL_ENDPOINT=${DSQL_ENDPOINT:?DSQL_ENDPOINT must be set}
+      - DSQL_SCHEMA=${DSQL_SCHEMA:-flyway_sample}
+      - FLYWAY_RETRY=${FLYWAY_RETRY:-3}
+    volumes:
+      - ./migrations:/flyway/migrations:ro
+      - ./scripts:/flyway/scripts:ro
+      - ./tests:/flyway/tests:ro
+      - ./flyway.conf.example:/flyway/conf/flyway.conf.example:ro
+      - ~/.aws:/root/.aws:ro
+    working_dir: /flyway
+    command: bash scripts/run-flyway.sh info
