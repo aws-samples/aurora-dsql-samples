@@ -33,7 +33,7 @@ CREATE SCHEMA IF NOT EXISTS app;
 CREATE ROLE app_readonly WITH LOGIN;
 
 -- Step 3: Grant IAM authentication to your Lambda execution role (requires admin access)
-AWS IAM GRANT app_readonly TO :'role_arn';
+AWS IAM GRANT app_readonly TO 'role_arn';
 
 -- Step 4: Create the employees table in the app schema (requires write access on app schema)
 CREATE TABLE IF NOT EXISTS app.employees (
