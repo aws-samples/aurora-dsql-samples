@@ -1,0 +1,29 @@
+-- V16__long_running_demo.sql
+-- Sixteenth migration: a deliberately slow migration (60s pg_sleep)
+-- to exercise long-running execution through the Flyway Aurora DSQL module.
+--
+-- What this proves:
+--   - The module does not break Flyway's handling of long-running SQL.
+--   - A single JDBC connection stays alive and usable through a 60-second
+--     statement.
+--   - IAM token mechanics: the DSQL JDBC Connector mints a fresh token at
+--     connection ESTABLISHMENT time only. After the connection is open,
+--     the token is not re-validated for subsequent statements on that
+--     connection, so a 15-minute token does not cut off a longer run.
+--
+-- The limit on THIS FILE is 5 minutes, the per-transaction cap, because
+-- Flyway runs each migration file in one transaction. Separately, the whole
+-- `migrate` run must finish within the 1-hour connection lifetime. Both apply,
+-- at different scopes; see limitation 4 in KNOWN_LIMITATIONS.md.
+--
+-- 60 seconds is well inside the per-file limit. Anything approaching 5
+-- minutes needs splitting into smaller migrations, or moving out of Flyway
+-- into something that commits in batches.
+--
+-- What this does NOT test directly:
+--   - A statement at or beyond the 5-minute transaction cap.
+--   - Token refresh across invocations. Each `migrate` opens its own
+--     connection and gets its own token, so there is nothing to refresh
+--     mid-run; see limitation 5 in KNOWN_LIMITATIONS.md.
+
+SELECT pg_sleep(60);
