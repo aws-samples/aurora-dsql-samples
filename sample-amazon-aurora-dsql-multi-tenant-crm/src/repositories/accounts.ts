@@ -61,9 +61,15 @@ export async function getAccount(
  *
  * The schema already declares `account_id REFERENCES accounts (id)`, and
  * Aurora DSQL enforces that, so the foreign key proves the account exists.
- * This check proves something the foreign key cannot: that the account belongs
- * to the calling tenant. Without it a caller could attach a contact or
- * opportunity to another tenant's account.
+ * This check proves what the single-column foreign key does not: that the
+ * account belongs to the calling tenant. Without it a caller could attach a
+ * contact or opportunity to another tenant's account.
+ *
+ * A composite foreign key can enforce the same rule in the database. Add
+ * `UNIQUE (tenant_id, id)` to `accounts`, keep the UUID primary key, and
+ * declare `FOREIGN KEY (tenant_id, account_id) REFERENCES accounts
+ * (tenant_id, id)`. This sample keeps the check in the application so the
+ * rule sits beside the query, which is a choice rather than a necessity.
  *
  * Runs inside the caller's transaction so the check and the insert commit
  * together.

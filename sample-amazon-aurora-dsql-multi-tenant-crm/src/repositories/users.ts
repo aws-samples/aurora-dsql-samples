@@ -5,10 +5,17 @@ import { ApiError } from "../types.js";
  * Assert a user exists within the tenant.
  *
  * `opportunities.owner_id` declares a foreign key to `users (id)`, which
- * Aurora DSQL enforces, so the foreign key proves the user exists. It cannot
- * express "and belongs to the same tenant", because that would require a
- * composite key on `(tenant_id, id)`. This check closes that gap: without it a
+ * Aurora DSQL enforces, so the foreign key proves the user exists. On its own
+ * it does not express "and belongs to the same tenant": without this check a
  * caller could set `owner_id` to a user in another tenant.
+ *
+ * The database can enforce it instead. Add `UNIQUE (tenant_id, id)` to
+ * `users`, keep the UUID primary key, and declare
+ * `FOREIGN KEY (tenant_id, owner_id) REFERENCES users (tenant_id, id)`;
+ * Aurora DSQL accepts a unique constraint as a foreign-key target, and a
+ * cross-tenant write is then rejected with SQLSTATE 23503. Checking in the
+ * application is a choice, not the only option: it keeps the rule beside the
+ * query that depends on it.
  *
  * Runs inside the caller's transaction so the check and the write commit
  * together.
