@@ -66,9 +66,3 @@ jobs:
           body: "Automated sync from orms repo"
           branch: sync/orms
           delete-branch: true
-
-      - name: Enable auto-merge
-        if: steps.cpr.outputs.pull-request-number
-        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-number }}"
-        env:
-          GH_TOKEN: ${{ github.token }}
