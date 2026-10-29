@@ -80,8 +80,9 @@ function createSequelizeInstance() {
 
 async function createTables(sequelize) {
   // Aurora DSQL does not support multiple DDL statements in a single transaction.
-  // Execute each CREATE TABLE as an individual raw query. Tables are created in
-  // the selected schema by setting the search_path first.
+  // Execute each CREATE TABLE as an individual raw query. Each query can run on a
+  // different pooled connection, so table names and REFERENCES targets are
+  // schema-qualified, like the models, instead of relying on search_path.
   //
   // Foreign keys: reservation and payment declare REFERENCES to their parent
   // tables, so referenced tables (guest, room, reservation) MUST be created
@@ -101,10 +102,9 @@ async function createTables(sequelize) {
   // so the non-admin path can self-provision its own schema. For a stricter
   // least-privilege setup, create the tables as admin and grant the app role
   // USAGE + CRUD only (no CREATE); see setup_app_user.sql.
-  await sequelize.query(`SET search_path TO "${SCHEMA}"`, { raw: true });
-
+  const quotedSchema = pg.escapeIdentifier(SCHEMA);
   const tables = [
-    `CREATE TABLE IF NOT EXISTS "guest" (
+    `CREATE TABLE IF NOT EXISTS ${quotedSchema}."guest" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       "firstName" VARCHAR(100) NOT NULL,
       "lastName" VARCHAR(100) NOT NULL,
@@ -114,7 +114,7 @@ async function createTables(sequelize) {
       "createdAt" TIMESTAMPTZ DEFAULT NOW(),
       "updatedAt" TIMESTAMPTZ DEFAULT NOW()
     )`,
-    `CREATE TABLE IF NOT EXISTS "room" (
+    `CREATE TABLE IF NOT EXISTS ${quotedSchema}."room" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       "roomNumber" VARCHAR(10) NOT NULL UNIQUE,
       "roomType" VARCHAR(30) NOT NULL,
@@ -125,10 +125,10 @@ async function createTables(sequelize) {
       "createdAt" TIMESTAMPTZ DEFAULT NOW(),
       "updatedAt" TIMESTAMPTZ DEFAULT NOW()
     )`,
-    `CREATE TABLE IF NOT EXISTS "reservation" (
+    `CREATE TABLE IF NOT EXISTS ${quotedSchema}."reservation" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      "guestId" UUID NOT NULL REFERENCES "guest" ("id"),
-      "roomId" UUID NOT NULL REFERENCES "room" ("id"),
+      "guestId" UUID NOT NULL REFERENCES ${quotedSchema}."guest" ("id"),
+      "roomId" UUID NOT NULL REFERENCES ${quotedSchema}."room" ("id"),
       "checkInDate" DATE NOT NULL,
       "checkOutDate" DATE NOT NULL,
       "status" VARCHAR(20) DEFAULT 'confirmed',
@@ -137,10 +137,10 @@ async function createTables(sequelize) {
       "createdAt" TIMESTAMPTZ DEFAULT NOW(),
       "updatedAt" TIMESTAMPTZ DEFAULT NOW()
     )`,
-    `CREATE TABLE IF NOT EXISTS "payment" (
+    `CREATE TABLE IF NOT EXISTS ${quotedSchema}."payment" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      "reservationId" UUID NOT NULL REFERENCES "reservation" ("id"),
-      "guestId" UUID NOT NULL REFERENCES "guest" ("id"),
+      "reservationId" UUID NOT NULL REFERENCES ${quotedSchema}."reservation" ("id"),
+      "guestId" UUID NOT NULL REFERENCES ${quotedSchema}."guest" ("id"),
       "amount" DECIMAL(10,2) NOT NULL,
       "paymentMethod" VARCHAR(30) NOT NULL,
       "status" VARCHAR(20) DEFAULT 'pending',

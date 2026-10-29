@@ -2,7 +2,7 @@ import boto3
 import psycopg
 import os
 import sys
-from psycopg import pq
+from psycopg import pq, sql
 
 
 def create_connection(cluster_user, cluster_endpoint, region):
@@ -43,7 +43,7 @@ def create_connection(cluster_user, cluster_endpoint, region):
 
     try:
         with conn.cursor() as cur:
-            cur.execute(f"SET search_path = {schema};")
+            cur.execute(sql.SQL("SET search_path = {};").format(sql.Identifier(schema)))
             conn.commit()
     except Exception as e:
         conn.close()
