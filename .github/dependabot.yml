@@ -1,154 +1,86 @@
 version: 2
 updates:
   - package-ecosystem: "dotnet-sdk"
-    directory: "/dotnet/cluster_management"
+    directories:
+      - "**/*"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "dotnet-sdk"
-    directory: "/dotnet/npgsql"
+    open-pull-requests-limit: 10
+  - package-ecosystem: "nuget"
+    # Dependabot also updates every project a solution lists or a project
+    # references, so each folder here is the top of one build: /dotnet/* finds
+    # a sample's solution or project file, and the ef-core integration tests
+    # reference the API project. A .NET sample laid out any other way needs
+    # its own entry.
+    directories:
+      - "/dotnet/*"
+      - "/dotnet/ef-core/examples/InventoryApi.IntegrationTests"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
   - package-ecosystem: "gomod"
-    directory: "/go/cluster_management"
+    directories:
+      - "**/*"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "gomod"
-    directory: "/go/pgx"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
   - package-ecosystem: "maven"
-    directory: "/java/cluster_management"
+    directories:
+      - "**/*"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "maven"
-    directory: "/java/liquibase"
-    schedule:
-      interval: "daily"
+    open-pull-requests-limit: 10
   - package-ecosystem: "gradle"
-    directory: "/java/pgjdbc"
+    directories:
+      - "**/*"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "gradle"
-    directory: "/java/spring_boot"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
   - package-ecosystem: "npm"
-    directory: "/javascript/cluster_management"
+    directories:
+      - "**/*"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "npm"
-    directory: "/javascript/node-postgres"
+    open-pull-requests-limit: 10
+  - package-ecosystem: "deno"
+    directories:
+      - "**/*"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "npm"
-    directory: "/javascript/postgres-js"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "npm"
-    directory: "/lambda"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "npm"
-    directory: "/lambda/sample"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "npm"
-    directory: "/typescript/drizzle"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
   - package-ecosystem: "pip"
-    directory: "/python/asyncpg"
+    # Dependabot also reads requirement files one folder down, so a parent
+    # such as /python would duplicate every update for the samples under it.
+    # These are the sample folders themselves. "[!.]" stops the glob matching
+    # /python/., which Dependabot reads as /python. A pip sample outside
+    # /python needs its own entry.
+    directories:
+      - "/python/[!.]*"
+      - "/rust/lambda-employee-lookup/tests"
+      - "/sample-amazon-aurora-dsql-agent/agent"
+      - "/sample-amazon-aurora-dsql-agent/gateway"
+      - "/sample-amazon-aurora-dsql-agent/lambda/grid_tools"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "pip"
-    directory: "/python/cluster_management"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "pip"
-    directory: "/python/psycopg"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "pip"
-    directory: "/python/psycopg2"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "pip"
-    directory: "/sample-amazon-aurora-dsql-agent/agent"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "pip"
-    directory: "/sample-amazon-aurora-dsql-agent/gateway"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "pip"
-    directory: "/sample-amazon-aurora-dsql-agent/lambda/grid_tools"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
   - package-ecosystem: "composer"
-    directory: "/php/pdo-pgsql"
+    directories:
+      - "**/*"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
   - package-ecosystem: "bundler"
-    directory: "/ruby/ruby-pg"
+    directories:
+      - "**/*"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "bundler"
-    directory: "/ruby/cluster_management"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "bundler"
-    directory: "/ruby/rails/petclinic"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
   - package-ecosystem: "cargo"
-    directory: "/rust/cluster_management"
+    directories:
+      - "**/*"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "cargo"
-    directory: "/rust/sqlx"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "npm"
-    directory: "/typescript/prisma-multi-region"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "npm"
-    directory: "/typescript/sequelize"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-  - package-ecosystem: "npm"
-    directory: "/typescript/type-orm"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
