@@ -1,5 +1,5 @@
-# Auto-approves and enables squash merge for Dependabot PRs.
-# Merge occurs after CI Gate passes.
+# Auto-merge waits for CI Gate, which covers some samples with secret
+# scanning and dependency review alone.
 name: Dependabot Auto-merge
 
 permissions: {}
@@ -16,11 +16,23 @@ jobs:
       contents: write # required to enable auto-merge
     steps:
       - uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        id: metadata
 
       - name: Approve and enable auto-merge
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATES: ${{ steps.metadata.outputs.updated-dependencies-json }}
         run: |
+          # update-type reports the largest known change across dependencies.
+          # Before 1.0, minor releases can break APIs.
+          if ! jq -en 'input | length > 0 and all(.[];
+                .updateType == "version-update:semver-patch" or
+                (.updateType == "version-update:semver-minor" and
+                  (.prevVersion // "" | ltrimstr("v") | test("^[1-9]"))))' \
+              <<<"$UPDATES" > /dev/null; then
+            echo "Leaving this update for a maintainer to review."
+            exit 0
+          fi
           gh pr review --approve "$PR_URL"
           gh pr merge --auto --squash "$PR_URL"
