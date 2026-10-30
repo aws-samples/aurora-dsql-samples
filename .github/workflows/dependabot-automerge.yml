@@ -1,5 +1,8 @@
-# Auto-approves and enables squash merge for Dependabot PRs.
-# Merge occurs after CI Gate passes.
+# Auto-approves and enables squash merge for Dependabot patch and minor
+# updates. Merge occurs after CI Gate passes. Major updates, minor updates
+# below 1.0, and updates whose type is unknown wait for a maintainer,
+# because CI Gate passes without testing anything for samples that have no
+# CI job.
 name: Dependabot Auto-merge
 
 permissions: {}
@@ -15,12 +18,25 @@ jobs:
       pull-requests: write # required to approve PR
       contents: write # required to enable auto-merge
     steps:
-      - uses: dependabot/fetch-metadata@v3
+      - uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        id: metadata
 
       - name: Approve and enable auto-merge
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATES: ${{ steps.metadata.outputs.updated-dependencies-json }}
         run: |
+          # Check every dependency, because update-type only reports the
+          # largest known change. Below 1.0, a minor release can break the
+          # API the way a major one does.
+          if ! jq -en 'input | length > 0 and all(.[];
+                .updateType == "version-update:semver-patch" or
+                (.updateType == "version-update:semver-minor" and
+                  (.prevVersion // "" | ltrimstr("v") | test("^[1-9]"))))' \
+              <<<"$UPDATES" > /dev/null; then
+            echo "Leaving this update for a maintainer to review."
+            exit 0
+          fi
           gh pr review --approve "$PR_URL"
           gh pr merge --auto --squash "$PR_URL"
