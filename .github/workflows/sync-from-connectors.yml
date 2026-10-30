@@ -74,9 +74,3 @@ jobs:
           body: "Automated sync from connector repos"
           branch: sync/connectors
           delete-branch: true
-
-      - name: Enable auto-merge
-        if: steps.cpr.outputs.pull-request-number
-        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-number }}"
-        env:
-          GH_TOKEN: ${{ github.token }}
