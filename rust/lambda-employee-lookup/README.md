@@ -245,6 +245,21 @@ For Terraform, run `terraform -chdir="$DEPLOY_DIR" destroy` with the same variab
 - [AWS Lambda Rust Runtime](https://github.com/awslabs/aws-lambda-rust-runtime)
 - [Aurora DSQL launches Rust and .NET connectors](https://aws.amazon.com/about-aws/whats-new/2026/03/aurora-dsql-rust-npgsql-connectors/)
 
+
+## About the Authors
+
+Manoj Duvva
+
+Manoj Duvva is a Senior Technical Account Manager at Amazon Web Services. In his role, Manoj collaborates with enterprise customers to architect, implement, and scale cloud-based applications to meet their business objectives. He is a subject matter expert in Amazon Relational Database Service (Amazon RDS) for Oracle. Manoj is passionate about cloud computing, databases, automation, and artificial intelligence. 
+
+John Thach
+
+John Thach is a Technical Account Manager based in Houston, Texas. He helps customers build resilient, secure, and cost-effective solutions with AWS services. He is passionate about helping customers solve unique challenges throughout their cloud journeys. 
+
+Mirron Panicker 
+
+Mirron Panicker is a Technical Account Manager at AWS, where he partners with enterprise customers to optimize and modernize their cloud workloads. Mirron specializes in container technologies, helping teams adopt and scale containerized architectures on AWS. 
+
 ---
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
