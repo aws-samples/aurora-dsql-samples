@@ -122,7 +122,10 @@ async def create_schema():
     transaction. Each CREATE TABLE executes as its own statement.
     We use a raw asyncpg connection (not the Tortoise pool) to avoid
     pool reset issues during DDL execution."""
-    raw_conn = await asyncpg.connect(**_connection_params())
+    # Match the search_path Tortoise sets from the "schema" credential.
+    raw_conn = await asyncpg.connect(
+        **_connection_params(), server_settings={"search_path": SCHEMA}
+    )
 
     tables = [
         """CREATE TABLE IF NOT EXISTS rider (
@@ -168,8 +171,6 @@ async def create_schema():
     ]
 
     try:
-        # Set search_path to the appropriate schema
-        await raw_conn.execute(f"SET search_path TO {SCHEMA}")
         for ddl in tables:
             await raw_conn.execute(ddl)
     finally:

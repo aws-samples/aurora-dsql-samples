@@ -8,7 +8,7 @@
 // cluster are required. Run from the project root with:
 //   npm test
 //
-// Covers config, models, and the OCC retry utility.
+// Covers config, table creation, models, and the OCC retry utility.
 
 import { describe, test, expect } from '@jest/globals';
 import { Sequelize } from 'sequelize';
@@ -190,6 +190,28 @@ describe('config', () => {
         CLUSTER_SCHEMA: 'bad; DROP TABLE guest;',
       })
     ).rejects.toThrow(/Invalid schema name/);
+  });
+});
+
+describe('createTables', () => {
+  test.each([
+    ['admin', {}, 'public'],
+    ['hotel_app', {}, 'hotel'],
+    ['hotel_app', { CLUSTER_SCHEMA: 'HotelCase' }, 'HotelCase'],
+  ])('schema-qualifies every table and reference (%s %j)', async (user, extra, schema) => {
+    // Each query can run on a different pooled connection, so the DDL must not
+    // depend on a search_path set by an earlier query.
+    const db = await loadDbFresh({ ...BASE_ENV, CLUSTER_USER: user, ...extra });
+    const sent = [];
+    await db.createTables({ query: async (sql) => { sent.push(sql); } });
+
+    const table = new RegExp(`^CREATE TABLE IF NOT EXISTS "${schema}"\\."\\w+" \\(`);
+    const reference = new RegExp(`^"${schema}"\\."\\w+"$`);
+    expect(sent).toHaveLength(4);
+    for (const sql of sent) expect(sql).toMatch(table);
+    const targets = [...sent.join('\n').matchAll(/REFERENCES\s+(\S+)/g)].map((m) => m[1]);
+    expect(targets).toHaveLength(4);
+    for (const target of targets) expect(target).toMatch(reference);
   });
 });
 

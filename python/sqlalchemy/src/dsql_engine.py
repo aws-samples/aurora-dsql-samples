@@ -12,6 +12,7 @@ SAVEPOINT, which SQLAlchemy's psycopg dialect uses during initialization.
 import os
 
 import aurora_dsql_psycopg as dsql
+from psycopg import sql
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 
@@ -45,7 +46,7 @@ def create_dsql_engine() -> Engine:
     @event.listens_for(engine, "connect")
     def set_search_path(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
-        cursor.execute(f"SET search_path TO {schema}")
+        cursor.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(schema)))
         cursor.close()
 
     return engine
