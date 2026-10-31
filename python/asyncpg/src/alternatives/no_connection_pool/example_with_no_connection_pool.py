@@ -23,12 +23,12 @@ async def create_connection(cluster_user, cluster_endpoint):
     conn = await dsql.connect(**conn_params)
 
     if cluster_user == "admin":
-        schema = "public"
+        search_path_sql = "SET search_path = public;"
     else:
-        schema = "myschema"
+        search_path_sql = "SET search_path = myschema;"
 
     try:
-        await conn.execute(f"SET search_path = {schema};")
+        await conn.execute(search_path_sql)
     except Exception as e:
         await conn.close()
         raise e
