@@ -3,7 +3,7 @@
 
 import os
 
-from psycopg import pq
+from psycopg import pq, sql
 
 import aurora_dsql_psycopg as dsql
 
@@ -34,7 +34,7 @@ async def create_connection(cluster_user, cluster_endpoint):
 
     try:
         async with conn.cursor() as cur:
-            await cur.execute(f"SET search_path = {schema};")
+            await cur.execute(sql.SQL("SET search_path = {};").format(sql.Identifier(schema)))
             await conn.commit()
     except Exception as e:
         await conn.close()
