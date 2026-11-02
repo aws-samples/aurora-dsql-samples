@@ -21,7 +21,9 @@ function main(): void
     $clusterUser = getenv('CLUSTER_USER') ?: 'admin';
 
     // Determine schema based on user type
-    $schema = $clusterUser === 'admin' ? 'public' : 'myschema';
+    $searchPathSql = $clusterUser === 'admin'
+        ? 'SET search_path = public'
+        : 'SET search_path = myschema';
 
     $config = new DsqlConfig(
         host: $clusterEndpoint,
@@ -31,7 +33,7 @@ function main(): void
     $pdo = AuroraDsql::connect($config);
 
     // Set search_path for the appropriate schema
-    $pdo->exec("SET search_path = '{$schema}'");
+    $pdo->exec($searchPathSql);
 
     // Simple read
     $stmt = $pdo->query('SELECT 1 AS result');
@@ -59,6 +61,9 @@ function main(): void
     $stmt = $pdo->prepare('SELECT name FROM example_test WHERE id = ?');
     $stmt->execute([$id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row === false || $row['name'] !== $name) {
+        throw new RuntimeException("Row {$id} was not found after the transaction committed");
+    }
     echo "Read back: {$row['name']}\n";
 
     // Cleanup — exec() retry handles OCC conflicts transparently
