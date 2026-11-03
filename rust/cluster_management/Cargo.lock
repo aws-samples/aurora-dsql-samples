@@ -122,9 +122,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sdk-dsql"
-version = "1.78.0"
+version = "1.79.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25781e3851b68dac3bdb059b35c041245dc45a7b6d51e58e26f5dbc1623ed38c"
+checksum = "b15db4231a80e77e1861613a66fbb0a2416945c2fd02dc2cb2a573cc8bbada16"
 dependencies = [
  "arc-swap",
  "aws-credential-types",
@@ -392,9 +392,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-schema"
-version = "1.1.0"
+version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bec8dae1015a6d959a5faf86fbdf77486cfe19e4ccb6ee009d8a46efc45028a4"
+checksum = "9543fc722ed4865ab29fb66bd7ed0bef7b029d265ba8c587144511e30006d431"
 dependencies = [
  "aws-smithy-runtime-api",
  "aws-smithy-types",
