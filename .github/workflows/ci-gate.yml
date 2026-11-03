@@ -75,7 +75,7 @@ jobs:
       base-ref: ${{ steps.detect.outputs.base-ref }}
       run-integration: ${{ steps.detect.outputs.run-integration }}
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         id: detect
         env:
           CHECKOUT_REF: ${{ inputs.checkout-ref }}
@@ -216,6 +216,16 @@ jobs:
       checkout-ref: ${{ needs.changes.outputs.checkout-ref }}
       base-ref: ${{ needs.changes.outputs.base-ref }}
       pull-request-number: ${{ inputs.pull-request-number || github.event.pull_request.number || 0 }}
+
+  pinned-actions:
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.changes.outputs.checkout-ref }}
+      - run: .github/scripts/test-check-pinned-actions.sh
+      - run: .github/scripts/check-pinned-actions.sh
 
   cpp-cm:
     needs: changes
@@ -584,6 +594,7 @@ jobs:
       - changes
       - gitleaks
       - deps-review
+      - pinned-actions
       - cpp-cm
       - cpp-libpq
       - deno-booking-api
@@ -622,7 +633,7 @@ jobs:
       - typescript-type-orm
     if: always()
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const needs = ${{ toJSON(needs) }};
@@ -643,7 +654,7 @@ jobs:
     permissions:
       statuses: write
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           GATE_RESULT: ${{ needs.gate.result }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}

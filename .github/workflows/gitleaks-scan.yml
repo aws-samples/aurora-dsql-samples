@@ -19,7 +19,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ inputs.checkout-ref }}
 
@@ -33,6 +33,6 @@ jobs:
 
     - name: gitleaks
       if: github.event_name == 'workflow_dispatch'
-      uses: docker://zricethezav/gitleaks:v7.4.0
+      uses: docker://zricethezav/gitleaks@sha256:ffe35a0d42974c19da37b3fb5ca1ff1e781ae6dffaf80164568129a2714eca61 # v7.4.0
       with:
         args: --path=/github/workspace --verbose --redact
