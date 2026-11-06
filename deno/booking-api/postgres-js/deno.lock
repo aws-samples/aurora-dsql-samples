@@ -1,8 +1,8 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@std/assert@1": "1.0.19",
-    "jsr:@std/internal@^1.0.12": "1.0.13",
+    "jsr:@std/assert@^1.0.19": "1.0.19",
+    "jsr:@std/internal@^1.0.12": "1.0.14",
     "npm:@aws/aurora-dsql-postgresjs-connector@0.2": "0.2.1_postgres@3.4.9",
     "npm:fast-check@^4.10.2": "4.10.2"
   },
@@ -13,8 +13,8 @@
         "jsr:@std/internal"
       ]
     },
-    "@std/internal@1.0.13": {
-      "integrity": "2f9546691d4ac2d32859c82dff284aaeac980ddeca38430d07941e7e288725c0"
+    "@std/internal@1.0.14": {
+      "integrity": "291516b3d4c35024d6ffbc0a9df5bf4c64116e05b50012cf846710152d2ffdf7"
     }
   },
   "npm": {
@@ -901,7 +901,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/assert@1",
+      "jsr:@std/assert@^1.0.19",
       "npm:@aws/aurora-dsql-postgresjs-connector@0.2",
       "npm:fast-check@^4.10.2"
     ]
