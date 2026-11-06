@@ -4,6 +4,6 @@
     "test": "deno test --allow-net --allow-env --allow-read --allow-sys test/"
   },
   "imports": {
-    "@aws/aurora-dsql-postgresjs-connector": "npm:@aws/aurora-dsql-postgresjs-connector@^0.2"
+    "@aws/aurora-dsql-postgresjs-connector": "npm:@aws/aurora-dsql-postgresjs-connector@^0.3.1"
   }
 }
