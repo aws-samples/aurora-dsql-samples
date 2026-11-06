@@ -28,12 +28,12 @@
     "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
     "bcryptjs": "^3.0.3",
     "express": "^5.2.1",
-    "pg": "^8.20.0"
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.6",
-    "@types/pg": "^8.20.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.0",
     "supertest": "^7.2.2",
     "typescript": "^6.0.3",
