@@ -3,7 +3,7 @@ module github.com/aws-samples/recipe-share-dsql-go
 go 1.26.3
 
 require (
-	github.com/aws/aws-lambda-go v1.54.0
+	github.com/aws/aws-lambda-go v1.55.1
 	github.com/awslabs/aurora-dsql-connectors/go/pgx v0.4.0
 	github.com/awslabs/aws-lambda-go-api-proxy v0.16.2
 	github.com/gin-gonic/gin v1.12.0
