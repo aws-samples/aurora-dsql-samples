@@ -4,7 +4,7 @@
   "description": "Prisma ORM + Aurora DSQL multi-region active-active pattern",
   "main": "dist/src/server.js",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22"
   },
   "scripts": {
     "format": "prettier --write .",
@@ -32,9 +32,9 @@
   },
   "devDependencies": {
     "@aws/aurora-dsql-prisma-tools": "^0.1.3",
-    "@babel/core": "^7.28.0",
-    "@babel/preset-env": "^7.28.0",
-    "@babel/preset-typescript": "^7.27.0",
+    "@babel/core": "^8.1.0",
+    "@babel/preset-env": "^8.0.7",
+    "@babel/preset-typescript": "^8.0.7",
     "babel-jest": "^30.0.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
