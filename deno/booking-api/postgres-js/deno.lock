@@ -4,7 +4,7 @@
     "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.13",
     "npm:@aws/aurora-dsql-postgresjs-connector@0.2": "0.2.1_postgres@3.4.9",
-    "npm:fast-check@4": "4.7.0"
+    "npm:fast-check@^4.10.2": "4.10.2"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -705,7 +705,8 @@
         "@smithy/types",
         "@smithy/util-stream",
         "tslib"
-      ]
+      ],
+      "deprecated": true
     },
     "@smithy/types@4.14.1": {
       "integrity": "sha512-59b5HtSVrVR/eYNei3BUj3DCPKD/G7EtDDe7OEJE7i7FtQFugYo6MxbotS8mVJkLNVf8gYaAlEBwwtJ9HzhWSg==",
@@ -809,7 +810,8 @@
         "@smithy/service-error-classification",
         "@smithy/types",
         "tslib"
-      ]
+      ],
+      "deprecated": true
     },
     "@smithy/util-stream@4.5.25": {
       "integrity": "sha512-/PFpG4k8Ze8Ei+mMKj3oiPICYekthuzePZMgZbCqMiXIHHf4n2aZ4Ps0aSRShycFTGuj/J6XldmC0x0DwednIA==",
@@ -859,8 +861,8 @@
     "bowser@2.14.1": {
       "integrity": "sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg=="
     },
-    "fast-check@4.7.0": {
-      "integrity": "sha512-NsZRtqvSSoCP0HbNjUD+r1JH8zqZalyp6gLY9e7OYs7NK9b6AHOs2baBFeBG7bVNsuoukh89x2Yg3rPsul8ziQ==",
+    "fast-check@4.10.2": {
+      "integrity": "sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw==",
       "dependencies": [
         "pure-rand"
       ]
@@ -887,8 +889,8 @@
     "postgres@3.4.9": {
       "integrity": "sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw=="
     },
-    "pure-rand@8.4.0": {
-      "integrity": "sha512-IoM8YF/jY0hiugFo/wOWqfmarlE6J0wc6fDK1PhftMk7MGhVZl88sZimmqBBFomLOCSmcCCpsfj7wXASCpvK9A=="
+    "pure-rand@8.4.2": {
+      "integrity": "sha512-vvuOGgcuPJAirlHvuQw1TrOiw7ptaIXXmIbNuiNOY6lNGJJH49PQ1Kj4nd783nPdQhQdicgOjVI2yI/9BD6/Ng=="
     },
     "strnum@2.2.3": {
       "integrity": "sha512-oKx6RUCuHfT3oyVjtnrmn19H1SiCqgJSg+54XqURKp5aCMbrXrhLjRN9TjuwMjiYstZ0MzDrHqkGZ5dFTKd+zg=="
@@ -901,7 +903,7 @@
     "dependencies": [
       "jsr:@std/assert@1",
       "npm:@aws/aurora-dsql-postgresjs-connector@0.2",
-      "npm:fast-check@4"
+      "npm:fast-check@^4.10.2"
     ]
   }
 }
