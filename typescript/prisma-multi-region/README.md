@@ -16,7 +16,7 @@ Both peered regions accept reads AND writes with strong consistency. The witness
 ## Prerequisites
 
 - AWS account with credentials configured
-- Node.js 20+
+- Node.js 22+
 - An Aurora DSQL multi-region cluster (see below)
 
 ## Project Structure
