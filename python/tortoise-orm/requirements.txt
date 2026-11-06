@@ -1,5 +1,5 @@
 # Application dependencies
-tortoise-orm[asyncpg]==1.1.7
+tortoise-orm[asyncpg]==1.1.9
 boto3>=1.43.123
 
 # Testing
