@@ -1,6 +1,10 @@
 require "test_helper"
 
 class OwnerTest < ActiveSupport::TestCase
+  test "uses prepared statements" do
+    assert ActiveRecord::Base.connection.prepared_statements
+  end
+
   test "upsert updates non-primary-key columns" do
     owner = Owner.create!(name: "Original Name", city: "Seattle")
 

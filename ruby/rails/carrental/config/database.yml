@@ -27,7 +27,6 @@ test:
   username: <%= ENV.fetch("CLUSTER_USER", "admin") %>
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   timeout: 5000
-  prepared_statements: false
   advisory_locks: false
   sslmode: verify-full
   sslnegotiation: direct
@@ -41,11 +40,10 @@ test:
 # Aurora DSQL requires:
 #   - IAM-based authentication (tokens generated per connection)
 #   - SSL with verify-full mode and direct negotiation
-#   - No prepared statements (not supported by DSQL)
 #   - No advisory locks (not supported by DSQL)
 #
 # The DSQL adapter initializer (config/initializers/dsql_adapter.rb)
-# handles IAM token injection and disables unsupported features.
+# handles IAM token injection and Active Record configuration.
 # ---------------------------------------------------------------------------
 production:
   adapter: postgresql
@@ -56,7 +54,6 @@ production:
   username: <%= ENV.fetch("DSQL_USER", "admin") %>
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   timeout: 5000
-  prepared_statements: false
   advisory_locks: false
   sslmode: verify-full
   sslnegotiation: direct

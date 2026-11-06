@@ -15,6 +15,10 @@ class VehicleTest < ActiveSupport::TestCase
     }.merge(overrides)
   end
 
+  test "uses prepared statements" do
+    assert ActiveRecord::Base.connection.prepared_statements
+  end
+
   test "creates a valid vehicle" do
     vehicle = Vehicle.create!(build_vehicle)
     assert vehicle.persisted?
