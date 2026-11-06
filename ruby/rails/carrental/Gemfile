@@ -42,7 +42,7 @@ gem "pg", "~> 1.7"
 gem "aurora-dsql-ruby-pg", "~> 1.0", require: "aurora_dsql_pg"
 
 # Use SQLite3 for local development (no PostgreSQL required)
-gem "sqlite3", "~> 2.0"
+gem "sqlite3", "~> 2.10"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
