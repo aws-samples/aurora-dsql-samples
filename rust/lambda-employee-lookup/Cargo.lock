@@ -943,7 +943,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "aurora-dsql-sqlx-connector",
- "base64 0.22.1",
+ "base64 0.23.1",
  "lambda_http",
  "serde",
  "serde_json",
