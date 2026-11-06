@@ -9,7 +9,9 @@ permissions:
 
 jobs:
   notify-new-pr:
-    if: github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review'
+    if: >-
+      (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') &&
+      !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:
       - name: Notify Slack of new PR
