@@ -34,7 +34,7 @@ gem "bootsnap", require: false
 # =============================================================================
 
 # PostgreSQL driver for Ruby
-gem "pg", "~> 1.5"
+gem "pg", "~> 1.7"
 
 # AWS official connector for Aurora DSQL — handles IAM token generation,
 # SSL configuration, and connection management
