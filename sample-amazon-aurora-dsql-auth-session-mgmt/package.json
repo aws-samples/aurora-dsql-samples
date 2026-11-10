@@ -23,7 +23,7 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "@aws-sdk/credential-providers": "^3.1037.0",
+    "@aws-sdk/credential-providers": "^3.1164.0",
     "@aws-sdk/dsql-signer": "^3.1037.0",
     "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
     "bcryptjs": "^3.0.3",
