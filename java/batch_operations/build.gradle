@@ -19,7 +19,7 @@ dependencies {
     implementation 'org.postgresql:postgresql:42.7.14'
     implementation 'com.zaxxer:HikariCP:7.1.0'
     implementation 'software.amazon.dsql:aurora-dsql-jdbc-connector:1.5.1'
-    implementation 'software.amazon.awssdk:dsql:2.57.10'
+    implementation 'software.amazon.awssdk:dsql:2.57.11'
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
