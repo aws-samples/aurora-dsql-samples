@@ -38,12 +38,12 @@ those rules.
 
 ## Which module artifact to use
 
-The same code is published twice:
+The module is published twice:
 
 | Coordinates | Published by | Notes |
 |---|---|---|
-| `org.flywaydb:flyway-database-dsql:10.26.0` | Flyway (Redgate), on Maven Central | Used by this sample. |
-| `software.amazon.dsql:aurora-dsql-flyway-support:3.0.0` | AWS, see [awslabs/aurora-dsql-tools](https://github.com/awslabs/aurora-dsql-tools/tree/main/flyway) | Repackages the same module source. |
+| `org.flywaydb:flyway-database-dsql:10.26.2` | Flyway (Redgate), on Maven Central | Used by this sample. |
+| `software.amazon.dsql:aurora-dsql-flyway-support:3.0.0` | AWS, see [awslabs/aurora-dsql-tools](https://github.com/awslabs/aurora-dsql-tools/tree/main/flyway) | Repackages the module source. |
 
 The AWS artifact packages the upstream `flyway-database-dsql` 10.26.0
 source with the implementation unchanged. Pick one. Loading both puts two
@@ -55,7 +55,7 @@ warns against.
 | Component | Version | Why pinned |
 |---|---|---|
 | Flyway CLI | `flyway/flyway:11.20.3-alpine` | Exact tag rather than the floating `11-alpine`, so a new Flyway release cannot silently change what this sample builds against. |
-| Flyway Aurora DSQL module | 10.26.0 | Project version of `flyway-community-db-support`, not a Flyway version. This release targets Flyway 11.9.0 and loads correctly on the 11.20.3 runtime above. |
+| Flyway Aurora DSQL module | 10.26.2 | Project version of `flyway-community-db-support`, not a Flyway version. This release targets Flyway 11.9.0 and loads correctly on the 11.20.3 runtime above. |
 | Aurora DSQL JDBC Connector | 1.5.0 | Supplies the `jdbc:aws-dsql:postgresql://` URL scheme and mints the IAM auth token. The module expects you to provide it. |
 | pgJDBC | 42.7.11 | Underlying PostgreSQL wire driver. |
 | AWS SDK for Java | 2.44.13 | Transitive requirement of the connector, pinned so a rebuild produces the same classpath. |
@@ -93,9 +93,9 @@ default. Override it with `DSQL_SCHEMA`. The table names here are generic, and
 means the two can share a cluster and `make reset` cannot reach across.
 
 If `migrate` stops on a failed migration, run `make repair` to clear the
-failed row from `flyway_schema_history`, then `make migrate` again. If the
-failure was a `CREATE INDEX ASYNC` migration, drop the index first: repair and
-migrate alone will loop on the same failure. See the troubleshooting section.
+failed row from `flyway_schema_history`, then `make migrate` again. If an
+index build failed and left its index `INVALID`, drop the index first. See the
+troubleshooting section.
 
 ### Choosing the cluster, the schema and the credentials
 
@@ -200,7 +200,7 @@ exercise the backfills and the index builds against real rows.
 │  Docker container (flyway-dsql-sample:latest)                    │
 │                                                                  │
 │  /flyway/drivers/                                                │
-│    flyway-database-dsql-10.26.0.jar    <- official module        │
+│    flyway-database-dsql-10.26.2.jar    <- official module        │
 │    aurora-dsql-jdbc-connector-1.5.0.jar                          │
 │    postgresql-42.7.11.jar                                        │
 │    aws-sdk-java-v2 jars                                          │
@@ -248,12 +248,13 @@ retries it fails with `SQLSTATE 3F000, schema does not exist`, which points
 nowhere near the cause. `make create-schema` creates the schema in its own
 statement instead, and `make migrate` depends on it.
 
-**Baselining is unavailable.** Neither `flyway baseline` nor
+**The baseline commands do not work.** Neither `flyway baseline` nor
 `flyway.baselineOnMigrate=true` writes a baseline row with this module. Both
 log a successful baseline, and the next `migrate` runs from V1 over your
 existing tables, leaving the history claiming a version the schema does not
-match. See limitation 10 in [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for
-the full output.
+match. Two workarounds do work. See limitation 10 in
+[`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for both, and for the full
+output.
 
 ## Running the test suite
 
@@ -310,22 +311,12 @@ previous run left a failed row in `flyway_schema_history`. Run
 are calling it by hand inside a migration script. Let
 `flyway.dsql.awaitAsyncIndexes=true` handle the wait instead.
 
-**`no job_id was found in its result`** after `CREATE INDEX ASYNC IF NOT
-EXISTS` on an index that already exists. This is a module bug, and it is why
-the index migrations here do not use `IF NOT EXISTS`. See limitation 3 in
-[`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md).
-
-**`42P07 relation already exists`** on an index migration. This is what a
-re-run of a bare `CREATE INDEX ASYNC` reports when the index survived a
-failed migration. Drop the index, then repair and migrate; see limitation 3.
-
-**A failed index migration that `repair` will not fix.** `make repair` plus
-`make migrate` loops on the same error, because the module commits the
-`CREATE INDEX ASYNC` before it waits, so the index survives the failed
-migration. You have to drop the index first, whatever state it is in. The
-procedure is in limitation 3 of
-[`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md), which is the only place it
-is written down.
+**`async index build did not succeed`** or **`is INVALID from an earlier
+failed build`** on an index migration. The build failed and left the index
+`INVALID`, and `IF NOT EXISTS` will not reuse it, so `make repair` plus
+`make migrate` fails the same way. Drop the index first. The procedure is in
+limitation 3 of [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md), which is the
+only place it is written down.
 
 **`Unable to load credentials` or an SSO error inside Flyway** while the AWS
 CLI works on the same machine. Resolving an IAM Identity Center profile

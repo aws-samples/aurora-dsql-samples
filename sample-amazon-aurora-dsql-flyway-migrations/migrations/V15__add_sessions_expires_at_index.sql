@@ -18,7 +18,7 @@
 -- users table, so on its own it inserts nothing. The seed scripts are not
 -- part of the migration path.
 
--- No IF NOT EXISTS here, for the reason given in V3.
+-- IF NOT EXISTS for the reason given in V3.
 
-CREATE INDEX ASYNC idx_sessions_expires_at
+CREATE INDEX ASYNC IF NOT EXISTS idx_sessions_expires_at
   ON sessions (expires_at);

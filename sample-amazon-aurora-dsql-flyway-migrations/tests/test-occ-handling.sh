@@ -41,14 +41,14 @@ echo
 case "$rc" in
   0)
     echo "==> [test-occ] Both runs exited 0."
-    echo "    One of them did the work; the other found the migrations already"
-    echo "    applied. This is the lucky interleaving, not proof of safety."
+    echo "    They still executed some of the same migrations. This is the"
+    echo "    lucky interleaving, not proof of safety."
     ;;
   1)
     echo "==> [test-occ] At least one run failed. This is the documented"
     echo "    failure mode, and the point of the exercise."
     echo "    Recover with: make repair && make migrate"
-    echo "    If a failed CREATE INDEX ASYNC is involved, drop the index first;"
+    echo "    If an index was left INVALID, drop the index first;"
     echo "    see limitation 3 in KNOWN_LIMITATIONS.md."
     ;;
   2)

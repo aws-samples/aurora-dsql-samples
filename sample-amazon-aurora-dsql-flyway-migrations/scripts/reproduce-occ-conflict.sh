@@ -10,10 +10,12 @@
 # This demonstrates a failure mode. It is not a test with a passing
 # expectation, because the outcome is not deterministic:
 #
-#   - Usually one run applies the migrations and the other sees a conflict
-#     on the flyway_schema_history insert (SQLSTATE 23505) or an OCC
-#     conflict (SQLSTATE 40001).
-#   - Sometimes BOTH runs fail and the schema needs `flyway repair`.
+#   - Both runs can execute the same migration at once. The second one's
+#     history insert then fails with 23505 (duplicate installed_rank) and
+#     scripts/run-flyway.sh re-runs Flyway. A 40001 inside a migration is
+#     retried by the module (flyway.dsql.occMaxRetries).
+#   - Usually both runs exit 0 with the schema complete. Sometimes a run
+#     hits 23505 on all three attempts and exits 1.
 #
 # Either outcome is the point: concurrent migrate runs are unsafe on Aurora
 # DSQL and no retry setting fixes that. Serialize them in your pipeline.
@@ -177,24 +179,23 @@ echo "    INVALID indexes      : $invalid_indexes"
 if (( RC_A == 0 && RC_B == 0 && applied == PENDING && failed == 0 && invalid_indexes == 0 )); then
   echo
   echo "==> Both runs exited 0 and the schema is complete and consistent."
-  echo "    This is the benign interleaving: one run applied the migrations"
-  echo "    and the other found them already recorded. It is NOT evidence"
+  echo "    Both runs still executed some of the same migrations, which is"
+  echo "    harmless here only because they are idempotent. It is NOT evidence"
   echo "    that the retry makes concurrent runs safe. Run it again and you"
   echo "    may well get the failure instead."
   exit 0
 fi
 
 echo
-echo "==> The race left work undone. This is the documented failure mode."
+echo "==> A run failed or the schema is incomplete. This is the documented"
+echo "    failure mode."
 if (( failed != 0 )); then
   echo "    There is a failed row in flyway_schema_history, so the next"
   echo "    migrate will refuse to run until you \`make repair\`."
 fi
-if (( failed != 0 || invalid_indexes != 0 )); then
-  echo "    If an index migration failed, repair + migrate alone will NOT fix"
-  echo "    it: the module commits CREATE INDEX ASYNC before waiting, so the"
-  echo "    index survives and the retry hits the same wall. Drop the index"
-  echo "    first, whatever its state. Full procedure in limitation 3 of"
+if (( invalid_indexes != 0 )); then
+  echo "    An index was left INVALID. repair + migrate alone will NOT fix"
+  echo "    it; drop the index first. Full procedure in limitation 3 of"
   echo "    KNOWN_LIMITATIONS.md."
 fi
 echo "    Serialize migration runs in your pipeline. See limitation 2 in"

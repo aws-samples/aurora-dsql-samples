@@ -44,7 +44,7 @@ flyway.locations=filesystem:/flyway/migrations
 flyway.schemas=REPLACE-WITH-YOUR-SCHEMA
 flyway.defaultSchema=REPLACE-WITH-YOUR-SCHEMA
 
-# Baselining is not available on Aurora DSQL.
+# Flyway's baseline commands do not work on Aurora DSQL.
 #
 # The standalone `flyway baseline` command does not fail, but with this
 # module it writes no baseline row: it logs "Successfully baselined" and
@@ -58,8 +58,8 @@ flyway.defaultSchema=REPLACE-WITH-YOUR-SCHEMA
 # claiming a version the schema does not actually match, and `validate` passes
 # on it. That is worse than a clean failure, so it is left off here.
 #
-# To adopt a schema that already has objects in it, create a fresh schema and
-# migrate into that, or reconcile by hand.
+# To adopt a schema that already has objects in it, use one of the two
+# workarounds in limitation 10 of KNOWN_LIMITATIONS.md.
 
 # Validation
 flyway.validateOnMigrate=true
