@@ -70,10 +70,11 @@ community module. Existing users of the AWS adapter can follow its
 |                          Sample Applications                          |
 |:---------------------------------------------------------------------:|
 | [Amazon Aurora DSQL Agent](sample-amazon-aurora-dsql-agent) — A sample application showing how to build an AI agent that queries Aurora DSQL using natural language, powered by Strands Agents, Bedrock AgentCore Gateway (MCP), and AgentCore Runtime (A2A) |
+| [Application development with the Aurora DSQL Kiro power](sample-amazon-aurora-dsql-kiro-power-app-dev) — A four-prompt walkthrough showing how Kiro uses Aurora DSQL guidance and a read-only MCP connection to plan a data layer and generate a local application from synthetic manufacturing data |
 | [Booking API (Deno)](deno/booking-api/postgres-js) — A sample REST API for room/resource bookings built with Deno.serve() and postgres.js via the Aurora DSQL connector. Includes OCC retry handling, unique-window enforcement via an async index, and pooled IAM token auth |
 | [Employee Directory API (Rust Lambda)](rust/lambda-employee-lookup) — A serverless employee lookup API using AWS Lambda, API Gateway, and the Aurora DSQL SQLx connector |
 
-Each example includes language and client-specific instructions as well as instructions to invoke example code.
+Each example includes instructions for running the sample or following its walkthrough.
 
 ## Security
 
