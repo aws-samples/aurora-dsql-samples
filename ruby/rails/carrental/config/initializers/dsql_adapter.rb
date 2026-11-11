@@ -5,19 +5,19 @@
 # =============================================================================
 #
 # This initializer configures Active Record's PostgreSQL adapter to work with
-# Amazon Aurora DSQL. It only activates in production where PostgreSQL/DSQL
-# is used. In development/test, SQLite3 is used instead.
+# Amazon Aurora DSQL. It activates whenever the configured adapter is
+# postgresql (test and production). In development, SQLite3 is used instead.
 #
 # When active, it:
 #   1. Injects IAM authentication tokens into new database connections
 #   2. Disables PostgreSQL features not supported by Aurora DSQL
 #
-# Required gems (production only):
+# Required gems (test and production):
 #   - aurora-dsql-ruby-pg (provides AuroraDsql::Pg::Token and Util)
 #   - pg (PostgreSQL driver)
 # =============================================================================
 
-# Only load DSQL adapter patches when using PostgreSQL (production)
+# Only load DSQL adapter patches when using PostgreSQL (test and production)
 return unless ActiveRecord::Base.configurations.configs_for(env_name: Rails.env).first&.adapter == "postgresql"
 
 require "aurora_dsql_pg"
