@@ -32,7 +32,8 @@
 #
 # Exit codes:
 #   0  the race ran and left a complete, consistent schema
-#   1  the race ran and left work undone (the documented failure mode)
+#   1  the race ran, and a run failed or the schema is incomplete (the
+#      documented failure mode)
 #   2  setup failed, so no race happened and no conclusion can be drawn
 
 set -euo pipefail
@@ -40,7 +41,7 @@ set -euo pipefail
 # Any unhandled failure during setup exits 2, not 1.
 #
 # This matters because the caller reads the exit code as the race outcome: 1
-# means "the race ran and left work undone", which is the interesting result.
+# means "the race ran and a run failed", which is the interesting result.
 # Without this, a setup step dying under `set -e` would exit 1 and be reported
 # as a race outcome. The explicit `exit 2` paths below cover the anticipated
 # failures; this covers the rest.
@@ -183,9 +184,10 @@ if (( RC_A == 0 && RC_B == 0 && applied == PENDING && failed == 0 && invalid_ind
   echo
   echo "==> Both runs exited 0 and the schema is complete and consistent."
   echo "    Both runs probably executed some of the same migrations. That was"
-  echo "    harmless only because those happened to be safe to repeat; V14 is"
-  echo "    not. It is NOT evidence that the retry makes concurrent runs safe."
-  echo "    Run it again and you may well get the failure instead."
+  echo "    harmless only because of where the overlaps fell; V14, for one, is"
+  echo "    not safe to repeat. It is NOT evidence that the retry makes"
+  echo "    concurrent runs safe. Run it again and you may well get the failure"
+  echo "    instead."
   exit 0
 fi
 
@@ -197,9 +199,10 @@ if (( failed != 0 )); then
   echo "    migrate will refuse to run until you \`make repair\`."
 fi
 if (( invalid_indexes != 0 )); then
-  echo "    An index was left INVALID. repair + migrate alone will NOT fix"
-  echo "    it; drop the index first. Full procedure in limitation 3 of"
-  echo "    KNOWN_LIMITATIONS.md."
+  echo "    An index is not valid yet: its build failed or is still running."
+  echo "    Check sys.jobs. If the build failed, repair + migrate alone will"
+  echo "    NOT fix it; drop the index first. Full procedure in limitation 3"
+  echo "    of KNOWN_LIMITATIONS.md."
 fi
 echo "    Serialize migration runs in your pipeline. See limitation 2 in"
 echo "    KNOWN_LIMITATIONS.md."

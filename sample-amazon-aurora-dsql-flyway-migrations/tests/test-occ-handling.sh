@@ -6,14 +6,14 @@
 # Aurora DSQL cluster. Delegates to scripts/reproduce-occ-conflict.sh.
 #
 # This is a demonstration, not a pass/fail test, and it is deliberately not
-# part of `make test`. The outcome is not deterministic: sometimes one run
-# applies the migrations and the other recovers, sometimes both fail and the
-# schema needs `flyway repair`. Either outcome is the lesson, which is that
-# concurrent migration runs are unsafe here and no retry setting makes them
-# safe. Serialize them in your pipeline.
+# part of `make test`. The outcome is not deterministic: usually both runs
+# finish, sometimes one or both fail and the schema needs `flyway repair`.
+# Either outcome is the lesson, which is that concurrent migration runs are
+# unsafe here and no retry setting makes them safe. Serialize them in your
+# pipeline.
 #
-# What it does NOT prove: that a retry recovers the race. It does not. See
-# limitation 2 in KNOWN_LIMITATIONS.md.
+# What it does NOT prove: that the retry makes concurrent runs safe. It does
+# not. See limitation 2 in KNOWN_LIMITATIONS.md.
 #
 # Required env:
 #   AWS_REGION

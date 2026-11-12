@@ -282,11 +282,11 @@ either way. Showing the await itself works means checking the index state
 immediately after the migration that creates it.
 
 `test-occ` is deliberately **not** part of `make test`. It starts two
-`migrate` runs in parallel and the outcome is not deterministic: sometimes one
-run recovers, sometimes both fail and the schema needs repair. It demonstrates
-the failure mode rather than asserting a pass, so putting it in the suite
-would make the suite flaky for no benefit. Run it when you want to see the
-race. See limitation 2 in
+`migrate` runs in parallel and the outcome is not deterministic: usually both
+runs finish, sometimes one or both fail and the schema needs repair. It
+demonstrates the failure mode rather than asserting a pass, so putting it in
+the suite would make the suite flaky for no benefit. Run it when you want to
+see the race. See limitation 2 in
 [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md) for what we observed and
 why you should serialize migrations in your pipeline regardless.
 
@@ -318,11 +318,13 @@ are calling it by hand inside a migration script. Let
 `flyway.dsql.awaitAsyncIndexes=true` handle the wait instead.
 
 **`async index build did not succeed`** or **`is INVALID from an earlier
-failed build`** on an index migration. The build failed and left the index
-`INVALID`, and `IF NOT EXISTS` will not reuse it, so `make repair` plus
-`make migrate` fails the same way. Drop the index first. The procedure is in
-limitation 3 of [`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md), which is the
-only place it is written down.
+failed build`** on an index migration. Usually the build failed and left the
+index `INVALID`, and `IF NOT EXISTS` will not reuse it, so `make repair` plus
+`make migrate` fails the same way until you drop the index. The first message
+can also mean the wait timed out on a build that is still running, so check
+`sys.jobs` before you drop anything. The procedure is in limitation 3 of
+[`KNOWN_LIMITATIONS.md`](./KNOWN_LIMITATIONS.md), which is the only place it
+is written down.
 
 **`Unable to load credentials` or an SSO error inside Flyway** while the AWS
 CLI works on the same machine. Resolving an IAM Identity Center profile

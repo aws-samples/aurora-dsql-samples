@@ -21,9 +21,10 @@
 #
 # sts speaks the AWS Query protocol rather than JSON, so it also needs
 # aws-query-protocol, and the Apache HTTP client needs commons-logging. Adding
-# sso/ssooidc/sts without those two gets you a NoClassDefFoundError at the
-# moment the credential chain runs, which is a worse failure than not shipping
-# them at all: the profile looks supported and then dies mid-resolution.
+# sts without aws-query-protocol, or any of them without commons-logging, gets
+# you a NoClassDefFoundError at the moment the credential chain runs, which is
+# a worse failure than not shipping them at all: the profile looks supported
+# and then dies mid-resolution.
 #
 # The jar count is checked below so a future trim cannot silently drop one.
 #

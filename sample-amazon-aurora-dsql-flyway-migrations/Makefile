@@ -93,7 +93,7 @@ reproduce-occ: ## Race two concurrent migrate runs (drops $DSQL_SCHEMA first, no
 
 # test-occ is deliberately NOT part of `make test`. It races two migrate runs,
 # and the outcome is non-deterministic by design: usually both runs finish,
-# sometimes one fails. A suite that is expected to pass cannot include a
+# sometimes one or both fail. A suite that is expected to pass cannot include a
 # target whose whole point is an unpredictable failure.
 # Run it on its own when you want to see the race.
 test: test-happy ## Run the deterministic test suite (drops $DSQL_SCHEMA, no prompt)

@@ -71,7 +71,8 @@ Mitigation, in order of preference:
   - `CREATE TABLE IF NOT EXISTS`
   - `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
   - `UPDATE ... WHERE ... IS DISTINCT FROM ...` to guard against double-apply
-  - `CREATE INDEX ASYNC IF NOT EXISTS`. An index left `INVALID` by a failed
+  - `CREATE INDEX ASYNC IF NOT EXISTS`, with `awaitAsyncIndexes=true` so the
+    module checks an existing index. An index left `INVALID` by a failed
     build still has to be dropped; see limitation 3.
   - Not every change can be made idempotent. `RENAME COLUMN` has no
     `IF EXISTS` form, so V14 fails with `42703` if it runs twice.
@@ -88,8 +89,8 @@ same time.
 
 `flyway.dsql.occMaxRetries` retries a transaction that loses an optimistic
 concurrency check. That is a transaction-level safety net, not a substitute
-for the lock. Two parallel runs both execute the same migrations, and only
-the schema history tells them apart.
+for the lock. Two parallel runs can both execute the same migration, and
+nothing stops them.
 
 Reproduction: Flyway 11.20.3, module 10.26.2, connector 1.5.0, two
 containers started in parallel against one `us-east-1` cluster, 16
@@ -115,7 +116,7 @@ the history insert on all three attempts and exited 1 with
 `Flyway failed after 3 attempts`, although the other run had applied
 everything.
 
-Every race ended consistent, but only because of where the overlaps fell.
+All five races ended consistent, but only because of where the overlaps fell.
 Not every migration here is safe to repeat. In one race both runs executed
 V14, and the loser's history insert failed with `23505` before its
 `RENAME COLUMN` committed, so the rename was rolled back. Starting two runs
@@ -126,7 +127,7 @@ failed with `42703` because the column was already renamed. That run exits
 `make repair`, including the other run's if it is still going. In one full
 `make test-occ` race both runs exited 1 this way, with V16 not applied. An
 `UPDATE` whose result depends on the current value, such as
-`SET v = v + 1`, would be applied twice.
+`SET v = v + 1`, can be applied twice.
 
 Mitigation: serialize migration runs outside Flyway. Treat this as
 mandatory, not as a hardening step.
@@ -165,6 +166,9 @@ index migrations here use `IF NOT EXISTS`, so a re-run checks that index:
 | Still building | Waits for the build, then passes or fails on its result. |
 | `INVALID` | Fails. Drop the index first, as below. |
 
+The check needs `awaitAsyncIndexes=true`. With it off, a re-run passes over
+any leftover index, `INVALID` included, with only a `42P07` warning.
+
 ### Recovering a failed index migration
 
 This is the only copy of this procedure; everywhere else links here.
@@ -172,10 +176,19 @@ This is the only copy of this procedure; everywhere else links here.
 1. `make repair` to clear the `success=false` row, then `make migrate`. If
    the leftover index is `VALID` or still building, that is all you need.
 
-2. If the re-run fails with `async index build did not succeed` or
-   `is INVALID from an earlier failed build`, the index is `INVALID`. Fix what
-   made the build fail, such as duplicate values for a unique index, then drop
-   the index the migration creates:
+2. If the re-run fails with `async index build did not succeed`, check the
+   job named in the error before you drop anything. That error also covers a
+   wait that timed out on a build that is still running:
+
+   ```sql
+   SELECT status, details FROM sys.jobs WHERE job_id = '<job_id>';
+   ```
+
+   If the job is still running, wait for it to complete and go back to
+   step 1. If it failed, or the error was `is INVALID from an earlier failed
+   build`, the index is `INVALID`. Fix what made the build fail, such as
+   duplicate values for a unique index, then drop the index the migration
+   creates:
 
    ```sql
    DROP INDEX flyway_sample.idx_sessions_user_id;
