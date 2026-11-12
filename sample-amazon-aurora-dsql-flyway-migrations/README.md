@@ -43,12 +43,14 @@ The module is published twice:
 | Coordinates | Published by | Notes |
 |---|---|---|
 | `org.flywaydb:flyway-database-dsql:10.26.2` | Flyway (Redgate), on Maven Central | Used by this sample. |
-| `software.amazon.dsql:aurora-dsql-flyway-support:3.0.0` | AWS, see [awslabs/aurora-dsql-tools](https://github.com/awslabs/aurora-dsql-tools/tree/main/flyway) | Repackages the module source. |
+| `software.amazon.dsql:aurora-dsql-flyway-support:3.0.0` | AWS, see [awslabs/aurora-dsql-tools](https://github.com/awslabs/aurora-dsql-tools/tree/main/flyway) | Repackages the 10.26.0 source. Too old for the index migrations here; see below. |
 
 The AWS artifact packages the upstream `flyway-database-dsql` 10.26.0
-source with the implementation unchanged. Pick one. Loading both puts two
-copies of the same `DatabaseType` on the classpath, which the AWS README
-warns against.
+source with the implementation unchanged. That version fails a
+`CREATE INDEX ASYNC IF NOT EXISTS` whose index already exists, with
+`no job_id was found in its result`, so the index migrations here need
+10.26.2 or later. Pick one. Loading both puts two copies of the same
+`DatabaseType` on the classpath, which the AWS README warns against.
 
 ## Pinned versions
 
@@ -96,6 +98,10 @@ If `migrate` stops on a failed migration, run `make repair` to clear the
 failed row from `flyway_schema_history`, then `make migrate` again. If an
 index build failed and left its index `INVALID`, drop the index first. See the
 troubleshooting section.
+
+If your schema already has V3, V7 or V15 from an older copy of this sample,
+`migrate` fails validation with a checksum mismatch. Run `make repair` once
+to record the new checksums.
 
 ### Choosing the cluster, the schema and the credentials
 

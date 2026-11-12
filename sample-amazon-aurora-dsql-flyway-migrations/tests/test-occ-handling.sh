@@ -41,8 +41,8 @@ echo
 case "$rc" in
   0)
     echo "==> [test-occ] Both runs exited 0."
-    echo "    They still executed some of the same migrations. This is the"
-    echo "    lucky interleaving, not proof of safety."
+    echo "    They probably still executed some of the same migrations. This is"
+    echo "    the lucky interleaving, not proof of safety."
     ;;
   1)
     echo "==> [test-occ] At least one run failed. This is the documented"

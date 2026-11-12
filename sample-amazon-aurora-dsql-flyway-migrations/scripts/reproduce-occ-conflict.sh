@@ -10,12 +10,15 @@
 # This demonstrates a failure mode. It is not a test with a passing
 # expectation, because the outcome is not deterministic:
 #
-#   - Both runs can execute the same migration at once. The second one's
-#     history insert then fails with 23505 (duplicate installed_rank) and
+#   - Both runs can execute the same migration at once. The loser's history
+#     insert usually fails with 23505 (duplicate installed_rank), and
 #     scripts/run-flyway.sh re-runs Flyway. A 40001 inside a migration is
 #     retried by the module (flyway.dsql.occMaxRetries).
 #   - Usually both runs exit 0 with the schema complete. Sometimes a run
-#     hits 23505 on all three attempts and exits 1.
+#     exits 1: it hit 23505 on all three attempts, or both runs executed V14
+#     and the loser's retry failed with 42703 because the column was already
+#     renamed. The failed V14 row also stops the other run if it is still
+#     going.
 #
 # Either outcome is the point: concurrent migrate runs are unsafe on Aurora
 # DSQL and no retry setting fixes that. Serialize them in your pipeline.
@@ -179,10 +182,10 @@ echo "    INVALID indexes      : $invalid_indexes"
 if (( RC_A == 0 && RC_B == 0 && applied == PENDING && failed == 0 && invalid_indexes == 0 )); then
   echo
   echo "==> Both runs exited 0 and the schema is complete and consistent."
-  echo "    Both runs still executed some of the same migrations, which is"
-  echo "    harmless here only because they are idempotent. It is NOT evidence"
-  echo "    that the retry makes concurrent runs safe. Run it again and you"
-  echo "    may well get the failure instead."
+  echo "    Both runs probably executed some of the same migrations. That was"
+  echo "    harmless only because those happened to be safe to repeat; V14 is"
+  echo "    not. It is NOT evidence that the retry makes concurrent runs safe."
+  echo "    Run it again and you may well get the failure instead."
   exit 0
 fi
 

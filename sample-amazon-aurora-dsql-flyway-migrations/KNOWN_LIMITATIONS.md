@@ -73,6 +73,8 @@ Mitigation, in order of preference:
   - `UPDATE ... WHERE ... IS DISTINCT FROM ...` to guard against double-apply
   - `CREATE INDEX ASYNC IF NOT EXISTS`. An index left `INVALID` by a failed
     build still has to be dropped; see limitation 3.
+  - Not every change can be made idempotent. `RENAME COLUMN` has no
+    `IF EXISTS` form, so V14 fails with `42703` if it runs twice.
 - Reach for `executeInTransaction=false` only when the statements genuinely
   belong together and you accept partial application.
 
@@ -94,9 +96,10 @@ containers started in parallel against one `us-east-1` cluster, 16
 migrations from an empty schema, `occMaxRetries=3`,
 `awaitAsyncIndexes=true`, five races with `make reproduce-occ`.
 
-In every race both runs executed some of the same migrations. The second run
-to finish one fails to insert its history row with `23505`, because the other
-run already wrote a row with that `installed_rank`:
+In every race both runs executed some of the same migrations. When both
+execute one at the same time, the loser usually fails to insert its history
+row with `23505`, because the other run already wrote a row with that
+`installed_rank`:
 
 ```
 Migrating schema "flyway_sample" to version "3 - add sessions user id index"
@@ -112,9 +115,18 @@ the history insert on all three attempts and exited 1 with
 `Flyway failed after 3 attempts`, although the other run had applied
 everything.
 
-Every race ended consistent only because every migration here is
-idempotent. A migration that is not, such as an `UPDATE` without a guard,
-would have been applied twice.
+Every race ended consistent, but only because of where the overlaps fell.
+Not every migration here is safe to repeat. In one race both runs executed
+V14, and the loser's history insert failed with `23505` before its
+`RENAME COLUMN` committed, so the rename was rolled back. Starting two runs
+on V14 alone at the same moment usually ends differently: in three of four
+such races the loser's rename hit an OCC conflict, and the module's retry
+failed with `42703` because the column was already renamed. That run exits
+1 and leaves a failed V14 row, which stops every later migrate until
+`make repair`, including the other run's if it is still going. In one full
+`make test-occ` race both runs exited 1 this way, with V16 not applied. An
+`UPDATE` whose result depends on the current value, such as
+`SET v = v + 1`, would be applied twice.
 
 Mitigation: serialize migration runs outside Flyway. Treat this as
 mandatory, not as a hardening step.
@@ -149,7 +161,7 @@ index migrations here use `IF NOT EXISTS`, so a re-run checks that index:
 
 | Leftover index | Re-run |
 |---|---|
-| `VALID` | Passes. |
+| `VALID` | Passes, even if the index has different columns. The module checks its name, table and validity, not its definition. |
 | Still building | Waits for the build, then passes or fails on its result. |
 | `INVALID` | Fails. Drop the index first, as below. |
 
