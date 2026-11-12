@@ -51,6 +51,17 @@ pub fn parse_body(body: &Body) -> Result<LookupRequest, (u16, Value)> {
             after: None,
             limit: None,
         }),
+        // lambda_http 1.x marks Body as #[non_exhaustive].
+        other => {
+            warn!("Unsupported body type: {other:?}");
+            Err((
+                400,
+                serde_json::json!({
+                    "error": "Invalid request body",
+                    "detail": "unsupported body type"
+                }),
+            ))
+        }
     }
 }
 
