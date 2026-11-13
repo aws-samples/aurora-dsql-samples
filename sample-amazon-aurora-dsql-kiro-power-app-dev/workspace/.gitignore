@@ -1,0 +1,8 @@
+# Local-only: never commit or publish
+.private/
+.kiro/settings/mcp.json
+.venv/
+tools/
+build/
+.pytest_cache/
+logs/

@@ -1,6 +1,6 @@
 # Application development with the Amazon Aurora DSQL Kiro power
 
-AI coding agents can shorten the path from source data and business requirements to a working application when they receive current, service-specific context. This prompt package uses Kiro as the agentic IDE and the Amazon Aurora DSQL Kiro power for service-specific guidance and Aurora DSQL MCP server configuration.
+AI coding agents can shorten the path from source data and business requirements to a working application when they receive current, service-specific context. This sample uses Kiro as the agentic IDE and the Amazon Aurora DSQL Kiro power for service-specific guidance and Aurora DSQL MCP server configuration.
 
 The manufacturing material-control and lot-genealogy scenario demonstrates a reusable source-data-to-application pattern rather than prescribing one domain. The walkthrough is local, uses synthetic data, and is intended only for development or sandbox environments. Generated architecture, code, permissions, security, performance, and operations require human review and testing; the power does not validate, certify, prove, or guarantee them.
 
@@ -8,19 +8,27 @@ The manufacturing material-control and lot-genealogy scenario demonstrates a reu
 
 - [`reader-prompts.md`](reader-prompts.md): four prompts in Markdown.
 - [`reader-prompts.html`](reader-prompts.html): the same prompts with browser copy buttons. This convenience page is not the generated application.
+- [`workspace/`](workspace): a template that you copy for each run. `data/` contains 11 fictional manufacturing extracts (39 records), a manifest, checksums, and two invalid-data test files. `scripts/validate_dataset.py` validates the data, and `scripts/cleanup_demo.sh` removes the development cluster and local wiring when you finish.
 
 ## Before you begin
 
-This prompt-only folder contains only `README.md`, `reader-prompts.md`, and `reader-prompts.html`. It does not include a `workspace/` directory, source `data/`, checksum files, a validator, `scripts/cleanup_demo.sh`, generated source, or evidence. The sample is not independently runnable.
+Do not open `workspace/` in Kiro directly. Create a working copy outside this repository, validate it, and open only the copy in Kiro:
 
-Do not run Prompts 2–4 until you have prepared a separate Kiro workspace containing the inputs and safety scripts referenced by those prompts. Keep the prompt files outside the separate workspace that you open in Kiro so the agent works only with the prepared inputs and scripts.
+```bash
+cp -R workspace ~/reader-run-01
+cd ~/reader-run-01
+(cd data && shasum -a 256 -c SHA256SUMS)
+python3 scripts/validate_dataset.py
+```
+
+Both validation commands must pass. Keep the prompt files outside the working copy so that Kiro starts only from the supplied data and scripts. The working copy is outside the repository because the walkthrough creates generated files and local run state in it.
 
 ## Prerequisites
 
 - [Kiro](https://kiro.dev/).
 - The **Build applications with Aurora DSQL** power, installed after Prompt 1.
 - An AWS development or sandbox account, least-privilege temporary credentials, AWS CLI v2, Python 3.12 or later, a browser and shell, and network access to the required AWS endpoints, PyPI, and GitHub.
-- A prepared, separate workspace containing the source data, validator and checksums, and cleanup script referenced by the prompts.
+- The `workspace/` template in this sample, which contains the source data, checksums, validator, and cleanup script that the prompts reference.
 - Review [Aurora DSQL pricing](https://aws.amazon.com/rds/aurora/dsql/pricing/) before creating resources. The walkthrough can incur AWS charges.
 
 ## Walkthrough flow
@@ -42,14 +50,14 @@ Kiro tool-permission dialogs may appear separately from the consolidated approva
 - Keep the workspace MCP connection read-only. Perform writes only through direct IAM-authenticated scripts or the Loader.
 - The generated application is loopback-only and has no sign-in. Its view selector is not an authorization control.
 - The generated application writes only through a restricted role. Do not put MCP or administrative access in its runtime path.
-- Cluster cleanup is irreversible. Do not run it without the referenced, verified cleanup script.
+- Cluster cleanup is irreversible. Use only the supplied cleanup script, and confirm the target that it reports before you enter the cluster ID.
 - Human review and testing are required before adapting generated architecture, code, permissions, security, performance, or operations for production.
 
 ## Cleanup
 
 Prompt 4 runs the cleanup script in check mode first so you can inspect the target. The script then requires the exact recorded cluster ID before deletion. Cluster deletion and its data loss are irreversible.
 
-The cleanup script is not included in this prompt-only folder. Do not attempt cleanup until the referenced script is present and verified in the separate workspace.
+Run the script from your working copy when Prompt 4 tells you to: `bash scripts/cleanup_demo.sh`. It reads the cluster details that Prompt 2 recorded in that working copy, so it does not work from another folder. Add `--check` to review the plan without changing anything.
 
 ## Related resources
 
