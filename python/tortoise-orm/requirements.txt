@@ -3,5 +3,5 @@ tortoise-orm[asyncpg]==1.1.9
 boto3>=1.43.127
 
 # Testing
-pytest>=8.0.0
+pytest>=9.2.0
 pytest-asyncio>=1.4.1.post1
