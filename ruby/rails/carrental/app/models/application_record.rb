@@ -13,7 +13,13 @@ class ApplicationRecord < ActiveRecord::Base
   # Runs the block in a transaction and retries it when Aurora DSQL
   # reports an optimistic concurrency conflict (SQLSTATE 40001).
   # The block runs again on each retry, so keep it to database work.
+  #
+  # Aurora DSQL reports conflicts at COMMIT. Inside a transaction that is
+  # already open, Rails would join it and COMMIT would run after this method
+  # returns, so a conflict could never be retried. Fail fast instead.
   def self.with_occ_retry(max_retries: OCC_MAX_RETRIES)
+    raise "with_occ_retry must open its own transaction" if current_transaction.open?
+
     attempt = 0
     begin
       transaction { yield }

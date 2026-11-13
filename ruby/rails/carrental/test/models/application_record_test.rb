@@ -49,4 +49,17 @@ class ApplicationRecordTest < ActiveSupport::TestCase
     assert_equal ApplicationRecord::OCC_MAX_RETRIES + 1, calls,
                  "expected 1 initial attempt plus OCC_MAX_RETRIES retries"
   end
+
+  test "refuses to run inside a transaction that is already open" do
+    ran = false
+
+    error = assert_raises(RuntimeError) do
+      ApplicationRecord.transaction do
+        ApplicationRecord.with_occ_retry { ran = true }
+      end
+    end
+
+    assert_match "must open its own transaction", error.message
+    assert_not ran, "expected the block not to run"
+  end
 end

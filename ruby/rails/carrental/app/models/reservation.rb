@@ -117,6 +117,10 @@ class Reservation < ApplicationRecord
     return unless vehicle
 
     if %w[pending active].include?(status)
+      # Lock the vehicle row before reading its status. Aurora DSQL treats
+      # SELECT ... FOR UPDATE as a write when it checks for conflicts, so this
+      # request conflicts with any concurrent change to the same vehicle.
+      vehicle.lock!
       vehicle.update_column(:status, "rented") unless vehicle.status == "rented"
     else
       release_vehicle(vehicle)
@@ -132,6 +136,10 @@ class Reservation < ApplicationRecord
   # Sets a vehicle's status to "available" if it has no other
   # pending or active reservations.
   def release_vehicle(v)
+    # Lock the vehicle row first so a booking that commits at the same time
+    # conflicts with this release instead of being missed by the check below.
+    v.lock!
+
     has_active_reservations = v.reservations
       .where(status: %w[pending active])
       .where.not(id: id)
