@@ -1,0 +1,3 @@
+quality_hold_id,inventory_lot_id,hold_type,reason_code,severity,status,opened_at,released_at,source_system,source_record_id
+775cc553-f8d6-4267-af08-8d27369547fc,36f64d4c-f2fa-4c7e-b930-4955d965390b,INSPECTION,INSPECTION_FAIL,HIGH,OPEN,2026-10-02T10:00:00Z,,QMS,QMS-HOLD-1001
+cd2db2c7-45f0-4072-a0dc-3146e23e46be,b12f7a8e-fd17-45e9-89bf-451108e5d457,SUPPLIER,SUPPLIER_NOTICE,CRITICAL,OPEN,2026-10-20T09:00:00Z,,QMS,QMS-HOLD-1002

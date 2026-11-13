@@ -1,0 +1,85 @@
+{
+  "dataset_name": "material-control-synthetic-extracts",
+  "dataset_version": "0.2.1",
+  "created_date": "2026-10-22",
+  "classification": "synthetic",
+  "canonical_files": [
+    {
+      "load_order": 1,
+      "file": "plants.csv",
+      "table": "plant",
+      "rows": 2
+    },
+    {
+      "load_order": 2,
+      "file": "suppliers.csv",
+      "table": "supplier",
+      "rows": 2
+    },
+    {
+      "load_order": 3,
+      "file": "parts.csv",
+      "table": "part",
+      "rows": 4
+    },
+    {
+      "load_order": 4,
+      "file": "part_revisions.csv",
+      "table": "part_revision",
+      "rows": 4
+    },
+    {
+      "load_order": 5,
+      "file": "bom_components.csv",
+      "table": "bom_component",
+      "rows": 3
+    },
+    {
+      "load_order": 6,
+      "file": "work_orders.csv",
+      "table": "work_order",
+      "rows": 3
+    },
+    {
+      "load_order": 7,
+      "file": "inventory_lots.csv",
+      "table": "inventory_lot",
+      "rows": 12
+    },
+    {
+      "load_order": 8,
+      "file": "quality_holds.csv",
+      "table": "quality_hold",
+      "rows": 2
+    },
+    {
+      "load_order": 9,
+      "file": "work_order_outputs.csv",
+      "table": "work_order_output",
+      "rows": 1
+    },
+    {
+      "load_order": 10,
+      "file": "material_issues.csv",
+      "table": "material_issue",
+      "rows": 3
+    },
+    {
+      "load_order": 11,
+      "file": "lot_genealogy_edges.csv",
+      "table": "lot_genealogy_edge",
+      "rows": 3
+    }
+  ],
+  "conflict_scenario": {
+    "work_order_number": "WO-US-1001",
+    "lot_code": "LOT-CTRL-US-261015-A",
+    "reservation_quantity": 10,
+    "hold_reason": "SUPPLIER_NOTICE"
+  },
+  "genealogy_scenario": {
+    "suspect_lot_code": "LOT-CTRL-US-260925-Z",
+    "affected_work_order_number": "WO-US-0990",
+    "finished_lot_code": "LOT-FG-US-261008-01"
+  }
+}

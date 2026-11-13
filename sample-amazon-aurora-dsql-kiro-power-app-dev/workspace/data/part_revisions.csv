@@ -1,0 +1,5 @@
+part_revision_id,part_id,revision_code,status,effective_from,effective_to
+c824f61e-0678-4def-8669-e5b68bc31159,bb1ac47e-4cd2-4c83-9405-59db5d9cc311,A,ACTIVE,2026-01-01,
+360101a1-1252-4103-830a-3d8f72f88108,8af9fc2a-37cb-4415-a077-4d69d2ab0810,B,ACTIVE,2026-04-01,
+0a28f846-8064-4abe-8461-c3f70ddb0593,a5960336-2347-4926-9eb2-c9cd2d61b0d0,A,ACTIVE,2026-01-01,
+7d4f61ec-65c8-4af3-be9e-1039e47ed187,62ba9892-e6e7-49b0-9861-b4acaeb8f268,C,ACTIVE,2026-07-01,
