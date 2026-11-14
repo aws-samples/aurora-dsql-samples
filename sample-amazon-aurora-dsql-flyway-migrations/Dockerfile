@@ -9,7 +9,7 @@
 # which the module expects you to supply. Both are pulled from Maven Central
 # into /flyway/drivers/ where Flyway picks them up at startup.
 #
-# A note on versions: the module is published as 10.26.0, which is the version
+# A note on versions: the module is published as 10.26.2, which is the version
 # of the flyway-community-db-support project that houses it rather than a
 # Flyway version. That release targets Flyway 11.9.0, and it loads correctly
 # on the 11.20.3 runtime below.
@@ -19,11 +19,12 @@
 # resolve the credentials. An IAM Identity Center profile (sso_session) needs
 # sso and ssooidc, and a profile with role_arn and source_profile needs sts.
 #
-# sts and sso speak the AWS Query protocol rather than JSON, so they also need
+# sts speaks the AWS Query protocol rather than JSON, so it also needs
 # aws-query-protocol, and the Apache HTTP client needs commons-logging. Adding
-# sso/ssooidc/sts without those two gets you a NoClassDefFoundError at the
-# moment the credential chain runs, which is a worse failure than not shipping
-# them at all: the profile looks supported and then dies mid-resolution.
+# sts without aws-query-protocol, or any of them without commons-logging, gets
+# you a NoClassDefFoundError at the moment the credential chain runs, which is
+# a worse failure than not shipping them at all: the profile looks supported
+# and then dies mid-resolution.
 #
 # The jar count is checked below so a future trim cannot silently drop one.
 #
@@ -48,7 +49,7 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/*
 
 # Versions are pinned so a rebuild produces the same classpath.
-ARG FLYWAY_DSQL_MODULE_VERSION=10.26.0
+ARG FLYWAY_DSQL_MODULE_VERSION=10.26.2
 ARG DSQL_CONNECTOR_VERSION=1.5.0
 ARG AWS_SDK_VERSION=2.44.13
 ARG PGJDBC_VERSION=42.7.11

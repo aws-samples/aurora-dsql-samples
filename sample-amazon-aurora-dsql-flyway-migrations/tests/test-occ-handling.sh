@@ -6,14 +6,14 @@
 # Aurora DSQL cluster. Delegates to scripts/reproduce-occ-conflict.sh.
 #
 # This is a demonstration, not a pass/fail test, and it is deliberately not
-# part of `make test`. The outcome is not deterministic: sometimes one run
-# applies the migrations and the other recovers, sometimes both fail and the
-# schema needs `flyway repair`. Either outcome is the lesson, which is that
-# concurrent migration runs are unsafe here and no retry setting makes them
-# safe. Serialize them in your pipeline.
+# part of `make test`. The outcome is not deterministic: usually both runs
+# finish, sometimes one or both fail and the schema needs `flyway repair`.
+# Either outcome is the lesson, which is that concurrent migration runs are
+# unsafe here and no retry setting makes them safe. Serialize them in your
+# pipeline.
 #
-# What it does NOT prove: that a retry recovers the race. It does not. See
-# limitation 2 in KNOWN_LIMITATIONS.md.
+# What it does NOT prove: that the retry makes concurrent runs safe. It does
+# not. See limitation 2 in KNOWN_LIMITATIONS.md.
 #
 # Required env:
 #   AWS_REGION
@@ -41,14 +41,14 @@ echo
 case "$rc" in
   0)
     echo "==> [test-occ] Both runs exited 0."
-    echo "    One of them did the work; the other found the migrations already"
-    echo "    applied. This is the lucky interleaving, not proof of safety."
+    echo "    They probably still executed some of the same migrations. This is"
+    echo "    the lucky interleaving, not proof of safety."
     ;;
   1)
     echo "==> [test-occ] At least one run failed. This is the documented"
     echo "    failure mode, and the point of the exercise."
     echo "    Recover with: make repair && make migrate"
-    echo "    If a failed CREATE INDEX ASYNC is involved, drop the index first;"
+    echo "    If an index was left INVALID, drop the index first;"
     echo "    see limitation 3 in KNOWN_LIMITATIONS.md."
     ;;
   2)

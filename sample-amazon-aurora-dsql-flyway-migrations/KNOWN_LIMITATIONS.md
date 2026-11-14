@@ -71,8 +71,11 @@ Mitigation, in order of preference:
   - `CREATE TABLE IF NOT EXISTS`
   - `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
   - `UPDATE ... WHERE ... IS DISTINCT FROM ...` to guard against double-apply
-  - Index migrations are the exception: do NOT use `IF NOT EXISTS` there.
-    See limitation 3.
+  - `CREATE INDEX ASYNC IF NOT EXISTS`, with `awaitAsyncIndexes=true` so the
+    module checks an existing index. An index left `INVALID` by a failed
+    build still has to be dropped; see limitation 3.
+  - Not every change can be made idempotent. `RENAME COLUMN` has no
+    `IF EXISTS` form, so V14 fails with `42703` if it runs twice.
 - Reach for `executeInTransaction=false` only when the statements genuinely
   belong together and you accept partial application.
 
@@ -85,50 +88,54 @@ or two CI jobs from running `flyway migrate` against one cluster at the
 same time.
 
 `flyway.dsql.occMaxRetries` retries a transaction that loses an optimistic
-concurrency check. That is a transaction-level safety net. It is not a
-substitute for the lock, and we were able to drive two parallel runs into
-a state where **both runs fail and the schema needs manual repair.**
+concurrency check. That is a transaction-level safety net, not a substitute
+for the lock. Two parallel runs can both execute the same migration, and
+nothing stops them.
 
-Reproduction: Flyway 11.20.3, module 10.26.0, connector 1.5.0, two
+Reproduction: Flyway 11.20.3, module 10.26.2, connector 1.5.0, two
 containers started in parallel against one `us-east-1` cluster, 16
 migrations from an empty schema, `occMaxRetries=3`,
-`awaitAsyncIndexes=true`.
+`awaitAsyncIndexes=true`, five races with `make reproduce-occ`.
 
-Run A starts the index build, then finds the migration failed:
+In every race both runs executed some of the same migrations. When both
+execute one at the same time, the loser usually fails to insert its history
+row with `23505`, because the other run already wrote a row with that
+`installed_rank`:
 
 ```
 Migrating schema "flyway_sample" to version "3 - add sessions user id index"
-| job_id                     |
-| l26emsdijnehzibsd77mx35trq |
-SEVERE: Schema "flyway_sample" contains a failed migration to version 3 !
+WARNING: DB: relation "idx_sessions_user_id" already exists, skipping (SQL State: 42P07)
+SEVERE: Unable to insert row for version '3' in Schema History table "flyway_sample"."flyway_schema_history"
+SQL State  : 23505
+  Detail: Key (installed_rank)=(3) already exists.
 ```
 
-Run B hits the OCC retry, then collides on the index itself:
+`scripts/run-flyway.sh` retries Flyway on that `23505`. In four races both
+runs then exited 0 with all 16 migrations applied. In the fifth, one run lost
+the history insert on all three attempts and exited 1 with
+`Flyway failed after 3 attempts`, although the other run had applied
+everything.
 
-```
-Retrying migration transaction after Aurora DSQL OCC conflict (attempt 1 of 3)
-Migrating schema "flyway_sample" to version "3 - add sessions user id index"
-SQL State  : 42P07
-Message    : ERROR: relation "idx_sessions_user_id" already exists
-```
-
-The `42P07` is the point. Because the index migrations here use a bare
-`CREATE INDEX ASYNC`, the losing run fails on the index statement and says so.
-With `IF NOT EXISTS` it would instead skip the build, get no `job_id` back, and
-fail with the module's "no job_id was found in its result", which says nothing
-about the real problem. See limitation 3.
-
-The schema history afterwards held two rows for version 3, one failed and one
-successful, with 3 of the 16 migrations applied.
-
-Recovering from a failed index migration is limitation 3, which is the single
-place that procedure is written down.
+All five races ended consistent, but only because of where the overlaps fell.
+Not every migration here is safe to repeat. In one race both runs executed
+V14, and the loser's history insert failed with `23505` before its
+`RENAME COLUMN` committed, so the rename was rolled back. Starting two runs
+on V14 alone at the same moment usually ends differently: in three of four
+such races the loser's rename hit an OCC conflict, and the module's retry
+failed with `42703` because the column was already renamed. That run exits
+1 and leaves a failed V14 row, which stops every later migrate until
+`make repair`, including the other run's if it is still going. In one full
+`make test-occ` race both runs exited 1 this way, with V16 not applied. An
+`UPDATE` whose result depends on the current value, such as
+`SET v = v + 1`, can be applied twice.
 
 Mitigation: serialize migration runs outside Flyway. Treat this as
 mandatory, not as a hardening step.
 
 - GitHub Actions: `concurrency: { group: deploy-migrations, cancel-in-progress: false }`
-- CodeDeploy: a deployment group configured one-at-a-time
+- CodeDeploy: run migrations from one deployment group, which CodeDeploy
+  limits to one deployment at a time. If migrate runs in an instance
+  lifecycle hook, also use `CodeDeployDefault.OneAtATime`.
 - Anything else: a single designated runner per environment
 
 If a run fails with `Unable to commit transaction` and SQL state `40001`,
@@ -139,7 +146,7 @@ cluster: a losing migration left its version in the history with
 `success = t` while none of its writes had been applied. This is why
 `scripts/run-flyway.sh` does not retry a `40001`.
 
-## 3. A failed index migration cannot be recovered by re-running it
+## 3. A failed index migration leaves its index behind
 
 `flyway.dsql.awaitAsyncIndexes=true` is the setting you want, and it is not
 the default. Upstream it defaults to `false`, on the reasoning that
@@ -149,74 +156,52 @@ builds in the background. With the setting on, the module reads that
 `job_id` and blocks on `sys.wait_for_job` until the index is `VALID`, so a
 later migration cannot run against an index that is not ready yet.
 
-The problem is the combination with `IF NOT EXISTS`. When the index
-already exists, Aurora DSQL skips the build and returns no `job_id`, but
-the statement still matches the module's `CREATE INDEX ASYNC` pattern. The
-module then fails the migration because it has nothing to wait on:
-
-```
-ERROR: Aurora DSQL async index build could not be awaited: awaitAsyncIndexes is
-       enabled and this statement matched CREATE INDEX ASYNC, but no job_id was
-       found in its result
-```
-
 The module commits the `CREATE INDEX ASYNC` before it waits, so the index
-survives the failed migration. That is what makes the failure sticky: the
-index is there, the history says the migration failed, and re-running walks
-into the same wall. `IF NOT EXISTS` makes it worse, because the retry skips
-the build silently instead of complaining that the index exists.
+stays even when the migration fails, for example when the build fails. The
+index migrations here use `IF NOT EXISTS`, so a re-run checks that index:
 
-This is a module bug rather than an Aurora DSQL limitation, and it has been
-raised upstream
-([flyway-community-db-support#151](https://github.com/flyway/flyway-community-db-support/issues/151)).
-Until a fix ships, the workaround below is the one to use.
+| Leftover index | Re-run |
+|---|---|
+| `VALID` | Passes, even if the index has different columns. The module checks its name, table and validity, not its definition. |
+| Still building | Waits for the build, then passes or fails on its result. |
+| `INVALID` | Fails. Drop the index first, as below. |
 
-### Do not put `IF NOT EXISTS` on an index migration
-
-`IF NOT EXISTS` looks like the re-runnable choice and is the opposite here: it
-turns a recoverable failure into an unrecoverable one, because every retry
-skips the build and fails the same way.
-
-V3, V7 and V15 therefore use a bare `CREATE INDEX ASYNC`. A re-run then fails
-immediately with `42P07`, `relation already exists`, which is a clear
-instruction to drop the index rather than a confusing one about a missing
-`job_id`.
+The check needs `awaitAsyncIndexes=true`. With it off, a re-run passes over
+any leftover index, `INVALID` included, with only a `42P07` warning.
 
 ### Recovering a failed index migration
 
 This is the only copy of this procedure; everywhere else links here.
 
-1. Find the index named in the error and confirm its state:
+1. `make repair` to clear the `success=false` row, then `make migrate`. If
+   the leftover index is `VALID` or still building, that is all you need.
+
+2. If the re-run fails with `async index build did not succeed`, check the
+   job named in the error before you drop anything. That error also covers a
+   wait that timed out on a build that is still running:
 
    ```sql
-   SELECT i.relname, x.indisvalid, x.indisready
-     FROM pg_index x
-     JOIN pg_class i ON i.oid = x.indexrelid
-     JOIN pg_namespace n ON n.oid = i.relnamespace
-    WHERE n.nspname = 'flyway_sample';
+   SELECT status, details FROM sys.jobs WHERE job_id = '<job_id>';
    ```
 
-   `make verify-schema` prints the same thing for every index.
-
-2. Drop it, whatever its state. A valid index left behind by a half-finished
-   migration blocks the retry just as surely as an invalid one, so do not make
-   this conditional on `indisvalid`:
+   If the job is still running, wait for it to complete and go back to
+   step 1. If it failed, or the error was `is INVALID from an earlier failed
+   build`, the index is `INVALID`. Fix what made the build fail, such as
+   duplicate values for a unique index, then drop the index the migration
+   creates:
 
    ```sql
    DROP INDEX flyway_sample.idx_sessions_user_id;
    ```
 
-3. Confirm it is gone, by re-running the query from step 1.
+3. `make repair` and `make migrate` again.
 
-4. `make repair` to clear the `success=false` row, then `make migrate`.
+Re-running alone never fixes an `INVALID` index: `IF NOT EXISTS` finds it, and
+the module will not accept it.
 
-Step 2 is the step people skip. `repair` plus `migrate` on its own loops: the
-module commits the `CREATE INDEX ASYNC` before it waits, so the index outlives
-the failed migration and the retry hits the same wall.
-
-A `BaseJavaMigration` gives you full control of both. Two things the obvious
-version of this gets wrong: it waits on an index build that has not been
-committed yet, and it throws away the result of the wait.
+A `BaseJavaMigration` gives you full control of the build and the wait. Two
+things the obvious version of this gets wrong: it waits on an index build that
+has not been committed yet, and it throws away the result of the wait.
 
 ```java
 public class V17__add_sessions_last_seen_index extends BaseJavaMigration {
@@ -411,7 +396,7 @@ everything from V1.
 
 ## 9. Flyway version compatibility
 
-The module is versioned `10.26.0`, which is the project version of
+The module is versioned `10.26.2`, which is the project version of
 `flyway-community-db-support` rather than a Flyway version. That release
 targets Flyway 11.9.0, declared as `version.flyway` in the project's parent
 pom.
@@ -437,10 +422,12 @@ bump either side:
    a PostgreSQL version string over the wire. That line is not a reliable
    signal either way; the community-database banner is.
 
-## 10. Baselining an existing schema does not work
+## 10. Flyway's baseline commands do not work on Aurora DSQL
 
 Neither mechanism Flyway offers for adopting a schema that already has objects
-in it works on Aurora DSQL.
+in it works on Aurora DSQL. The module's README recommends
+`baselineOnMigrate=true` instead of `flyway baseline`; it fails the same way.
+Two workarounds that do work are at the end of this section.
 
 **`flyway baseline`**, the standalone command, does not fail. It logs
 `Successfully baselined schema with version: 1` and writes no `BASELINE` row,
@@ -491,17 +478,52 @@ built it, and nothing in Flyway will tell you.
 Without `IF NOT EXISTS` you would at least get a loud `42P07 relation already
 exists` failure, which is the better outcome.
 
-So: do not use `baselineOnMigrate` on Aurora DSQL to adopt an existing schema.
-Either migrate into a fresh schema from V1, or reconcile the history table by
-hand and verify the result against the migrations.
+So do not use `baselineOnMigrate` on Aurora DSQL to adopt an existing schema.
+
+### Workarounds
+
+Start with no `flyway_schema_history` table in the schema. Both assume the
+schema matches the migrations up to the version you give, so check that
+first.
+
+**Record the existing migrations without running them.** Flyway's
+`skipExecutingMigrations` option writes a success row for each migration up
+to the target and executes none of them. Then migrate as usual:
+
+```bash
+docker compose run --rm flyway bash scripts/run-flyway.sh migrate \
+  -skipExecutingMigrations=true -target=5
+make migrate
+```
+
+**Or run `flyway baseline`, then write the row it skipped.** This gives you a
+real `BASELINE` row. `flyway baseline` still creates the history table, empty:
+
+```bash
+docker compose run --rm flyway bash scripts/run-flyway.sh baseline -baselineVersion=5
+```
+
+Then insert the row Flyway would have written, in its own transaction, with
+`version` set to your baseline version:
+
+```sql
+INSERT INTO flyway_sample.flyway_schema_history
+  (installed_rank, version, description, type, script, checksum,
+   installed_by, execution_time, success)
+VALUES (1, '5', '<< Flyway Baseline >>', 'BASELINE',
+        '<< Flyway Baseline >>', NULL, 'admin', 0, true);
+```
+
+`make info` then shows V1 to V4 as `Below Baseline` and the baseline at 5,
+and `make migrate` applies V6 onwards.
 
 ## 11. Reporting problems
 
 The module source lives in the Flyway community database support project,
 and AWS republishes it as
 [`software.amazon.dsql:aurora-dsql-flyway-support`](https://github.com/awslabs/aurora-dsql-tools/tree/main/flyway).
-Bugs in the module itself, including limitations 3 and 10 above, belong
-upstream rather than in this sample's issue tracker.
+Bugs in the module itself, such as limitation 10 above, belong upstream
+rather than in this sample's issue tracker.
 
 Load one artifact, not both. The two carry the same `DatabaseType`, and the
 AWS README warns against putting both on the classpath.
