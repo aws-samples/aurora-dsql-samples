@@ -51,6 +51,10 @@ command -v aws >/dev/null 2>&1 || records_fail "the AWS CLI v2 is required"
 for tool in lsof ps curl; do command -v "$tool" >/dev/null 2>&1 || records_fail "$tool is required"; done
 
 # ---- private records for this run (never printed to the report) -----------------------------
+#   .private/cluster-id            cluster ID (26 lowercase letters and digits)
+#   .private/region                Region, for example us-east-1
+#   .private/identity-fingerprint  hex SHA-256 of "<account-id>|<role-name>" with no trailing newline in the hashed text
+#   .private/runtime.json          {"aws_profile": "<profile>"}
 [ -d "$PRIV" ] || records_fail ".private/ was not found in $ROOT"
 CLUSTER_ID="$(tr -d '[:space:]' 2>/dev/null < "$PRIV/cluster-id" || true)"
 REGION="$(tr -d '[:space:]' 2>/dev/null < "$PRIV/region" || true)"
@@ -79,7 +83,7 @@ t = re.sub(r"arn:aws[^\s\"\x27,)]*", "<ARN>", t)
 t = re.sub(r"[a-z0-9]{26}\.dsql[\w.-]*", "<CLUSTER_ENDPOINT>", t)
 t = t.replace(cid, "<CLUSTER_ID>")
 t = re.sub(r"(?<![\d.])\d{12}(?![\d.])", "<ACCOUNT_ID>", t)
-t = t.replace(prof, "<DEMO_PROFILE>").replace(home, "~")
+t = re.sub(r"(?<![\w-])%s(?![\w-])" % re.escape(prof), "<DEMO_PROFILE>", t.replace(home, "~"))
 sys.stdout.write(t)' "$CLUSTER_ID" "$PROFILE" "$HOME"
 }
 

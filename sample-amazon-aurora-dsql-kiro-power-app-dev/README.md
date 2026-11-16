@@ -57,7 +57,7 @@ Kiro tool-permission dialogs may appear separately from the consolidated approva
 
 Prompt 4 runs the cleanup script in check mode first so you can inspect the target. The script then requires the exact recorded cluster ID before deletion. Cluster deletion and its data loss are irreversible.
 
-Run the script from your working copy when Prompt 4 tells you to: `bash scripts/cleanup_demo.sh`. It reads the cluster details that Prompt 2 recorded in that working copy, so it does not work from another folder. Add `--check` to review the plan without changing anything.
+Run the script from your working copy when Prompt 4 tells you to: `bash scripts/cleanup_demo.sh`. It reads the cluster details that Prompt 2 recorded in that working copy. Add `--check` to review the plan without changing AWS resources, processes, or MCP configuration.
 
 ## Related resources
 
