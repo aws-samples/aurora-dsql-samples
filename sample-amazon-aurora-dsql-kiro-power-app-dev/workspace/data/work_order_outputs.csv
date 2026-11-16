@@ -1,0 +1,2 @@
+work_order_output_id,work_order_id,produced_lot_id,quantity_produced,completed_at,source_system,source_record_id
+f22f59a8-b28b-41e2-b78e-fffe075ecb35,17ace3d5-2521-4855-9871-83566f7eb2a8,9966777e-a4a1-4b02-b8a7-5bb10d580e90,5,2026-10-08T20:00:00Z,MES,MES-OUTPUT-WO-US-0990

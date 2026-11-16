@@ -1,0 +1,2 @@
+inventory_lot_id,lot_code,part_revision_id,plant_id,supplier_id,quantity_on_hand,quantity_reserved,inspection_disposition,expiration_date,received_at,source_system,source_record_id
+1391c025-6035-4763-a492-cc30ff839e67,LOT-CTRL-US-261015-A-DUP,360101a1-1252-4103-830a-3d8f72f88108,385d2388-920a-4524-ae38-2605499f120d,b067a62c-db8d-490c-aad4-53136dc5c760,10,0,RELEASED,2027-06-30,2026-10-15T14:00:00Z,WMS,WMS-LOT-CTRL-US-261015-A
