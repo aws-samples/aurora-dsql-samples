@@ -34,9 +34,12 @@ class ReservationsController < ApplicationController
   # Creates a new reservation with the provided parameters.
   # The total price is automatically calculated by the model callback.
   def create
-    @reservation = Reservation.new(reservation_params)
+    saved = Reservation.with_occ_retry do
+      @reservation = Reservation.new(reservation_params)
+      @reservation.save
+    end
 
-    if @reservation.save
+    if saved
       redirect_to @reservation, notice: "Reservation was successfully created."
     else
       render :new, status: :unprocessable_entity
@@ -53,7 +56,12 @@ class ReservationsController < ApplicationController
   #
   # Updates an existing reservation with the provided parameters.
   def update
-    if @reservation.update(reservation_params)
+    saved = Reservation.with_occ_retry do
+      @reservation.reload
+      @reservation.update(reservation_params)
+    end
+
+    if saved
       redirect_to @reservation, notice: "Reservation was successfully updated."
     else
       render :edit, status: :unprocessable_entity
@@ -65,7 +73,12 @@ class ReservationsController < ApplicationController
   # Removes a reservation. Active reservations cannot be deleted —
   # they must be cancelled or completed first.
   def destroy
-    if @reservation.destroy
+    destroyed = Reservation.with_occ_retry do
+      @reservation.reload
+      @reservation.destroy
+    end
+
+    if destroyed
       redirect_to reservations_path, notice: "Reservation was successfully deleted.", status: :see_other
     else
       redirect_to @reservation, alert: @reservation.errors.full_messages.join(", ")

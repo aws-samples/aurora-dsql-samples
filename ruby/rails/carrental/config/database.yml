@@ -2,8 +2,8 @@
 # Database Configuration for the Car Rental Application
 # =============================================================================
 #
-# Development & Test: SQLite3 (no external database required)
-# Production: Amazon Aurora DSQL (PostgreSQL-compatible with IAM auth)
+# Development: SQLite3 (no external database required)
+# Test & Production: Amazon Aurora DSQL (PostgreSQL-compatible with IAM auth)
 # =============================================================================
 
 # ---------------------------------------------------------------------------

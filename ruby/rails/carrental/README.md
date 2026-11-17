@@ -133,7 +133,7 @@ The application runs in **private subnets** behind a **NAT Gateway** for outboun
 | **UUID Primary Keys** | UUIDs distribute writes evenly across storage nodes. Generated in Ruby via `SecureRandom.uuid`. |
 | **Application-Layer Referential Integrity** | Relationships are enforced through Active Record `belongs_to`/`has_many` associations and presence validations. |
 | **IAM Token Authentication** | Instead of static passwords, the application generates short-lived IAM authentication tokens on each new database connection via the `aurora-dsql-ruby-pg` gem. |
-| **SQLite3 for Development** | Local development uses SQLite3 so developers don't need a PostgreSQL installation. The DSQL adapter initializer only activates when the PostgreSQL adapter is in use (production). |
+| **SQLite3 for Development** | Local development uses SQLite3 so developers don't need a PostgreSQL installation. The DSQL adapter initializer only activates when the PostgreSQL adapter is in use (test and production). |
 
 For Aurora DSQL best practices and SQL compatibility details, see the [Aurora DSQL documentation](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-postgresql-compatibility.html).
 
@@ -474,7 +474,7 @@ car-rental/
 │   └── views/                  # ERB templates
 ├── bin/                        # Rails binstubs + Docker entrypoint
 ├── config/
-│   ├── database.yml            # SQLite3 (dev/test) + Aurora DSQL (production)
+│   ├── database.yml            # SQLite3 (development) + Aurora DSQL (test, production)
 │   ├── environments/           # Development, test, production configs
 │   ├── initializers/
 │   │   └── dsql_adapter.rb     # IAM token auth + DSQL compatibility patches
