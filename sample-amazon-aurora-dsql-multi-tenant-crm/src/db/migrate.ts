@@ -52,7 +52,12 @@ const DDL_STATEMENTS: string[] = [
      tenant_id UUID NOT NULL REFERENCES tenants (id),
      account_id UUID NOT NULL REFERENCES accounts (id),
      name VARCHAR(200) NOT NULL,
-     stage VARCHAR(30) NOT NULL DEFAULT 'prospecting',
+     -- Aurora DSQL supports CHECK, so the valid-stage list is enforced here
+     -- as well as in the repository. Keep the two in step: VALID_STAGES in
+     -- src/repositories/opportunities.ts must match this list.
+     stage VARCHAR(30) NOT NULL DEFAULT 'prospecting'
+       CHECK (stage IN ('prospecting', 'qualification', 'proposal',
+                        'negotiation', 'closed_won', 'closed_lost')),
      amount NUMERIC(14,2) NOT NULL DEFAULT 0,
      close_date DATE,
      owner_id UUID REFERENCES users (id),
@@ -72,6 +77,12 @@ const DDL_STATEMENTS: string[] = [
   `CREATE INDEX ASYNC IF NOT EXISTS idx_users_tenant ON users (tenant_id)`,
   `CREATE INDEX ASYNC IF NOT EXISTS idx_accounts_tenant ON accounts (tenant_id)`,
   `CREATE INDEX ASYNC IF NOT EXISTS idx_contacts_tenant_acct ON contacts (tenant_id, account_id)`,
+  // A leading tenant_id groups one tenant's index entries, which is what keeps
+  // tenant-scoped reads selective. Whether that grouping becomes a hot spot
+  // depends on the suffix: the random UUIDs below keep each range divisible,
+  // but `stage` has six values, so this is a dense key sitting on the write
+  // path that exists to change stages. Fine at sample scale; for a large or
+  // write-heavy tenant, index a more selective column or add one.
   `CREATE INDEX ASYNC IF NOT EXISTS idx_opps_tenant_stage ON opportunities (tenant_id, stage)`,
   `CREATE INDEX ASYNC IF NOT EXISTS idx_activities_tenant_rel ON activities (tenant_id, related_id)`,
 ];
