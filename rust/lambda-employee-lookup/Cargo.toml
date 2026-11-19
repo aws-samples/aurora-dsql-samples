@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.94.1"
 
 [dependencies]
-lambda_http = "0.13"
+lambda_http = "1.3"
 aurora-dsql-sqlx-connector = { version = "0.2", features = ["pool"] }
 sqlx = { version = "0.9", features = ["runtime-tokio", "postgres"] }
 tokio = { version = "1", features = ["full"] }
