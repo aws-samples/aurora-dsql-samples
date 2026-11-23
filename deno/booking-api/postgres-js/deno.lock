@@ -4,7 +4,7 @@
     "jsr:@std/assert@^1.0.19": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "npm:@aws/aurora-dsql-postgresjs-connector@~0.3.1": "0.3.1_postgres@3.4.9",
-    "npm:fast-check@^4.10.2": "4.10.2"
+    "npm:fast-check@^4.10.3": "4.11.0"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -287,8 +287,8 @@
     "bowser@2.15.0": {
       "integrity": "sha512-xic6KSZglg/I4ymp45fdM4GWfYpBK79Fxd/TOvJktlaPgQqqDxvmGwOPZl2V0dyeS3Lj5c180bLhXF43iyAjZQ=="
     },
-    "fast-check@4.10.2": {
-      "integrity": "sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw==",
+    "fast-check@4.11.0": {
+      "integrity": "sha512-V4Uc238rhQOdQlc+Gz7JG6SGBtrWnWL8d/6RyiBeCMcNKMhF6DZ0KkAVHJSyNV5r4lA0PmIpZ6iRpTVoz4qjoA==",
       "dependencies": [
         "pure-rand"
       ]
@@ -307,7 +307,7 @@
     "dependencies": [
       "jsr:@std/assert@^1.0.19",
       "npm:@aws/aurora-dsql-postgresjs-connector@~0.3.1",
-      "npm:fast-check@^4.10.2"
+      "npm:fast-check@^4.10.3"
     ]
   }
 }
