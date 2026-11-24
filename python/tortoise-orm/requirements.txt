@@ -1,6 +1,6 @@
 # Application dependencies
 tortoise-orm[asyncpg]==1.1.9
-boto3>=1.44.7
+boto3>=1.44.9
 
 # Testing
 pytest>=8.0.0
