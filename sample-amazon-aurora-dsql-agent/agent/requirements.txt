@@ -2,7 +2,7 @@ strands-agents[a2a]
 strands-agents-tools
 bedrock-agentcore
 bedrock-agentcore-starter-toolkit
-mcp
+mcp<2
 httpx
 boto3
 requests
