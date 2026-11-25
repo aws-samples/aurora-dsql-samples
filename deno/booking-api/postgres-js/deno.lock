@@ -4,7 +4,7 @@
     "jsr:@std/assert@^1.0.19": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "npm:@aws/aurora-dsql-postgresjs-connector@~0.3.1": "0.3.1_postgres@3.4.9",
-    "npm:fast-check@^4.10.3": "4.11.0"
+    "npm:fast-check@^4.11.0": "4.11.0"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -307,7 +307,7 @@
     "dependencies": [
       "jsr:@std/assert@^1.0.19",
       "npm:@aws/aurora-dsql-postgresjs-connector@~0.3.1",
-      "npm:fast-check@^4.10.3"
+      "npm:fast-check@^4.11.0"
     ]
   }
 }
