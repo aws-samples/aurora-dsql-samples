@@ -24,7 +24,7 @@ dependencies {
     implementation("software.amazon.dsql:aurora-dsql-jdbc-connector:1.5.1")
     // AWS SDK dependencies for SDK-only example (ExampleWithNoConnector)
     implementation("software.amazon.awssdk:dsql:2.59.8")
-    implementation("org.postgresql:postgresql:42.7.14")
+    implementation("org.postgresql:postgresql:42.7.15")
 
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
